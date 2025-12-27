@@ -1,3 +1,7 @@
+<?php 
+session_start();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,6 +59,37 @@
             font-size: 20px;
             color: white;
         }
+        /* User box container */
+.user-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Rectangle for user's first name */
+.user-name {
+    padding: 8px 16px;
+    background: #f0f2ff;
+    color: #333;
+    border-radius: 6px;
+    font-weight: 600;
+    border: 2px solid #667eea;
+}
+
+/* Logout button */
+.logout-btn {
+    padding: 8px 14px;
+    background: #ff5e5e;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.logout-btn:hover {
+    background: #e94b4b;
+}
+
 
         .nav-menu {
             display: flex;
@@ -469,7 +504,27 @@
                 <li><a href="#doctors" class="nav-link">Our Doctors</a></li>
                 <li><a href="#learning" class="nav-link">Learning Center</a></li>
                 <li><a href="#help" class="nav-link">Help & Support</a></li>
-                <li><a href="login.php" class="login-btn">Login</a></li>
+            <?php if (isset($_SESSION['user_name'])): ?>
+
+    <li class="user-box">
+        <span class="user-name">
+            👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?>
+        </span>
+
+        <a href="logout.php" class="logout-btn">
+            Logout
+        </a>
+    </li>
+
+<?php else: ?>
+
+    <li>
+        <a href="login.php" class="login-btn">Login</a>
+    </li>
+
+<?php endif; ?>
+
+
             </ul>
         </div>
     </nav>
@@ -671,10 +726,7 @@
             });
         });
 
-        // Check if user is logged in, redirect to dashboard
-        if (sessionStorage.getItem('isLoggedIn') === 'true') {
-            window.location.href = 'dashboard.php';
-        }
+       
     </script>
 </body>
 </html>

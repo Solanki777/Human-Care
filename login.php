@@ -39,7 +39,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 echo "<script>
                         alert('Login successful! Redirecting...');
-                        window.location.href = 'public.html';
+                        window.location.href = 'public.php';
                       </script>";
                 exit;
             } else {
