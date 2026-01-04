@@ -81,6 +81,9 @@ $userName = $_SESSION['user_name'];
         </form>
     </aside>
 
+    <!-- Overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
     <!-- Main Content -->
     <main class="main-content">
         <!-- Dashboard Section -->
@@ -132,7 +135,7 @@ $userName = $_SESSION['user_name'];
 
         <section id="feedback" class="section hidden">
             <h2>Help & Feedback</h2>
-            <p>We’re here to help! Contact our support team anytime.</p>
+            <p>We're here to help! Contact our support team anytime.</p>
         </section>
     </main>
 
@@ -149,11 +152,31 @@ $userName = $_SESSION['user_name'];
                 link.classList.remove('active');
             });
             event.target.closest('.nav-link').classList.add('active');
+            
+            // Close sidebar on mobile after selecting a section
+            if (window.innerWidth <= 768) {
+                toggleSidebar();
+            }
         }
 
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
         }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const menuToggle = document.querySelector('.menu-toggle');
+            
+            if (window.innerWidth <= 768 && sidebar.classList.contains('active')) {
+                if (!sidebar.contains(event.target) && !menuToggle.contains(event.target)) {
+                    toggleSidebar();
+                }
+            }
+        });
     </script>
 </body>
 </html>

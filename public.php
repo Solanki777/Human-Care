@@ -8,534 +8,70 @@ session_start();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Human Care - Healthcare for Everyone</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-        }
-
-        /* Navigation Bar */
-        .navbar {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 15px 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-
-        .nav-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: white;
-        }
-        /* User box container */
-.user-box {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-/* Rectangle for user's first name */
-.user-name {
-    padding: 8px 16px;
-    background: #f0f2ff;
-    color: #333;
-    border-radius: 6px;
-    font-weight: 600;
-    border: 2px solid #667eea;
-}
-
-/* Logout button */
-.logout-btn {
-    padding: 8px 14px;
-    background: #ff5e5e;
-    color: white;
-    border-radius: 6px;
-    text-decoration: none;
-    font-weight: 600;
-}
-
-.logout-btn:hover {
-    background: #e94b4b;
-}
-
-
-        .nav-menu {
-            display: flex;
-            list-style: none;
-            gap: 30px;
-            align-items: center;
-        }
-
-        .nav-link {
-            color: #333;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-
-        .nav-link:hover {
-            color: #667eea;
-        }
-
-        .login-btn {
-            padding: 10px 25px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            text-decoration: none;
-            transition: transform 0.2s;
-        }
-
-        .login-btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .mobile-toggle {
-            display: none;
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #667eea;
-        }
-
-        /* Hero Section */
-        .hero {
-            background: linear-gradient(rgba(102, 126, 234, 0.9), rgba(118, 75, 162, 0.9)),
-                        url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1200');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            padding: 100px 20px;
-            text-align: center;
-            color: white;
-        }
-
-        .hero h1 {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-
-        .hero p {
-            font-size: 20px;
-            margin-bottom: 30px;
-            opacity: 0.95;
-        }
-
-        .hero-btn {
-            padding: 15px 40px;
-            background: white;
-            color: #667eea;
-            border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .hero-btn:hover {
-            transform: scale(1.05);
-        }
-
-        /* Sections */
-        .section {
-            max-width: 1200px;
-            margin: 60px auto;
-            padding: 0 20px;
-        }
-
-        .section-header {
-            text-align: center;
-            margin-bottom: 50px;
-        }
-
-        .section-header h2 {
-            font-size: 36px;
-            color: #333;
-            margin-bottom: 15px;
-        }
-
-        .section-header p {
-            font-size: 18px;
-            color: #666;
-        }
-
-        /* Find Hospitals */
-        .map-container {
-            background: white;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-
-        .map-placeholder {
-            width: 100%;
-            height: 500px;
-            background: linear-gradient(rgba(224, 231, 255, 0.9), rgba(243, 231, 255, 0.9)),
-                        url('https://images.unsplash.com/photo-1524661135-423995f22d0b?w=1200');
-            background-size: cover;
-            background-position: center;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            color: #667eea;
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .hospital-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 30px;
-        }
-
-        .hospital-card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            border-left: 4px solid #667eea;
-            transition: transform 0.3s;
-        }
-
-        .hospital-card:hover {
-            transform: translateX(5px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .hospital-card h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 18px;
-        }
-
-        .hospital-card p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-
-        .distance {
-            color: #667eea;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        /* Doctors Section */
-        .doctors-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-        }
-
-        .doctor-card {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            text-align: center;
-            transition: transform 0.3s;
-        }
-
-        .doctor-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-
-        .doctor-avatar {
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
-            margin: 0 auto 20px;
-        }
-
-        .doctor-card h3 {
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 20px;
-        }
-
-        .specialty {
-            color: #667eea;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-
-        .experience {
-            color: #666;
-            font-size: 14px;
-        }
-
-        /* Learning Section */
-        .learning-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-        }
-
-        .learning-card {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            transition: transform 0.3s;
-            cursor: pointer;
-        }
-
-        .learning-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-
-        .learning-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-
-        .learning-card h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 20px;
-        }
-
-        .learning-card p {
-            color: #666;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .course-count {
-            display: inline-block;
-            margin-top: 15px;
-            padding: 6px 14px;
-            background: linear-gradient(135deg, #e0e7ff 0%, #f3e7ff 100%);
-            color: #667eea;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        /* Help Section */
-        .help-section {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-
-        .help-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 25px;
-        }
-
-        .help-card {
-            padding: 25px;
-            background: #f8f9fa;
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .help-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .help-card h3 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-
-        .help-card p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 15px;
-        }
-
-        .help-btn {
-            padding: 10px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: transform 0.2s;
-        }
-
-        .help-btn:hover {
-            transform: scale(1.05);
-        }
-
-        /* Footer */
-        .footer {
-            background: #2c3e50;
-            color: white;
-            padding: 40px 20px;
-            text-align: center;
-        }
-
-        .footer p {
-            margin-bottom: 10px;
-        }
-
-        .social-links {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .social-links a {
-            color: white;
-            font-size: 24px;
-            transition: color 0.3s;
-        }
-
-        .social-links a:hover {
-            color: #667eea;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .mobile-toggle {
-                display: block;
-            }
-
-            .nav-menu {
-                display: none;
-                position: absolute;
-                top: 70px;
-                left: 0;
-                right: 0;
-                background: white;
-                flex-direction: column;
-                padding: 20px;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            }
-
-            .nav-menu.active {
-                display: flex;
-            }
-
-            .hero h1 {
-                font-size: 32px;
-            }
-
-            .hero p {
-                font-size: 16px;
-            }
-
-            .section-header h2 {
-                font-size: 28px;
-            }
-
-            .map-placeholder {
-                height: 350px;
-            }
-
-            .hospital-grid,
-            .doctors-grid,
-            .learning-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="styles/public.css">
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="logo">
-                <div class="logo-icon">❤️</div>
-                HUMAN CARE
-            </div>
-            <button class="mobile-toggle" onclick="toggleMenu()">☰</button>
-            <ul class="nav-menu" id="navMenu">
-                <li><a href="#hospitals" class="nav-link">Find Hospitals</a></li>
-                <li><a href="#doctors" class="nav-link">Our Doctors</a></li>
-                <li><a href="#learning" class="nav-link">Learning Center</a></li>
-                <li><a href="#help" class="nav-link">Help & Support</a></li>
-            <?php if (isset($_SESSION['user_name'])): ?>
+    <!-- Menu Toggle Button -->
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
-    <li class="user-box">
-        <span class="user-name">
-            👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-        </span>
-
-        <a href="logout.php" class="logout-btn">
-            Logout
-        </a>
-    </li>
-
-<?php else: ?>
-
-    <li>
-        <a href="login.php" class="login-btn">Login</a>
-    </li>
-
-<?php endif; ?>
-
-
-            </ul>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">❤️</div>
+            HUMAN CARE
         </div>
-    </nav>
+
+        <ul class="sidebar-nav">
+            <li><a href="#home" onclick="closeSidebarMobile()">
+                <span class="nav-icon">🏠</span>
+                <span>Home</span>
+            </a></li>
+            <li><a href="#hospitals" onclick="closeSidebarMobile()">
+                <span class="nav-icon">🗺️</span>
+                <span>Find Hospitals</span>
+            </a></li>
+            <li><a href="#doctors" onclick="closeSidebarMobile()">
+                <span class="nav-icon">👨‍⚕️</span>
+                <span>Our Doctors</span>
+            </a></li>
+            <li><a href="#learning" onclick="closeSidebarMobile()">
+                <span class="nav-icon">📚</span>
+                <span>Learning Center</span>
+            </a></li>
+            <li><a href="#help" onclick="closeSidebarMobile()">
+                <span class="nav-icon">💬</span>
+                <span>Help & Support</span>
+            </a></li>
+        </ul>
+
+        <div class="user-box-sidebar">
+            <?php if (isset($_SESSION['user_name'])): ?>
+                <div class="user-name-sidebar">
+                    👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?>
+                </div>
+                <a href="dashboard.php" class="login-btn-sidebar">Go to Dashboard</a>
+                <a href="logout.php" class="logout-btn-sidebar">Logout</a>
+            <?php else: ?>
+                <a href="login.php" class="login-btn-sidebar">Login / Sign Up</a>
+            <?php endif; ?>
+        </div>
+    </aside>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <!-- Hero Section -->
-    <section class="hero">
+    <section class="hero" id="home">
         <h1>Welcome to HUMAN CARE</h1>
         <p>Your health, our priority. Quality healthcare accessible to everyone.</p>
-        <a href="login.php" class="hero-btn">Get Started</a>
+        <?php if (!isset($_SESSION['user_name'])): ?>
+            <a href="login.php" class="hero-btn">Get Started</a>
+        <?php else: ?>
+            <a href="dashboard.php" class="hero-btn">Go to Dashboard</a>
+        <?php endif; ?>
     </section>
-      <!-- Doctors Section -->
+
+    <!-- Doctors Section -->
     <section class="section" id="doctors">
         <div class="section-header">
             <h2>👨‍⚕️ Meet Our Expert Doctors</h2>
@@ -569,7 +105,7 @@ session_start();
         </div>
     </section>
 
-      <!-- Learning Center Section -->
+    <!-- Learning Center Section -->
     <section class="section" id="learning">
         <div class="section-header">
             <h2>📚 Health Education Center</h2>
@@ -577,7 +113,7 @@ session_start();
         </div>
         <div class="learning-grid">
             <div class="learning-card">
-                <div class="learning-icon">🏥</div>
+                <div class="learning-icon">🥇</div>
                 <h3>First Aid Basics</h3>
                 <p>Essential first aid techniques for emergencies and how to respond in critical situations</p>
                 <span class="course-count">12 Free Lessons</span>
@@ -615,7 +151,6 @@ session_start();
         </div>
     </section>
 
-
     <!-- Find Hospitals Section -->
     <section class="section" id="hospitals">
         <div class="section-header">
@@ -634,28 +169,26 @@ session_start();
                     <p>📍 123 Main Street, Rajkot</p>
                     <p>☎️ +91 1234-567890</p>
                     <p>⏰ 24/7 Emergency Services</p>
-                    <p class="distance">📏 2.5 km away</p>
+                    <p class="distance">📍 2.5 km away</p>
                 </div>
                 <div class="hospital-card">
                     <h3>🏥 Human Care Emergency Center</h3>
                     <p>📍 456 Park Avenue, Rajkot</p>
                     <p>☎️ +91 1234-567891</p>
                     <p>⏰ 24/7 Emergency Services</p>
-                    <p class="distance">📏 4.2 km away</p>
+                    <p class="distance">📍 4.2 km away</p>
                 </div>
                 <div class="hospital-card">
                     <h3>🏥 Human Care Specialty Clinic</h3>
                     <p>📍 789 Health Boulevard, Rajkot</p>
                     <p>☎️ +91 1234-567892</p>
                     <p>⏰ Mon-Sat: 9 AM - 8 PM</p>
-                    <p class="distance">📏 5.8 km away</p>
+                    <p class="distance">📍 5.8 km away</p>
                 </div>
             </div>
         </div>
     </section>
 
-  
-  
     <!-- Help & Support Section -->
     <section class="section" id="help">
         <div class="section-header">
@@ -705,9 +238,18 @@ session_start();
     </footer>
 
     <script>
-        function toggleMenu() {
-            const navMenu = document.getElementById('navMenu');
-            navMenu.classList.toggle('active');
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        function closeSidebarMobile() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
         }
 
         // Smooth scrolling for navigation links
@@ -720,13 +262,9 @@ session_start();
                         behavior: 'smooth',
                         block: 'start'
                     });
-                    // Close mobile menu if open
-                    document.getElementById('navMenu').classList.remove('active');
                 }
             });
         });
-
-       
     </script>
 </body>
 </html>
