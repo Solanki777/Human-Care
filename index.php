@@ -26,10 +26,10 @@ session_start();
                 <span class="nav-icon">🏠</span>
                 <span>Home</span>
             </a></li>
-            <li><a href="hospitals.php">
+            <!-- <li><a href="hospitals.php">
                 <span class="nav-icon">🗺️</span>
                 <span>Find Hospitals</span>
-            </a></li>
+            </a></li> -->
             <li><a href="doctors.php">
                 <span class="nav-icon">👨‍⚕️</span>
                 <span>Our Doctors</span>
@@ -78,11 +78,11 @@ session_start();
         <div class="container">
             <h2>Our Services</h2>
             <div class="services-grid">
-                <a href="hospitals.php" class="service-card">
+                <!-- <a href="hospitals.php" class="service-card">
                     <div class="service-icon">🏥</div>
                     <h3>Find Hospitals</h3>
                     <p>Locate nearest hospitals and healthcare facilities</p>
-                </a>
+                </a> -->
                 <a href="doctors.php" class="service-card">
                     <div class="service-icon">👨‍⚕️</div>
                     <h3>Our Doctors</h3>

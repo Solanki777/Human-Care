@@ -26,10 +26,10 @@ session_start();
                 <span class="nav-icon">🏠</span>
                 <span>Home</span>
             </a></li>
-            <li><a href="hospitals.php">
+            <!-- <li><a href="hospitals.php">
                 <span class="nav-icon">🗺️</span>
                 <span>Find Hospitals</span>
-            </a></li>
+            </a></li> -->
             <li><a href="doctors.php" class="active">
                 <span class="nav-icon">👨‍⚕️</span>
                 <span>Our Doctors</span>

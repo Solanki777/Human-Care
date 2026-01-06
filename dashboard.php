@@ -48,12 +48,12 @@ $userName = $_SESSION['user_name'];
                         <span>Dashboard</span>
                     </a>
                 </li>
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a class="nav-link" onclick="showSection('hospitals')">
                         <span class="nav-icon">🗺️</span>
                         <span>Find Hospitals</span>
                     </a>
-                </li>
+                </li> -->
                 <li class="nav-item">
                     <a class="nav-link" onclick="showSection('doctors')">
                         <span class="nav-icon">👨‍⚕️</span>
