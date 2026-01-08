@@ -1,57 +1,84 @@
 <?php
 session_start();
 
-// === DATABASE CONNECTION ===
-$servername = "localhost:3306";
-$username = "root"; // default XAMPP username
-$password = "";     // default XAMPP password (blank)
-$dbname = "human_care";
+$servername = "localhost";
+$username = "root";
+$password = "";
 
-$conn = new mysqli($servername, $username, $password, $dbname);
-if ($conn->connect_error) {
-    die("❌ Database connection failed: " . $conn->connect_error);
+/* ===============================
+   CONNECT DATABASES
+================================ */
+$connPatient = new mysqli($servername, $username, $password, "human_care_patients");
+$connDoctor  = new mysqli($servername, $username, $password, "human_care_doctors");
+
+if ($connPatient->connect_error || $connDoctor->connect_error) {
+    die("Database connection failed");
 }
 
 $error = "";
 
-// === HANDLE LOGIN FORM SUBMISSION ===
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $email = trim($_POST["email"]);
-    $password = trim($_POST["password"]);
 
-    // Validate input
-    if (empty($email) || empty($password)) {
+    $email = trim($_POST["email"]);
+    $passwordInput = trim($_POST["password"]);
+
+    if (empty($email) || empty($passwordInput)) {
         $error = "Please fill in both fields.";
-    } else {
-        $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    } 
+    else {
+
+        /* ===============================
+           CHECK PATIENT LOGIN
+        =============================== */
+        $stmt = $connPatient->prepare("SELECT * FROM patients WHERE email = ?");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
 
         if ($result->num_rows === 1) {
-            $user = $result->fetch_assoc();
+            $patient = $result->fetch_assoc();
 
-            if (password_verify($password, $user["password"])) {
-                // ✅ Correct password
-                $_SESSION["user_id"] = $user["id"];
-                $_SESSION["user_name"] = $user["first_name"];
-                $_SESSION["logged_in"] = true;
+            if (password_verify($passwordInput, $patient["password"])) {
 
-                echo "<script>
-                        alert('Login successful! Redirecting...');
-                        window.location.href = 'index.php';
-                      </script>";
+                $_SESSION["user_id"]   = $patient["id"];
+                $_SESSION["user_name"] = $patient["first_name"];
+                $_SESSION["user_type"] = "patient";
+
+                header("Location: index.php");
                 exit;
-            } else {
-                $error = "Incorrect password!";
             }
-        } else {
-            $error = "No account found with that email.";
         }
-        $stmt->close();
+
+        /* ===============================
+           CHECK DOCTOR LOGIN
+        =============================== */
+        $stmt = $connDoctor->prepare("SELECT * FROM doctors WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows === 1) {
+            $doctor = $result->fetch_assoc();
+
+            if (password_verify($passwordInput, $doctor["password"])) {
+
+                $_SESSION["user_id"]   = $doctor["id"];
+                $_SESSION["user_name"] = $doctor["first_name"];
+                $_SESSION["user_type"] = "doctor";
+
+                header("Location: doctor_dashboard.php");
+                exit;
+            }
+        }
+
+        /* ===============================
+           INVALID LOGIN
+        =============================== */
+        $error = "Invalid email or password.";
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -73,7 +100,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <li>Easy appointment booking</li>
                 <li>24/7 online consultation</li>
                 <li>Access medical records anytime</li>
-                <li>Find doctors & specialists</li>
                 <li>Prescription management</li>
                 <li>Health tracking & reminders</li>
             </ul>
@@ -116,7 +142,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 <div class="divider">or</div>
 
-                <div class="signup-link">
+               <div class="signup-link">
                     Don't have an account? <a href="register.php">Sign Up Now</a>
                 </div>
             </form>

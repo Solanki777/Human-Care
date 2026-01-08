@@ -1,21 +1,15 @@
 <?php
-// === DATABASE CONNECTION ===
 $servername = "localhost";
-$username = "root"; // default for XAMPP
-$password = "";     // default for XAMPP (keep empty)
-$dbname = "human_care";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-if ($conn->connect_error) {
-    die("❌ Database connection failed: " . $conn->connect_error);
-}
+$username = "root";
+$password = "";
 
 $success = "";
 $emailError = "";
 $passwordError = "";
+$fileError = "";
 
-// === FORM SUBMISSION HANDLING ===
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
     $firstName = $_POST["firstName"];
     $lastName = $_POST["lastName"];
     $email = $_POST["email"];
@@ -23,44 +17,115 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $dob = $_POST["dob"];
     $gender = $_POST["gender"];
     $bloodGroup = $_POST["bloodGroup"];
-    $password = $_POST["password"];
+    $passwordInput = $_POST["password"];
     $confirmPassword = $_POST["confirmPassword"];
+    $userType = $_POST["userType"]; // patient / doctor
 
-    // check password match
-    if ($password !== $confirmPassword) {
+    $licenseNumber = $_POST["licenseNumber"] ?? null;
+    $specialization = $_POST["specialization"] ?? null;
+    $verificationPhoto = null;
+
+    if ($passwordInput !== $confirmPassword) {
         $passwordError = "Passwords do not match!";
     } else {
-        // check if email already exists
-        $check = $conn->prepare("SELECT * FROM users WHERE email = ?");
-        $check->bind_param("s", $email);
-        $check->execute();
-        $result = $check->get_result();
 
-        if ($result->num_rows > 0) {
-            $emailError = "This email is already registered!";
-        } else {
-            // hash password
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        /* ===============================
+           PATIENT REGISTRATION
+        =============================== */
+        if ($userType === "patient") {
 
-            $stmt = $conn->prepare("INSERT INTO users (first_name, last_name, email, phone, dob, gender, blood_group, password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssssssss", $firstName, $lastName, $email, $phone, $dob, $gender, $bloodGroup, $hashedPassword);
+            $conn = new mysqli($servername, $username, $password, "human_care_patients");
 
-            if ($stmt->execute()) {
-                $success = "Registration successful! Redirecting to login...";
-                echo "<script>
-                        setTimeout(() => {
-                            window.location.href = 'login.php';
-                        }, 2000);
-                      </script>";
+            $check = $conn->prepare("SELECT id FROM patients WHERE email = ?");
+            $check->bind_param("s", $email);
+            $check->execute();
+            $check->store_result();
+
+            if ($check->num_rows > 0) {
+                $emailError = "Email already registered!";
             } else {
-                $success = "❌ Registration failed. Try again!";
+
+                $hashedPassword = password_hash($passwordInput, PASSWORD_DEFAULT);
+
+                $stmt = $conn->prepare("
+                    INSERT INTO patients 
+                    (first_name, last_name, email, phone, dob, gender, blood_group, password)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+
+                $stmt->bind_param(
+                    "ssssssss",
+                    $firstName, $lastName, $email, $phone,
+                    $dob, $gender, $bloodGroup, $hashedPassword
+                );
+
+                $stmt->execute();
+                $success = "Patient registration successful! Redirecting to login...";
+
+                echo "<script>
+                        setTimeout(() => window.location.href='login.php', 2500);
+                      </script>";
             }
-            $stmt->close();
         }
-        $check->close();
+
+        /* ===============================
+           DOCTOR REGISTRATION
+        =============================== */
+        if ($userType === "doctor") {
+
+            $conn = new mysqli($servername, $username, $password, "human_care_doctors");
+
+            $check = $conn->prepare("SELECT id FROM doctors WHERE email = ?");
+            $check->bind_param("s", $email);
+            $check->execute();
+            $check->store_result();
+
+            if ($check->num_rows > 0) {
+                $emailError = "Email already registered!";
+            } else {
+
+                // Upload verification image
+                if (!empty($_FILES["verificationPhoto"]["name"])) {
+
+                    $uploadDir = "uploads/doctor_verification/";
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0777, true);
+                    }
+
+                    $fileName = uniqid() . "_" . basename($_FILES["verificationPhoto"]["name"]);
+                    $uploadPath = $uploadDir . $fileName;
+
+                    move_uploaded_file($_FILES["verificationPhoto"]["tmp_name"], $uploadPath);
+                    $verificationPhoto = $uploadPath;
+                }
+
+                $hashedPassword = password_hash($passwordInput, PASSWORD_DEFAULT);
+
+                $stmt = $conn->prepare("
+                    INSERT INTO doctors
+                    (first_name, last_name, email, phone, dob, gender, password, specialty, license_number)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+
+                $stmt->bind_param(
+                    "sssssssss",
+                    $firstName, $lastName, $email, $phone,
+                    $dob, $gender, $hashedPassword,
+                    $specialization, $licenseNumber
+                );
+
+                $stmt->execute();
+                $success = "Doctor registration successful! Redirecting to login...";
+
+                echo "<script>
+                        setTimeout(() => window.location.href='login.php', 3000);
+                      </script>";
+            }
+        }
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -69,6 +134,80 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Human Care - Register</title>
     <link rel="stylesheet" href="styles/register.css">
+    <style>
+        .user-type-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .user-type-option {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .user-type-option:hover {
+            border-color: #4CAF50;
+            background-color: #f9f9f9;
+        }
+        .user-type-option.active {
+            border-color: #4CAF50;
+            background-color: #e8f5e9;
+        }
+        .user-type-option input[type="radio"] {
+            display: none;
+        }
+        .user-type-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        .user-type-title {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .user-type-desc {
+            font-size: 13px;
+            color: #666;
+        }
+        .doctor-fields {
+            display: none;
+        }
+        .doctor-fields.show {
+            display: block;
+        }
+        .file-upload-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+        .file-upload-label {
+            display: block;
+            padding: 12px;
+            background-color: #f5f5f5;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .file-upload-label:hover {
+            background-color: #e8f5e9;
+            border-color: #4CAF50;
+        }
+        .file-upload-input {
+            position: absolute;
+            left: -9999px;
+        }
+        .file-name {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #4CAF50;
+        }
+    </style>
 </head>
 <body>
     <div class="register-container">
@@ -82,7 +221,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <li>Easy appointment booking</li>
                 <li>24/7 online consultation</li>
                 <li>Access medical records anytime</li>
-                <li>Find doctors & specialists</li>
+                <!-- <li>Find doctors & specialists</li> -->
                 <li>Prescription management</li>
                 <li>Health tracking & reminders</li>
                 <li>Free health education resources</li>
@@ -105,7 +244,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <div class="success-message" id="successMessage">Registration successful! Redirecting to login...</div>
             <?php endif; ?>
 
-            <form id="registerForm" method="POST" action="">
+            <form id="registerForm" method="POST" action="" enctype="multipart/form-data">
+                <!-- User Type Selection -->
+                <div class="user-type-selector">
+                    <label class="user-type-option active" id="patientOption">
+                        <input type="radio" name="userType" value="patient" checked>
+                        <div class="user-type-icon">🧑‍⚕️</div>
+                        <div class="user-type-title">Patient</div>
+                        <div class="user-type-desc">Book appointments & consult doctors</div>
+                    </label>
+                    
+                    <label class="user-type-option" id="doctorOption">
+                        <input type="radio" name="userType" value="doctor">
+                        <div class="user-type-icon">👨‍⚕️</div>
+                        <div class="user-type-title">Doctor</div>
+                        <div class="user-type-desc">Provide medical services & consultations</div>
+                    </label>
+                </div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label for="firstName">First Name <span class="required">*</span></label>
@@ -179,6 +335,49 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     </div>
                 </div>
 
+                <!-- Doctor-specific fields -->
+                <div id="doctorFields" class="doctor-fields">
+                    <div class="form-group">
+                        <label for="licenseNumber">Medical License Number <span class="required">*</span></label>
+                        <div class="input-wrapper">
+                            <input type="text" id="licenseNumber" name="licenseNumber" placeholder="Enter your medical license number">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="specialization">Specialization <span class="required">*</span></label>
+                        <div class="input-wrapper">
+                            <select id="specialization" name="specialization">
+                                <option value="">Select Specialization</option>
+                                <option value="general">General Physician</option>
+                                <option value="cardiology">Cardiology</option>
+                                <option value="dermatology">Dermatology</option>
+                                <option value="neurology">Neurology</option>
+                                <option value="orthopedics">Orthopedics</option>
+                                <option value="pediatrics">Pediatrics</option>
+                                <option value="psychiatry">Psychiatry</option>
+                                <option value="surgery">Surgery</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="verificationPhoto">Verification Photo (License/ID) <span class="required">*</span></label>
+                        <div class="file-upload-wrapper">
+                            <label for="verificationPhoto" class="file-upload-label">
+                                📷 Click to upload your medical license or ID photo
+                                <div class="file-name" id="fileName"></div>
+                            </label>
+                            <input type="file" id="verificationPhoto" name="verificationPhoto" class="file-upload-input" accept="image/*">
+                        </div>
+                        <small style="color: #666; font-size: 12px;">Upload a clear photo of your medical license (JPG, PNG - Max 5MB)</small>
+                        <?php if ($fileError): ?>
+                            <div class="error-message" style="display:block; margin-top: 8px;"><?php echo $fileError; ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="password">Password <span class="required">*</span></label>
                     <div class="input-wrapper">
@@ -213,5 +412,43 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </form>
         </div>
     </div>
+
+    <script>
+        // User type selection
+        const patientOption = document.getElementById('patientOption');
+        const doctorOption = document.getElementById('doctorOption');
+        const doctorFields = document.getElementById('doctorFields');
+        const licenseInput = document.getElementById('licenseNumber');
+        const specializationInput = document.getElementById('specialization');
+        const photoInput = document.getElementById('verificationPhoto');
+
+        patientOption.addEventListener('click', function() {
+            patientOption.classList.add('active');
+            doctorOption.classList.remove('active');
+            doctorFields.classList.remove('show');
+            
+            // Remove required attribute from doctor fields
+            licenseInput.removeAttribute('required');
+            specializationInput.removeAttribute('required');
+            photoInput.removeAttribute('required');
+        });
+
+        doctorOption.addEventListener('click', function() {
+            doctorOption.classList.add('active');
+            patientOption.classList.remove('active');
+            doctorFields.classList.add('show');
+            
+            // Add required attribute to doctor fields
+            licenseInput.setAttribute('required', 'required');
+            specializationInput.setAttribute('required', 'required');
+            photoInput.setAttribute('required', 'required');
+        });
+
+        // File upload display
+        photoInput.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name;
+            document.getElementById('fileName').textContent = fileName ? `Selected: ${fileName}` : '';
+        });
+    </script>
 </body>
 </html>
