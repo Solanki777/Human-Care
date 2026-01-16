@@ -1,43 +1,47 @@
 <?php
 $servername = "localhost";
-$username = "root";
-$password = "";
+$username   = "root";
+$password   = "";
 
-$success = "";
-$emailError = "";
+$success       = "";
+$emailError    = "";
 $passwordError = "";
-$fileError = "";
+$fileError     = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $firstName = $_POST["firstName"];
-    $lastName = $_POST["lastName"];
-    $email = $_POST["email"];
-    $phone = $_POST["phone"];
-    $dob = $_POST["dob"];
-    $gender = $_POST["gender"];
-    $bloodGroup = $_POST["bloodGroup"];
-    $passwordInput = $_POST["password"];
+    $firstName       = $_POST["firstName"];
+    $lastName        = $_POST["lastName"];
+    $email           = $_POST["email"];
+    $phone           = $_POST["phone"];
+    $dob             = $_POST["dob"];
+    $gender          = $_POST["gender"];
+    $bloodGroup      = $_POST["bloodGroup"];
+    $passwordInput   = $_POST["password"];
     $confirmPassword = $_POST["confirmPassword"];
-    $userType = $_POST["userType"]; // patient / doctor
+    $userType        = $_POST["userType"]; // patient / doctor
 
-    $licenseNumber = $_POST["licenseNumber"] ?? null;
-    $specialization = $_POST["specialization"] ?? null;
+    $licenseNumber   = $_POST["licenseNumber"] ?? null;
+    $specialization  = $_POST["specialization"] ?? null;
     $verificationPhoto = null;
 
+    // ===============================
+    // PASSWORD CHECK
+    // ===============================
     if ($passwordInput !== $confirmPassword) {
         $passwordError = "Passwords do not match!";
     } else {
 
-        /* ===============================
+        /* =====================================================
            PATIENT REGISTRATION
-        =============================== */
+        ===================================================== */
         if ($userType === "patient") {
 
             $conn = new mysqli($servername, $username, $password, "human_care_patients");
-            
 
-            $check = $conn->prepare("SELECT id FROM patients WHERE email = ?");
+            $check = $conn->prepare(
+                "SELECT id FROM patients WHERE email = ?"
+            );
             $check->bind_param("s", $email);
             $check->execute();
             $check->store_result();
@@ -48,44 +52,73 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 $hashedPassword = password_hash($passwordInput, PASSWORD_DEFAULT);
 
-                $stmt = $conn->prepare("
-                    INSERT INTO patients 
+                $stmt = $conn->prepare(
+                    "INSERT INTO patients
                     (first_name, last_name, email, phone, dob, gender, blood_group, password)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ");
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                );
 
                 $stmt->bind_param(
                     "ssssssss",
-                    $firstName, $lastName, $email, $phone,
-                    $dob, $gender, $bloodGroup, $hashedPassword
+                    $firstName,
+                    $lastName,
+                    $email,
+                    $phone,
+                    $dob,
+                    $gender,
+                    $bloodGroup,
+                    $hashedPassword
                 );
 
                 $stmt->execute();
-                $success = "Patient registration successful! Redirecting to login...";
 
+                $success = "Patient registration successful! Redirecting to login...";
                 echo "<script>
                         setTimeout(() => window.location.href='login.php', 2500);
                       </script>";
             }
         }
 
-        /* ===============================
+        /* =====================================================
            DOCTOR REGISTRATION
-        =============================== */
+        ===================================================== */
         if ($userType === "doctor") {
 
             $conn = new mysqli($servername, $username, $password, "human_care_doctors");
 
-            $check = $conn->prepare("SELECT id FROM doctors WHERE email = ?");
-            $check->bind_param("s", $email);
+            // ✅ CHECK EMAIL OR LICENSE DUPLICATE
+            $check = $conn->prepare(
+                "SELECT id, email, license_number
+                 FROM doctors
+                 WHERE email = ? OR license_number = ?"
+            );
+            $check->bind_param("ss", $email, $licenseNumber);
             $check->execute();
             $check->store_result();
 
             if ($check->num_rows > 0) {
-                $emailError = "Email already registered!";
+
+                $checkDetail = $conn->prepare(
+                    "SELECT email, license_number
+                     FROM doctors
+                     WHERE email = ? OR license_number = ?
+                     LIMIT 1"
+                );
+                $checkDetail->bind_param("ss", $email, $licenseNumber);
+                $checkDetail->execute();
+                $resultDetail = $checkDetail->get_result()->fetch_assoc();
+
+                if ($resultDetail["email"] === $email) {
+                    $emailError = "This email is already registered!";
+                } else {
+                    $emailError = "This medical license number is already registered!";
+                }
+
             } else {
 
-                // Upload verification image
+                // ===============================
+                // UPLOAD VERIFICATION IMAGE
+                // ===============================
                 if (!empty($_FILES["verificationPhoto"]["name"])) {
 
                     $uploadDir = "uploads/doctor_verification/";
@@ -93,31 +126,41 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         mkdir($uploadDir, 0777, true);
                     }
 
-                    $fileName = uniqid() . "_" . basename($_FILES["verificationPhoto"]["name"]);
+                    $fileName   = uniqid() . "_" . basename($_FILES["verificationPhoto"]["name"]);
                     $uploadPath = $uploadDir . $fileName;
 
-                    move_uploaded_file($_FILES["verificationPhoto"]["tmp_name"], $uploadPath);
+                    move_uploaded_file(
+                        $_FILES["verificationPhoto"]["tmp_name"],
+                        $uploadPath
+                    );
+
                     $verificationPhoto = $uploadPath;
                 }
 
                 $hashedPassword = password_hash($passwordInput, PASSWORD_DEFAULT);
 
-                $stmt = $conn->prepare("
-                    INSERT INTO doctors
+                $stmt = $conn->prepare(
+                    "INSERT INTO doctors
                     (first_name, last_name, email, phone, dob, gender, password, specialty, license_number)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ");
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                );
 
                 $stmt->bind_param(
                     "sssssssss",
-                    $firstName, $lastName, $email, $phone,
-                    $dob, $gender, $hashedPassword,
-                    $specialization, $licenseNumber
+                    $firstName,
+                    $lastName,
+                    $email,
+                    $phone,
+                    $dob,
+                    $gender,
+                    $hashedPassword,
+                    $specialization,
+                    $licenseNumber
                 );
 
                 $stmt->execute();
-                $success = "Doctor registration successful! Redirecting to login...";
 
+                $success = "Doctor registration successful! Redirecting to login...";
                 echo "<script>
                         setTimeout(() => window.location.href='login.php', 3000);
                       </script>";
@@ -127,9 +170,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 }
 ?>
 
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -141,6 +184,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             gap: 15px;
             margin-bottom: 25px;
         }
+
         .user-type-option {
             flex: 1;
             padding: 20px;
@@ -150,41 +194,51 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             cursor: pointer;
             transition: all 0.3s ease;
         }
+
         .user-type-option:hover {
             border-color: #4CAF50;
             background-color: #f9f9f9;
         }
+
         .user-type-option.active {
             border-color: #4CAF50;
             background-color: #e8f5e9;
         }
+
         .user-type-option input[type="radio"] {
             display: none;
         }
+
         .user-type-icon {
             font-size: 40px;
             margin-bottom: 10px;
         }
+
         .user-type-title {
             font-weight: 600;
             font-size: 18px;
             margin-bottom: 5px;
         }
+
         .user-type-desc {
             font-size: 13px;
             color: #666;
         }
+
         .doctor-fields {
             display: none;
         }
+
         .doctor-fields.show {
             display: block;
         }
+
         .file-upload-wrapper {
             position: relative;
             display: inline-block;
             width: 100%;
         }
+
         .file-upload-label {
             display: block;
             padding: 12px;
@@ -195,14 +249,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             cursor: pointer;
             transition: all 0.3s ease;
         }
+
         .file-upload-label:hover {
             background-color: #e8f5e9;
             border-color: #4CAF50;
         }
+
         .file-upload-input {
             position: absolute;
             left: -9999px;
         }
+
         .file-name {
             margin-top: 8px;
             font-size: 13px;
@@ -210,6 +267,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     </style>
 </head>
+
 <body>
     <div class="register-container">
         <div class="register-left">
@@ -254,7 +312,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <div class="user-type-title">Patient</div>
                         <div class="user-type-desc">Book appointments & consult doctors</div>
                     </label>
-                    
+
                     <label class="user-type-option" id="doctorOption">
                         <input type="radio" name="userType" value="doctor">
                         <div class="user-type-icon">👨‍⚕️</div>
@@ -341,7 +399,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <div class="form-group">
                         <label for="licenseNumber">Medical License Number <span class="required">*</span></label>
                         <div class="input-wrapper">
-                            <input type="text" id="licenseNumber" name="licenseNumber" placeholder="Enter your medical license number">
+                            <input type="text" id="licenseNumber" name="licenseNumber"
+                                placeholder="Enter your medical license number">
                         </div>
                     </div>
 
@@ -364,17 +423,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     </div>
 
                     <div class="form-group">
-                        <label for="verificationPhoto">Verification Photo (License/ID) <span class="required">*</span></label>
+                        <label for="verificationPhoto">Verification Photo (License/ID) <span
+                                class="required">*</span></label>
                         <div class="file-upload-wrapper">
                             <label for="verificationPhoto" class="file-upload-label">
                                 📷 Click to upload your medical license or ID photo
                                 <div class="file-name" id="fileName"></div>
                             </label>
-                            <input type="file" id="verificationPhoto" name="verificationPhoto" class="file-upload-input" accept="image/*">
+                            <input type="file" id="verificationPhoto" name="verificationPhoto" class="file-upload-input"
+                                accept="image/*">
                         </div>
-                        <small style="color: #666; font-size: 12px;">Upload a clear photo of your medical license (JPG, PNG - Max 5MB)</small>
+                        <small style="color: #666; font-size: 12px;">Upload a clear photo of your medical license (JPG,
+                            PNG - Max 5MB)</small>
                         <?php if ($fileError): ?>
-                            <div class="error-message" style="display:block; margin-top: 8px;"><?php echo $fileError; ?></div>
+                            <div class="error-message" style="display:block; margin-top: 8px;"><?php echo $fileError; ?>
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -382,14 +445,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <div class="form-group">
                     <label for="password">Password <span class="required">*</span></label>
                     <div class="input-wrapper">
-                        <input type="password" id="password" name="password" placeholder="Create a strong password" required>
+                        <input type="password" id="password" name="password" placeholder="Create a strong password"
+                            required>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="confirmPassword">Confirm Password <span class="required">*</span></label>
                     <div class="input-wrapper">
-                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Re-enter your password" required>
+                        <input type="password" id="confirmPassword" name="confirmPassword"
+                            placeholder="Re-enter your password" required>
                     </div>
                     <?php if ($passwordError): ?>
                         <div class="error-message" style="display:block;"><?php echo $passwordError; ?></div>
@@ -423,22 +488,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         const specializationInput = document.getElementById('specialization');
         const photoInput = document.getElementById('verificationPhoto');
 
-        patientOption.addEventListener('click', function() {
+        patientOption.addEventListener('click', function () {
             patientOption.classList.add('active');
             doctorOption.classList.remove('active');
             doctorFields.classList.remove('show');
-            
+
             // Remove required attribute from doctor fields
             licenseInput.removeAttribute('required');
             specializationInput.removeAttribute('required');
             photoInput.removeAttribute('required');
         });
 
-        doctorOption.addEventListener('click', function() {
+        doctorOption.addEventListener('click', function () {
             doctorOption.classList.add('active');
             patientOption.classList.remove('active');
             doctorFields.classList.add('show');
-            
+
             // Add required attribute to doctor fields
             licenseInput.setAttribute('required', 'required');
             specializationInput.setAttribute('required', 'required');
@@ -446,10 +511,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         });
 
         // File upload display
-        photoInput.addEventListener('change', function(e) {
+        photoInput.addEventListener('change', function (e) {
             const fileName = e.target.files[0]?.name;
             document.getElementById('fileName').textContent = fileName ? `Selected: ${fileName}` : '';
         });
     </script>
 </body>
+
 </html>
