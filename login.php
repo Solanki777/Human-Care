@@ -16,6 +16,7 @@ if ($connPatient->connect_error || $connDoctor->connect_error) {
 }
 
 $error = "";
+$verification_message = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
@@ -46,35 +47,54 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 header("Location: dashboard.php");
                 exit;
+            } else {
+                $error = "Invalid email or password.";
+            }
+        } else {
+
+            /* ===============================
+               CHECK DOCTOR LOGIN
+            =============================== */
+            $stmt = $connDoctor->prepare("SELECT * FROM doctors WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if ($result->num_rows === 1) {
+                $doctor = $result->fetch_assoc();
+
+                if (password_verify($passwordInput, $doctor["password"])) {
+
+                    // ✅ CHECK IF DOCTOR IS VERIFIED
+                    if ($doctor["verification_status"] !== "approved" || $doctor["is_verified"] != 1) {
+                        
+                        if ($doctor["verification_status"] === "pending") {
+                            $verification_message = "pending";
+                            $error = "⏳ Your account is pending admin verification. Please wait for approval email.";
+                        } elseif ($doctor["verification_status"] === "rejected") {
+                            $verification_message = "rejected";
+                            $error = "❌ Your account has been rejected. Reason: " . ($doctor["rejection_reason"] ?? "Not specified");
+                        } else {
+                            $error = "Your account is not verified yet. Please contact support.";
+                        }
+                        
+                    } else {
+                        // Doctor is verified, allow login
+                        $_SESSION["user_id"]   = $doctor["id"];
+                        $_SESSION["user_name"] = $doctor["first_name"];
+                        $_SESSION["user_type"] = "doctor";
+
+                        header("Location: doctor_dashboard.php");
+                        exit;
+                    }
+                } else {
+                    $error = "Invalid email or password.";
+                }
+            } else {
+                $error = "Invalid email or password.";
             }
         }
-
-        /* ===============================
-           CHECK DOCTOR LOGIN
-        =============================== */
-        $stmt = $connDoctor->prepare("SELECT * FROM doctors WHERE email = ?");
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        if ($result->num_rows === 1) {
-            $doctor = $result->fetch_assoc();
-
-            if (password_verify($passwordInput, $doctor["password"])) {
-
-                $_SESSION["user_id"]   = $doctor["id"];
-                $_SESSION["user_name"] = $doctor["first_name"];
-                $_SESSION["user_type"] = "doctor";
-
-                header("Location: doctor_dashboard.php");
-                exit;
-            }
-        }
-
-        /* ===============================
-           INVALID LOGIN
-        =============================== */
-        $error = "Invalid email or password.";
+        $stmt->close();
     }
 }
 ?>
@@ -87,6 +107,39 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Human Care - Login</title>
     <link rel="stylesheet" href="styles/login.css">
+    <style>
+        .verification-box {
+            background: #e0e7ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .verification-box strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .verification-box a {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .verification-box a:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body>
     <div class="login-container">
@@ -112,14 +165,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
 
             <?php if ($error): ?>
-                <div class="error-message"><?php echo $error; ?></div>
+                <div class="error-message" style="display: block; background: #fee; color: #c33; padding: 12px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #c33; font-size: 14px;">
+                    <?php echo $error; ?>
+                </div>
+                
+                <?php if ($verification_message === "pending"): ?>
+                    <div class="verification-box">
+                        <strong>Check Your Verification Status</strong>
+                        <p>You can check your registration status and get updates about your application.</p>
+                        <a href="check_status.php">🔍 Check Status Now</a>
+                    </div>
+                <?php elseif ($verification_message === "rejected"): ?>
+                    <div class="verification-box">
+                        <strong>Need Help?</strong>
+                        <p>Contact our support team or check your status for more details.</p>
+                        <a href="check_status.php">🔍 View Full Details</a>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
 
             <form id="loginForm" method="POST" action="">
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <div class="input-wrapper">
-                        <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                        <input type="email" id="email" name="email" placeholder="Enter your email" required value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
                     </div>
                 </div>
 
@@ -143,7 +212,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <div class="divider">or</div>
 
                <div class="signup-link">
-                    Don't have an account? <a href="register.php">Sign Up Now</a>
+                    Don't have an account? <a href="register.php">Sign Up Now</a><br>
+                    <small style="color: #666; margin-top: 10px; display: inline-block;">
+                        Doctor? <a href="check_status.php" style="color: #667eea;">Check verification status</a>
+                    </small>
                 </div>
             </form>
         </div>

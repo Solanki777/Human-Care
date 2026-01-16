@@ -1,8 +1,21 @@
+-- =====================================================
+-- DROP EXISTING DATABASES IF THEY EXIST
+-- =====================================================
+DROP DATABASE IF EXISTS human_care_admin;
+DROP DATABASE IF EXISTS human_care_patients;
+DROP DATABASE IF EXISTS human_care_doctors;
+
+-- =====================================================
+-- CREATE DATABASES
+-- =====================================================
+CREATE DATABASE human_care_admin;
+CREATE DATABASE human_care_patients;
+CREATE DATABASE human_care_doctors;
 
 -- =====================================================
 -- ADMIN DATABASE
 -- =====================================================
-
+USE human_care_admin;
 
 -- Admin Users Table
 CREATE TABLE admins (
@@ -34,7 +47,7 @@ CREATE TABLE activity_logs (
     FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE SET NULL
 );
 
--- Insert Default Admin (Username: admin, Password: admin123)
+-- Insert Default Admin (Username: admin, Password: password123)
 INSERT INTO admins (username, email, password, full_name, role) VALUES
 ('admin', 'admin@humancare.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'super_admin'),
 ('manager', 'manager@humancare.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Hospital Manager', 'admin');
@@ -47,6 +60,10 @@ INSERT INTO system_settings (setting_key, setting_value) VALUES
 ('require_doctor_verification', '1'),
 ('require_patient_verification', '0');
 
+-- =====================================================
+-- PATIENTS DATABASE
+-- =====================================================
+USE human_care_patients;
 
 -- Patients Table
 CREATE TABLE patients (
@@ -61,8 +78,8 @@ CREATE TABLE patients (
     password VARCHAR(255) NOT NULL,
     address TEXT,
     emergency_contact VARCHAR(15),
-    is_verified BOOLEAN DEFAULT FALSE,
-    verification_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    is_verified BOOLEAN DEFAULT TRUE,
+    verification_status ENUM('pending', 'approved', 'rejected') DEFAULT 'approved',
     verified_by INT,
     verified_at TIMESTAMP NULL,
     registered_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -94,9 +111,12 @@ CREATE TABLE patient_appointments (
 INSERT INTO patients (first_name, last_name, email, phone, dob, gender, blood_group, password, address, emergency_contact, is_verified, verification_status) VALUES
 ('John', 'Doe', 'john@example.com', '+911234567890', '1990-01-15', 'male', 'O+', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '123 Main Street, Rajkot', '+919876543210', TRUE, 'approved'),
 ('Jane', 'Smith', 'jane@example.com', '+919876543211', '1992-05-20', 'female', 'A+', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '456 Park Avenue, Rajkot', '+911234567890', TRUE, 'approved'),
-('Amit', 'Patel', 'amit@example.com', '+919876543212', '1988-08-12', 'male', 'B+', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '789 Garden Road, Rajkot', '+919876543213', FALSE, 'pending');
+('Amit', 'Patel', 'amit@example.com', '+919876543212', '1988-08-12', 'male', 'B+', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '789 Garden Road, Rajkot', '+919876543213', TRUE, 'approved');
 
-
+-- =====================================================
+-- DOCTORS DATABASE
+-- =====================================================
+USE human_care_doctors;
 
 -- Doctors Table
 CREATE TABLE doctors (
@@ -109,10 +129,10 @@ CREATE TABLE doctors (
     gender VARCHAR(10) NOT NULL,
     password VARCHAR(255) NOT NULL,
     specialty VARCHAR(100) NOT NULL,
-    qualification VARCHAR(255) NOT NULL,
-    experience_years INT NOT NULL,
+    qualification VARCHAR(255) DEFAULT 'MBBS',
+    experience_years INT DEFAULT 0,
     license_number VARCHAR(50) NOT NULL UNIQUE,
-    consultation_fee DECIMAL(10, 2),
+    consultation_fee DECIMAL(10, 2) DEFAULT 1000.00,
     about TEXT,
     available_days VARCHAR(100),
     available_time VARCHAR(50),
@@ -129,7 +149,7 @@ CREATE TABLE doctors (
 CREATE TABLE doctor_appointments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     doctor_id INT NOT NULL,
-    patient_id INT NOT NULL,
+    patient_id INT DEFAULT NULL,
     patient_name VARCHAR(100) NOT NULL,
     patient_email VARCHAR(100) NOT NULL,
     patient_phone VARCHAR(15) NOT NULL,
@@ -152,29 +172,146 @@ CREATE TABLE doctor_schedule (
 );
 
 -- Insert Sample Doctors (Password: password123)
+-- Pre-approved doctors
+INSERT INTO doctors (first_name, last_name, email, phone, dob, gender, password, specialty, qualification, experience_years, license_number, consultation_fee, about, available_days, available_time, hospital_affiliation, is_verified, verification_status, verified_at) VALUES
+('Rajesh', 'Kumar', 'dr.rajesh@humancare.com', '+911234567800', '1980-03-10', 'male', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Cardiologist', 'MBBS, MD - Cardiology', 15, 'MED-12345', 1500.00, 'Expert in heart diseases, cardiac surgery, and preventive cardiology', 'Mon-Sat', '9 AM - 5 PM', 'Human Care Central Hospital', TRUE, 'approved', NOW()),
+('Sarah', 'Patel', 'dr.sarah@humancare.com', '+911234567801', '1985-07-22', 'female', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Pediatrician', 'MBBS, DCH - Pediatrics', 12, 'MED-12346', 1000.00, 'Specialized in child health, vaccinations, and developmental care', 'Mon-Sat', '10 AM - 6 PM', 'Human Care Central Hospital', TRUE, 'approved', NOW()),
+('Karthik', 'Reddy', 'dr.karthik@humancare.com', '+911234567804', '1982-09-25', 'male', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Neurologist', 'MBBS, DM - Neurology', 14, 'MED-12349', 2000.00, 'Expert in brain and nervous system disorders, stroke care', 'Mon-Sat', '9 AM - 5 PM', 'City Medical Center', TRUE, 'approved', NOW());
+
+-- Pending verification doctors
 INSERT INTO doctors (first_name, last_name, email, phone, dob, gender, password, specialty, qualification, experience_years, license_number, consultation_fee, about, available_days, available_time, hospital_affiliation, is_verified, verification_status) VALUES
-('Rajesh', 'Kumar', 'dr.rajesh@humancare.com', '+911234567800', '1980-03-10', 'male', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Cardiologist', 'MBBS, MD - Cardiology', 15, 'MED-12345', 1500.00, 'Expert in heart diseases, cardiac surgery, and preventive cardiology', 'Mon-Sat', '9 AM - 5 PM', 'Human Care Central Hospital', TRUE, 'approved'),
-('Sarah', 'Patel', 'dr.sarah@humancare.com', '+911234567801', '1985-07-22', 'female', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Pediatrician', 'MBBS, DCH - Pediatrics', 12, 'MED-12346', 1000.00, 'Specialized in child health, vaccinations, and developmental care', 'Mon-Sat', '10 AM - 6 PM', 'Human Care Central Hospital', TRUE, 'approved'),
-('Amit', 'Shah', 'dr.amit@humancare.com', '+911234567802', '1978-11-05', 'male', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Orthopedic Surgeon', 'MBBS, MS - Orthopedics', 18, 'MED-12347', 1800.00, 'Expert in bone, joint, and spine surgeries with advanced techniques', 'Mon-Fri', '8 AM - 4 PM', 'Human Care Central Hospital', FALSE, 'pending'),
-('Priya', 'Sharma', 'dr.priya@humancare.com', '+911234567803', '1987-04-18', 'female', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Dermatologist', 'MBBS, MD - Dermatology', 10, 'MED-12348', 1200.00, 'Specialized in skin disorders, cosmetic procedures, and hair care', 'Tue-Sun', '11 AM - 7 PM', 'Human Care Specialty Clinic', FALSE, 'rejected'),
-('Karthik', 'Reddy', 'dr.karthik@humancare.com', '+911234567804', '1982-09-25', 'male', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Neurologist', 'MBBS, DM - Neurology', 14, 'MED-12349', 2000.00, 'Expert in brain and nervous system disorders, stroke care', 'Mon-Sat', '9 AM - 5 PM', 'City Medical Center', TRUE, 'approved');
+('Amit', 'Shah', 'dr.amit@humancare.com', '+911234567802', '1978-11-05', 'male', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Orthopedic Surgeon', 'MBBS, MS - Orthopedics', 18, 'MED-12347', 1800.00, 'Expert in bone, joint, and spine surgeries with advanced techniques', 'Mon-Fri', '8 AM - 4 PM', 'Human Care Central Hospital', FALSE, 'pending');
+
+-- Rejected doctor
+INSERT INTO doctors (first_name, last_name, email, phone, dob, gender, password, specialty, qualification, experience_years, license_number, consultation_fee, about, available_days, available_time, hospital_affiliation, is_verified, verification_status, rejection_reason, verified_at) VALUES
+('Priya', 'Sharma', 'dr.priya@humancare.com', '+911234567803', '1987-04-18', 'female', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Dermatologist', 'MBBS, MD - Dermatology', 10, 'MED-12348', 1200.00, 'Specialized in skin disorders, cosmetic procedures, and hair care', 'Tue-Sun', '11 AM - 7 PM', 'Human Care Specialty Clinic', FALSE, 'rejected', 'License verification failed. Please provide valid medical license documentation.', NOW());
 
 -- =====================================================
 -- TEST CREDENTIALS
 -- =====================================================
 /*
-ADMIN LOGIN:
+===========================================
+ADMIN LOGIN CREDENTIALS:
+===========================================
 Username: admin
 Password: password123
+Email: admin@humancare.com
+Access: Full admin panel access
 
-PATIENT LOGIN:
-Email: john@example.com (Approved)
-Email: amit@example.com (Pending - needs verification)
+Username: manager
 Password: password123
+Email: manager@humancare.com
+Access: Limited admin access
 
-DOCTOR LOGIN:
-Email: dr.rajesh@humancare.com (Approved)
-Email: dr.amit@humancare.com (Pending - needs verification)
-Email: dr.priya@humancare.com (Rejected)
+===========================================
+PATIENT LOGIN CREDENTIALS:
+===========================================
+All patients can login immediately (no verification required)
+
+Email: john@example.com
 Password: password123
+Status: Approved (Active)
+
+Email: jane@example.com
+Password: password123
+Status: Approved (Active)
+
+Email: amit@example.com
+Password: password123
+Status: Approved (Active)
+
+===========================================
+DOCTOR LOGIN CREDENTIALS:
+===========================================
+
+✅ APPROVED DOCTORS (Can Login):
+--------------------------------
+Email: dr.rajesh@humancare.com
+Password: password123
+Specialty: Cardiologist
+Status: ✓ Verified & Approved
+
+Email: dr.sarah@humancare.com
+Password: password123
+Specialty: Pediatrician
+Status: ✓ Verified & Approved
+
+Email: dr.karthik@humancare.com
+Password: password123
+Specialty: Neurologist
+Status: ✓ Verified & Approved
+
+⏳ PENDING DOCTORS (Cannot Login - Awaiting Admin Approval):
+------------------------------------------------------------
+Email: dr.amit@humancare.com
+Password: password123
+Specialty: Orthopedic Surgeon
+Status: ⏳ Pending Admin Verification
+Message: "Your account is pending admin verification. Please wait for approval email."
+
+❌ REJECTED DOCTORS (Cannot Login):
+------------------------------------
+Email: dr.priya@humancare.com
+Password: password123
+Specialty: Dermatologist
+Status: ❌ Rejected
+Reason: License verification failed
+Message: Shows rejection reason on login attempt
+
+===========================================
+WORKFLOW TESTING:
+===========================================
+
+1. DOCTOR REGISTRATION:
+   - Register new doctor at register.php
+   - Doctor data saved with verification_status = 'pending'
+   - Doctor CANNOT login yet
+
+2. ADMIN VERIFICATION:
+   - Admin logs in at admin_login.php
+   - Views pending doctors at admin_doctors.php
+   - Admin approves or rejects the application
+   
+3. ON APPROVAL:
+   - Doctor status changes to 'approved'
+   - is_verified set to TRUE
+   - Email sent to doctor with login credentials
+   - Doctor can NOW login at login.php
+   
+4. ON REJECTION:
+   - Doctor status changes to 'rejected'
+   - rejection_reason saved in database
+   - Email sent to doctor with rejection reason
+   - Doctor CANNOT login (shows rejection message)
+
+===========================================
+DATABASE STRUCTURE:
+===========================================
+
+human_care_admin:
+  - admins (admin accounts)
+  - system_settings (site configuration)
+  - activity_logs (admin action logs)
+
+human_care_patients:
+  - patients (patient accounts - auto-approved)
+  - patient_medical_history
+  - patient_appointments
+
+human_care_doctors:
+  - doctors (doctor accounts - requires approval)
+  - doctor_appointments
+  - doctor_schedule
+
+===========================================
+IMPORTANT NOTES:
+===========================================
+
+1. All passwords are hashed using bcrypt
+2. Default password for all accounts: password123
+3. Patients are auto-approved upon registration
+4. Doctors MUST be approved by admin before login
+5. Email notifications sent on approval/rejection
+6. Admin can track all actions via activity_logs
+
 */

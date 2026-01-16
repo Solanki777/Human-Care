@@ -14,16 +14,170 @@ if (isset($_POST['action'])) {
     $action = $_POST['action'];
     
     if ($action === 'approve') {
+        // Get doctor details for email
+        $doctor_stmt = $conn->prepare("SELECT email, first_name, last_name FROM doctors WHERE id = ?");
+        $doctor_stmt->bind_param("i", $doctor_id);
+        $doctor_stmt->execute();
+        $doctor_info = $doctor_stmt->get_result()->fetch_assoc();
+        $doctor_stmt->close();
+        
+        // Update doctor status
         $stmt = $conn->prepare("UPDATE doctors SET is_verified = 1, verification_status = 'approved', verified_by = ?, verified_at = NOW() WHERE id = ?");
         $stmt->bind_param("ii", $_SESSION['admin_id'], $doctor_id);
         $stmt->execute();
-        $message = "Doctor approved successfully!";
+        
+        // Send approval email
+        $to = $doctor_info['email'];
+        $subject = "Account Approved - Human Care Hospital";
+        $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
+        
+        $email_message = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+                .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+                .credentials { background: white; padding: 15px; border-left: 4px solid #667eea; margin: 20px 0; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h1>✅ Account Approved!</h1>
+                </div>
+                <div class='content'>
+                    <p>Dear Dr. $doctor_name,</p>
+                    
+                    <p>Congratulations! Your doctor account has been approved by our admin team.</p>
+                    
+                    <p>You can now login to your dashboard and start providing medical services through our platform.</p>
+                    
+                    <div class='credentials'>
+                        <strong>Your Login Credentials:</strong><br>
+                        Email: $to<br>
+                        Password: (The password you set during registration)
+                    </div>
+                    
+                    <p style='text-align: center;'>
+                        <a href='http://localhost/humancare/login.php' class='button'>Login Now</a>
+                    </p>
+                    
+                    <p><strong>Next Steps:</strong></p>
+                    <ul>
+                        <li>Login to your doctor dashboard</li>
+                        <li>Complete your profile information</li>
+                        <li>Set your availability schedule</li>
+                        <li>Start accepting patient appointments</li>
+                    </ul>
+                    
+                    <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+                    
+                    <p>Best regards,<br>
+                    <strong>Human Care Hospital Team</strong></p>
+                </div>
+                <div class='footer'>
+                    <p>This is an automated email. Please do not reply to this message.</p>
+                    <p>© 2025 Human Care Hospital. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+        
+        // Email headers
+        $headers = "MIME-Version: 1.0" . "\r\n";
+        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+        $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
+        
+        // Send email
+        if (mail($to, $subject, $email_message, $headers)) {
+            $message = "Doctor approved successfully! Email notification sent to " . $to;
+        } else {
+            $message = "Doctor approved successfully! (Email notification failed to send)";
+        }
+        
     } elseif ($action === 'reject') {
         $reason = $_POST['reason'] ?? 'Not specified';
+        
+        // Get doctor details for email
+        $doctor_stmt = $conn->prepare("SELECT email, first_name, last_name FROM doctors WHERE id = ?");
+        $doctor_stmt->bind_param("i", $doctor_id);
+        $doctor_stmt->execute();
+        $doctor_info = $doctor_stmt->get_result()->fetch_assoc();
+        $doctor_stmt->close();
+        
+        // Update doctor status
         $stmt = $conn->prepare("UPDATE doctors SET is_verified = 0, verification_status = 'rejected', rejection_reason = ?, verified_by = ?, verified_at = NOW() WHERE id = ?");
         $stmt->bind_param("sii", $reason, $_SESSION['admin_id'], $doctor_id);
         $stmt->execute();
-        $message = "Doctor rejected!";
+        
+        // Send rejection email
+        $to = $doctor_info['email'];
+        $subject = "Account Verification Update - Human Care Hospital";
+        $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
+        
+        $email_message = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .reason-box { background: white; padding: 15px; border-left: 4px solid #ff6b6b; margin: 20px 0; }
+                .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h1>Account Verification Update</h1>
+                </div>
+                <div class='content'>
+                    <p>Dear Dr. $doctor_name,</p>
+                    
+                    <p>Thank you for your interest in joining Human Care Hospital.</p>
+                    
+                    <p>After careful review, we regret to inform you that your doctor account application has not been approved at this time.</p>
+                    
+                    <div class='reason-box'>
+                        <strong>Reason:</strong><br>
+                        $reason
+                    </div>
+                    
+                    <p><strong>What you can do:</strong></p>
+                    <ul>
+                        <li>Review the rejection reason carefully</li>
+                        <li>Contact our support team for clarification</li>
+                        <li>Reapply with updated/corrected information</li>
+                    </ul>
+                    
+                    <p>If you believe this decision was made in error or if you have additional documentation to support your application, please contact our support team at support@humancare.com</p>
+                    
+                    <p>Best regards,<br>
+                    <strong>Human Care Hospital Team</strong></p>
+                </div>
+                <div class='footer'>
+                    <p>This is an automated email. Please do not reply to this message.</p>
+                    <p>© 2025 Human Care Hospital. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+        
+        $headers = "MIME-Version: 1.0" . "\r\n";
+        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+        $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
+        
+        mail($to, $subject, $email_message, $headers);
+        $message = "Doctor rejected! Email notification sent.";
     }
     
     // Log activity
@@ -362,7 +516,7 @@ $rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_statu
                             <form method="POST" style="display: inline;">
                                 <input type="hidden" name="doctor_id" value="<?php echo $doctor['id']; ?>">
                                 <input type="hidden" name="action" value="approve">
-                                <button type="submit" class="btn btn-approve">✓ Approve</button>
+                                <button type="submit" class="btn btn-approve">✓ Approve & Send Email</button>
                             </form>
                             <button class="btn btn-reject" onclick="showRejectModal(<?php echo $doctor['id']; ?>)">✗ Reject</button>
                         </div>
@@ -465,7 +619,7 @@ $rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_statu
                 <label>Reason for rejection:</label>
                 <textarea name="reason" rows="4" required placeholder="Enter reason..."></textarea>
                 <div style="display: flex; gap: 10px;">
-                    <button type="submit" class="btn btn-reject">Reject</button>
+                    <button type="submit" class="btn btn-reject">Reject & Send Email</button>
                     <button type="button" class="btn" onclick="closeRejectModal()">Cancel</button>
                 </div>
             </form>

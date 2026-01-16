@@ -35,6 +35,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if ($userType === "patient") {
 
             $conn = new mysqli($servername, $username, $password, "human_care_patients");
+            
 
             $check = $conn->prepare("SELECT id FROM patients WHERE email = ?");
             $check->bind_param("s", $email);
