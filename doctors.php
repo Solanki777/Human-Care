@@ -321,9 +321,9 @@ $total_doctors = $conn->query("SELECT COUNT(*) as count FROM doctors WHERE is_ve
                                     <a href="login.php" class="btn-primary">Login to Book</a>
                                 <?php endif; ?>
                                 
-                                <button class="btn-secondary" onclick="viewDoctorProfile(<?php echo $doctor['id']; ?>)">
+                                <a href="doctor_profile.php?id=<?php echo $doctor['id']; ?>" class="btn-secondary" style="text-decoration: none; display: block;">
                                     View Profile
-                                </button>
+                                </a>
                             </div>
                         </div>
                     <?php endwhile; ?>
