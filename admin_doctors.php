@@ -519,6 +519,7 @@ $rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_statu
                                 <button type="submit" class="btn btn-approve">✓ Approve & Send Email</button>
                             </form>
                             <button class="btn btn-reject" onclick="showRejectModal(<?php echo $doctor['id']; ?>)">✗ Reject</button>
+                            <a href="admin_edit_doctor.php?id=<?php echo $doctor['id']; ?>" class="btn btn-view">✏️ Edit Details</a>
                         </div>
                     </div>
                 <?php endwhile; ?>
@@ -557,6 +558,9 @@ $rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_statu
                                 <span class="detail-label">✓ Verified:</span>
                                 <span class="detail-value"><?php echo date('M d, Y', strtotime($doctor['verified_at'])); ?></span>
                             </div>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <a href="admin_edit_doctor.php?id=<?php echo $doctor['id']; ?>" class="btn btn-view">✏️ Edit Details</a>
                         </div>
                     </div>
                 <?php endwhile; ?>
