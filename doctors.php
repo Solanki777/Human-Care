@@ -12,8 +12,8 @@ if ($conn->connect_error) {
 $specialty_filter = isset($_GET['specialty']) ? $_GET['specialty'] : 'all';
 $search_query = isset($_GET['search']) ? trim($_GET['search']) : '';
 
-// Build query for verified doctors only
-$query = "SELECT * FROM doctors WHERE is_verified = 1 AND verification_status = 'approved'";
+// Build query for verified doctors only (excluding deleted)
+$query = "SELECT * FROM doctors WHERE is_verified = 1 AND verification_status = 'approved' AND (is_deleted = 0 OR is_deleted IS NULL)";
 
 // Add specialty filter
 if ($specialty_filter !== 'all') {
@@ -32,12 +32,12 @@ $query .= " ORDER BY specialty, first_name";
 
 $doctors_result = $conn->query($query);
 
-// Get all unique specialties for filter dropdown
-$specialties_query = "SELECT DISTINCT specialty FROM doctors WHERE is_verified = 1 AND verification_status = 'approved' ORDER BY specialty";
+// Get all unique specialties for filter dropdown (excluding deleted)
+$specialties_query = "SELECT DISTINCT specialty FROM doctors WHERE is_verified = 1 AND verification_status = 'approved' AND (is_deleted = 0 OR is_deleted IS NULL) ORDER BY specialty";
 $specialties_result = $conn->query($specialties_query);
 
-// Get total verified doctors count
-$total_doctors = $conn->query("SELECT COUNT(*) as count FROM doctors WHERE is_verified = 1 AND verification_status = 'approved'")->fetch_assoc()['count'];
+// Get total verified doctors count (excluding deleted)
+$total_doctors = $conn->query("SELECT COUNT(*) as count FROM doctors WHERE is_verified = 1 AND verification_status = 'approved' AND (is_deleted = 0 OR is_deleted IS NULL)")->fetch_assoc()['count'];
 ?>
 
 <!DOCTYPE html>
@@ -314,11 +314,11 @@ $total_doctors = $conn->query("SELECT COUNT(*) as count FROM doctors WHERE is_ve
                             
                             <div class="doctor-actions">
                                 <?php if (isset($_SESSION['user_name']) && $_SESSION['user_type'] === 'patient'): ?>
-                                    <button class="btn-primary" onclick="bookAppointment(<?php echo $doctor['id']; ?>, '<?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?>')">
+                                    <a href="book_appointment.php?doctor_id=<?php echo $doctor['id']; ?>" class="btn-primary" style="text-decoration: none; display: block; text-align: center;">
                                         Book Appointment
-                                    </button>
+                                    </a>
                                 <?php else: ?>
-                                    <a href="login.php" class="btn-primary">Login to Book</a>
+                                    <a href="login.php" class="btn-primary" style="text-decoration: none; display: block; text-align: center;">Login to Book</a>
                                 <?php endif; ?>
                                 
                                 <a href="doctor_profile.php?id=<?php echo $doctor['id']; ?>" class="btn-secondary" style="text-decoration: none; display: block;">

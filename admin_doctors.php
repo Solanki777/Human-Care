@@ -178,6 +178,76 @@ if (isset($_POST['action'])) {
         
         mail($to, $subject, $email_message, $headers);
         $message = "Doctor rejected! Email notification sent.";
+        
+    } elseif ($action === 'delete') {
+        // Get doctor details before deletion
+        $doctor_stmt = $conn->prepare("SELECT first_name, last_name, email, specialty FROM doctors WHERE id = ?");
+        $doctor_stmt->bind_param("i", $doctor_id);
+        $doctor_stmt->execute();
+        $doctor_info = $doctor_stmt->get_result()->fetch_assoc();
+        $doctor_stmt->close();
+        
+        // Soft delete - mark as deleted instead of actually deleting
+        $stmt = $conn->prepare("UPDATE doctors SET is_deleted = 1, deleted_by = ?, deleted_at = NOW(), is_verified = 0, verification_status = 'deleted' WHERE id = ?");
+        $stmt->bind_param("ii", $_SESSION['admin_id'], $doctor_id);
+        $stmt->execute();
+        
+        // Cancel all pending appointments
+        $cancel_stmt = $conn->prepare("UPDATE doctor_appointments SET status = 'cancelled', admin_notes = 'Doctor has left the hospital' WHERE doctor_id = ? AND status = 'pending'");
+        $cancel_stmt->bind_param("i", $doctor_id);
+        $cancel_stmt->execute();
+        
+        // Send notification email to doctor
+        $to = $doctor_info['email'];
+        $subject = "Account Deactivated - Human Care Hospital";
+        $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
+        
+        $email_message = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: #333; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h1>Account Deactivated</h1>
+                </div>
+                <div class='content'>
+                    <p>Dear Dr. $doctor_name,</p>
+                    
+                    <p>Your doctor account with Human Care Hospital has been deactivated.</p>
+                    
+                    <p>Your profile has been removed from our public listing and you will no longer be able to access the doctor dashboard.</p>
+                    
+                    <p>If you have any questions or concerns regarding this action, please contact our administration team.</p>
+                    
+                    <p>Thank you for your service at Human Care Hospital.</p>
+                    
+                    <p>Best regards,<br>
+                    <strong>Human Care Hospital Administration</strong></p>
+                </div>
+                <div class='footer'>
+                    <p>© 2025 Human Care Hospital. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+        
+        $headers = "MIME-Version: 1.0" . "\r\n";
+        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+        $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
+        
+        mail($to, $subject, $email_message, $headers);
+        
+        $message = "Doctor account deleted successfully! Dr. " . $doctor_name . " (" . $doctor_info['specialty'] . ") has been removed from the system.";
     }
     
     // Log activity
@@ -191,10 +261,11 @@ if (isset($_POST['action'])) {
 }
 
 // Get all doctors
-$all_doctors = $conn->query("SELECT * FROM doctors ORDER BY registered_date DESC");
-$pending_doctors = $conn->query("SELECT * FROM doctors WHERE verification_status = 'pending' ORDER BY registered_date DESC");
-$approved_doctors = $conn->query("SELECT * FROM doctors WHERE verification_status = 'approved' ORDER BY registered_date DESC");
-$rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_status = 'rejected' ORDER BY registered_date DESC");
+$all_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 0 OR is_deleted IS NULL ORDER BY registered_date DESC");
+$pending_doctors = $conn->query("SELECT * FROM doctors WHERE verification_status = 'pending' AND (is_deleted = 0 OR is_deleted IS NULL) ORDER BY registered_date DESC");
+$approved_doctors = $conn->query("SELECT * FROM doctors WHERE verification_status = 'approved' AND (is_deleted = 0 OR is_deleted IS NULL) ORDER BY registered_date DESC");
+$rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_status = 'rejected' AND (is_deleted = 0 OR is_deleted IS NULL) ORDER BY registered_date DESC");
+$deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDER BY deleted_at DESC");
 ?>
 
 <!DOCTYPE html>
@@ -468,6 +539,9 @@ $rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_statu
             <button class="tab" onclick="showTab('rejected')">
                 Rejected (<?php echo $rejected_doctors->num_rows; ?>)
             </button>
+            <button class="tab" onclick="showTab('deleted')">
+                Deleted (<?php echo $deleted_doctors->num_rows; ?>)
+            </button>
             <button class="tab" onclick="showTab('all')">
                 All Doctors (<?php echo $all_doctors->num_rows; ?>)
             </button>
@@ -559,8 +633,11 @@ $rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_statu
                                 <span class="detail-value"><?php echo date('M d, Y', strtotime($doctor['verified_at'])); ?></span>
                             </div>
                         </div>
-                        <div style="margin-top: 15px;">
+                        <div style="margin-top: 15px; display: flex; gap: 10px;">
                             <a href="admin_edit_doctor.php?id=<?php echo $doctor['id']; ?>" class="btn btn-view">✏️ Edit Details</a>
+                            <button class="btn btn-delete" onclick="confirmDelete(<?php echo $doctor['id']; ?>, '<?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?>')">
+                                🗑️ Delete Doctor
+                            </button>
                         </div>
                     </div>
                 <?php endwhile; ?>
@@ -611,6 +688,38 @@ $rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_statu
                 <?php endwhile; ?>
             <?php endif; ?>
         </div>
+
+        <!-- Deleted Doctors -->
+        <div id="deleted" class="tab-content">
+            <?php if ($deleted_doctors->num_rows > 0): ?>
+                <?php while ($doctor = $deleted_doctors->fetch_assoc()): ?>
+                    <div class="doctor-card" style="opacity: 0.7; border-left: 4px solid #999;">
+                        <div class="doctor-header">
+                            <div class="doctor-info">
+                                <div class="doctor-name">Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
+                                <div class="doctor-specialty"><?php echo htmlspecialchars($doctor['specialty']); ?></div>
+                                <span class="status-badge" style="background: #f3f4f6; color: #666;">🗑️ Deleted</span>
+                            </div>
+                        </div>
+                        <div class="doctor-details">
+                            <div class="detail-item">
+                                <span class="detail-label">📧 Email:</span>
+                                <span class="detail-value"><?php echo htmlspecialchars($doctor['email']); ?></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">🗑️ Deleted On:</span>
+                                <span class="detail-value"><?php echo date('M d, Y h:i A', strtotime($doctor['deleted_at'])); ?></span>
+                            </div>
+                        </div>
+                        <p style="color: #666; margin-top: 10px; font-size: 13px;">
+                            ℹ️ This doctor has been removed from the system and is no longer visible to patients.
+                        </p>
+                    </div>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <p style="text-align: center; padding: 40px; color: #999;">No deleted doctors</p>
+            <?php endif; ?>
+        </div>
     </main>
 
     <!-- Rejection Modal -->
@@ -651,6 +760,17 @@ $rejected_doctors = $conn->query("SELECT * FROM doctors WHERE verification_statu
 
         function closeRejectModal() {
             document.getElementById('rejectModal').classList.remove('active');
+        }
+
+        function confirmDelete(doctorId, doctorName) {
+            document.getElementById('delete_doctor_id').value = doctorId;
+            document.getElementById('deleteMessage').innerHTML = 
+                `Are you sure you want to delete <strong>Dr. ${doctorName}</strong>?`;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
         }
     </script>
 </body>

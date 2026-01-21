@@ -38,9 +38,17 @@ session_start();
                 <span class="nav-icon">📚</span>
                 <span>Health Education</span>
             </a></li>
+            <li><a href="book_appointment.php">
+                <span class="nav-icon">📅</span>
+                <span>Book Appointment</span>
+            </a></li>
+            <li><a href="">
+                <span class="nav-icon">📋</span>
+                <span> Medical Records</span>
+            </a></li>
             <li><a href="contact.php">
                 <span class="nav-icon">💬</span>
-                <span>Contact Us</span>
+                <span>Contact and Support</span>
             </a></li>
         </ul>
 

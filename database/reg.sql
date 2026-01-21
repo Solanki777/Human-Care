@@ -1,16 +1,16 @@
 -- =====================================================
--- DROP EXISTING DATABASES IF THEY EXIST
--- =====================================================
-DROP DATABASE IF EXISTS human_care_admin;
-DROP DATABASE IF EXISTS human_care_patients;
-DROP DATABASE IF EXISTS human_care_doctors;
+-- -- DROP EXISTING DATABASES IF THEY EXIST
+-- -- =====================================================
+-- DROP DATABASE IF EXISTS human_care_admin;
+-- DROP DATABASE IF EXISTS human_care_patients;
+-- DROP DATABASE IF EXISTS human_care_doctors;
 
--- =====================================================
--- CREATE DATABASES
--- =====================================================
-CREATE DATABASE human_care_admin;
-CREATE DATABASE human_care_patients;
-CREATE DATABASE human_care_doctors;
+-- -- =====================================================
+-- -- CREATE DATABASES
+-- -- =====================================================
+-- CREATE DATABASE human_care_admin;
+-- CREATE DATABASE human_care_patients;
+-- CREATE DATABASE human_care_doctors;
 
 -- =====================================================
 -- ADMIN DATABASE
@@ -138,10 +138,13 @@ CREATE TABLE doctors (
     available_time VARCHAR(50),
     hospital_affiliation VARCHAR(100),
     is_verified BOOLEAN DEFAULT FALSE,
-    verification_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    verification_status ENUM('pending', 'approved', 'rejected', 'deleted') DEFAULT 'pending',
     rejection_reason TEXT,
     verified_by INT,
     verified_at TIMESTAMP NULL,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_by INT,
+    deleted_at TIMESTAMP NULL,
     registered_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
