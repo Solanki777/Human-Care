@@ -511,6 +511,12 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                         <span>Manage Patients</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link admin-nav" href="admin_appointments.php">
+                        <span class="nav-icon">📅</span>
+                        <span>Appointments</span>
+                    </a>
+                </li>
             </ul>
         </nav>
         <form method="post" action="admin_logout.php">

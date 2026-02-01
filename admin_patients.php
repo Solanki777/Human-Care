@@ -506,6 +506,12 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
                         <span>Manage Patients</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link admin-nav" href="admin_appointments.php">
+                        <span class="nav-icon">📅</span>
+                        <span>Appointments</span>
+                    </a>
+                </li>
             </ul>
         </nav>
         <form method="post" action="admin_logout.php">
