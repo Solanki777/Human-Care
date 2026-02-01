@@ -1,65 +1,19 @@
-<?php 
+<?php
 session_start();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contact Us - Human Care</title>
     <link rel="stylesheet" href="styles/main.css">
 </head>
+
 <body>
-    <!-- Menu Toggle Button -->
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
-        </div>
-
-        <ul class="sidebar-nav">
-            <li><a href="index.php">
-                <span class="nav-icon">🏠</span>
-                <span>Home</span>
-            </a></li>
-            <!-- <li><a href="hospitals.php">
-                <span class="nav-icon">🗺️</span>
-                <span>Find Hospitals</span>
-            </a></li> -->
-            <li><a href="doctors.php">
-                <span class="nav-icon">👨‍⚕️</span>
-                <span>Our Doctors</span>
-            </a></li>
-            <li><a href="education.php">
-                <span class="nav-icon">📚</span>
-                <span>Health Education</span>
-            </a></li>
-            <li><a href="contact.php" class="active">
-                <span class="nav-icon">💬</span>
-                <span>Contact Us</span>
-            </a></li>
-        </ul>
-
-        <div class="user-box-sidebar">
-            <?php if (isset($_SESSION['user_name'])): ?>
-                <div class="user-name-sidebar">
-                    👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-                </div>
-                <a href="dashboard.php" class="login-btn-sidebar">My Dashboard</a>
-                <a href="logout.php" class="logout-btn-sidebar">Logout</a>
-            <?php else: ?>
-                <a href="login.php" class="login-btn-sidebar">Login / Sign Up</a>
-            <?php endif; ?>
-        </div>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
+    <?php include 'includes/sidebar.php'; ?>
     <!-- Page Header -->
     <div class="page-header">
         <div class="container">
@@ -86,7 +40,8 @@ session_start();
                     <h3>Email Support</h3>
                     <p>Get response within 24 hours</p>
                     <a href="mailto:support@humancare.com" class="contact-link">support@humancare.com</a>
-                    <button class="btn-primary" onclick="window.location.href='mailto:support@humancare.com'">Send Email</button>
+                    <button class="btn-primary" onclick="window.location.href='mailto:support@humancare.com'">Send
+                        Email</button>
                 </div>
 
                 <div class="contact-card">
@@ -141,7 +96,8 @@ session_start();
 
                     <div class="form-group">
                         <label for="message">Message *</label>
-                        <textarea id="message" name="message" rows="6" required placeholder="Type your message here..."></textarea>
+                        <textarea id="message" name="message" rows="6" required
+                            placeholder="Type your message here..."></textarea>
                     </div>
 
                     <button type="submit" class="btn-primary btn-large">Send Message</button>
@@ -158,7 +114,8 @@ session_start();
                             <span class="faq-icon">+</span>
                         </div>
                         <div class="faq-answer">
-                            <p>You can book an appointment by logging into your account, visiting the "Our Doctors" page, and clicking on "Book Appointment" for your preferred doctor.</p>
+                            <p>You can book an appointment by logging into your account, visiting the "Our Doctors"
+                                page, and clicking on "Book Appointment" for your preferred doctor.</p>
                         </div>
                     </div>
 
@@ -168,7 +125,8 @@ session_start();
                             <span class="faq-icon">+</span>
                         </div>
                         <div class="faq-answer">
-                            <p>Our emergency services are available 24/7. Regular consultation hours are 9 AM to 9 PM on all days.</p>
+                            <p>Our emergency services are available 24/7. Regular consultation hours are 9 AM to 9 PM on
+                                all days.</p>
                         </div>
                     </div>
 
@@ -178,7 +136,8 @@ session_start();
                             <span class="faq-icon">+</span>
                         </div>
                         <div class="faq-answer">
-                            <p>Yes, we accept most major health insurance plans. Please contact us with your insurance details for verification.</p>
+                            <p>Yes, we accept most major health insurance plans. Please contact us with your insurance
+                                details for verification.</p>
                         </div>
                     </div>
 
@@ -188,7 +147,8 @@ session_start();
                             <span class="faq-icon">+</span>
                         </div>
                         <div class="faq-answer">
-                            <p>After logging in, you can access your medical records from your dashboard. All your reports and prescriptions are stored securely.</p>
+                            <p>After logging in, you can access your medical records from your dashboard. All your
+                                reports and prescriptions are stored securely.</p>
                         </div>
                     </div>
 
@@ -198,7 +158,8 @@ session_start();
                             <span class="faq-icon">+</span>
                         </div>
                         <div class="faq-answer">
-                            <p>Yes, we offer online video consultations with our doctors. This feature is available for registered users.</p>
+                            <p>Yes, we offer online video consultations with our doctors. This feature is available for
+                                registered users.</p>
                         </div>
                     </div>
                 </div>
@@ -207,7 +168,8 @@ session_start();
             <!-- Emergency Notice -->
             <div class="emergency-notice">
                 <h3>🚨 In Case of Emergency</h3>
-                <p>For immediate medical emergencies, please call our emergency hotline or visit the nearest emergency room.</p>
+                <p>For immediate medical emergencies, please call our emergency hotline or visit the nearest emergency
+                    room.</p>
                 <a href="tel:+911234567890" class="emergency-btn">📞 Call Emergency: +91 1234-567890</a>
             </div>
         </div>
@@ -245,4 +207,5 @@ session_start();
 
     <script src="scripts/main.js"></script>
 </body>
+
 </html>

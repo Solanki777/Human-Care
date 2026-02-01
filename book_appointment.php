@@ -350,10 +350,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
-    <!-- Sidebar (reuse from other pages) -->
-    <aside class="sidebar" id="sidebar">
-        <!-- ... sidebar content ... -->
-    </aside>
+   <?php include 'includes/sidebar.php'; ?>
 
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 

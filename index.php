@@ -1,8 +1,5 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    
-}
-
+require_once 'config/config.php';
 ?>
 
 <!DOCTYPE html>
@@ -15,63 +12,7 @@ if (session_status() === PHP_SESSION_NONE) {
     <link rel="stylesheet" href="styles/main.css">
 </head>
 
-<body>
-    <!-- Menu Toggle Button -->
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
-        </div>
-
-        <ul class="sidebar-nav">
-            <li><a href="index.php" class="active">
-                    <span class="nav-icon">🏠</span>
-                    <span>Home</span>
-                </a></li>
-            <!-- <li><a href="hospitals.php">
-                <span class="nav-icon">🗺️</span>
-                <span>Find Hospitals</span>
-            </a></li> -->
-            <li><a href="doctors.php">
-                    <span class="nav-icon">👨‍⚕️</span>
-                    <span>Our Doctors</span>
-                </a></li>
-            <li><a href="education.php">
-                    <span class="nav-icon">📚</span>
-                    <span>Health Education</span>
-                </a></li>
-            <li><a href="book_appointment.php">
-                    <span class="nav-icon">📅</span>
-                    <span>Book Appointment</span>
-                </a></li>
-            <li><a href="">
-                    <span class="nav-icon">📋</span>
-                    <span> Medical Records</span>
-                </a></li>
-            <li><a href="contact.php">
-                    <span class="nav-icon">💬</span>
-                    <span>Contact and Support</span>
-                </a></li>
-        </ul>
-
-        <div class="user-box-sidebar">
-            <?php if (isset($_SESSION['user_name'])): ?>
-                <div class="user-name-sidebar">
-                    👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-                </div>
-                <a href="patient_appointments.php" class="login-btn-sidebar">My Appointments</a>
-                <a href="logout.php" class="logout-btn-sidebar">Logout</a>
-            <?php else: ?>
-                <a href="login.php" class="login-btn-sidebar">Login / Sign Up</a>
-            <?php endif; ?>
-        </div>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+<body><?php include 'includes/sidebar.php'; ?>
 
     <!-- Hero Section -->
     <section class="hero">

@@ -155,50 +155,7 @@ $total_doctors = $conn->query("SELECT COUNT(*) as count FROM doctors WHERE is_ve
     </style>
 </head>
 <body>
-    <!-- Menu Toggle Button -->
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
-        </div>
-
-        <ul class="sidebar-nav">
-            <li><a href="index.php">
-                <span class="nav-icon">🏠</span>
-                <span>Home</span>
-            </a></li>
-            <li><a href="doctors.php" class="active">
-                <span class="nav-icon">👨‍⚕️</span>
-                <span>Our Doctors</span>
-            </a></li>
-            <li><a href="education.php">
-                <span class="nav-icon">📚</span>
-                <span>Health Education</span>
-            </a></li>
-            <li><a href="contact.php">
-                <span class="nav-icon">💬</span>
-                <span>Contact Us</span>
-            </a></li>
-        </ul>
-
-        <div class="user-box-sidebar">
-            <?php if (isset($_SESSION['user_name'])): ?>
-                <div class="user-name-sidebar">
-                    👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-                </div>
-                <a href="dashboard.php" class="login-btn-sidebar">My Dashboard</a>
-                <a href="logout.php" class="logout-btn-sidebar">Logout</a>
-            <?php else: ?>
-                <a href="login.php" class="login-btn-sidebar">Login / Sign Up</a>
-            <?php endif; ?>
-        </div>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+   <?php include 'includes/sidebar.php'; ?>
 
     <!-- Page Header -->
     <div class="page-header">
