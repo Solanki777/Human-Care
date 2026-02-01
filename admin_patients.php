@@ -56,7 +56,7 @@ if (isset($_POST['action'])) {
                     <p>You now have full access to all features of Human Care Hospital platform.</p>
                     
                     <p style='text-align: center;'>
-                        <a href='http://localhost/humancare/login.php' class='button'>Login to Dashboard</a>
+                        <a href='http://localhost/vscode/login.php' class='button'>Login to Dashboard</a>
                     </p>
                     
                     <p><strong>What you can do now:</strong></p>
@@ -133,6 +133,11 @@ $total_patients = $conn->query("SELECT COUNT(*) as count FROM patients")->fetch_
 $verified_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE is_verified = 1")->fetch_assoc()['count'];
 $pending_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE verification_status = 'pending'")->fetch_assoc()['count'];
 $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE is_verified = 0 AND verification_status = 'rejected'")->fetch_assoc()['count'];
+
+// Get doctor pending count for sidebar badge
+$doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$pending_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors WHERE verification_status = 'pending'")->fetch_assoc()['count'];
+$doctors_conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -170,19 +175,20 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
         }
 
         .stat-number {
-            font-size: 36px;
+            font-size: 32px;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin: 10px 0;
         }
 
-        .stat-number.total { color: #3b82f6; }
-        .stat-number.verified { color: #10b981; }
-        .stat-number.pending { color: #f59e0b; }
-        .stat-number.suspended { color: #ef4444; }
+        .stat-card.total .stat-number { color: #3b82f6; }
+        .stat-card.verified .stat-number { color: #10b981; }
+        .stat-card.pending .stat-number { color: #f59e0b; }
+        .stat-card.suspended .stat-number { color: #ef4444; }
 
         .stat-label {
             color: #666;
             font-size: 14px;
+            font-weight: 500;
         }
 
         .search-filter-section {
@@ -194,15 +200,10 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
         }
 
         .search-form {
-            display: flex;
+            display: grid;
+            grid-template-columns: 2fr 1fr auto auto;
             gap: 15px;
-            flex-wrap: wrap;
             align-items: end;
-        }
-
-        .form-group {
-            flex: 1;
-            min-width: 200px;
         }
 
         .form-group label {
@@ -216,21 +217,35 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
         .form-group input,
         .form-group select {
             width: 100%;
-            padding: 12px 15px;
+            padding: 12px 16px;
             border: 2px solid #e0e0e0;
             border-radius: 10px;
             font-size: 14px;
+            transition: all 0.3s;
         }
 
-        .search-btn {
-            padding: 12px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn, .clear-btn {
+            padding: 12px 25px;
             border: none;
             border-radius: 10px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .search-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
         }
 
         .search-btn:hover {
@@ -239,13 +254,12 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
         }
 
         .clear-btn {
-            padding: 12px 20px;
             background: #f3f4f6;
             color: #333;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
+        }
+
+        .clear-btn:hover {
+            background: #e5e7eb;
         }
 
         .patient-card {
@@ -266,8 +280,8 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 15px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
         }
 
         .patient-info {
@@ -275,24 +289,24 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
         }
 
         .patient-name {
-            font-size: 22px;
-            font-weight: 600;
+            font-size: 20px;
+            font-weight: bold;
             color: #333;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .patient-email {
-            color: #667eea;
-            font-weight: 600;
+            color: #666;
+            font-size: 14px;
             margin-bottom: 10px;
         }
 
         .status-badge {
+            display: inline-block;
             padding: 6px 14px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 600;
-            display: inline-block;
         }
 
         .status-verified {
@@ -314,31 +328,30 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
-            margin: 20px 0;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 10px;
+            margin-bottom: 20px;
         }
 
         .detail-item {
-            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
         }
 
         .detail-label {
-            color: #666;
+            font-size: 12px;
+            color: #999;
             font-weight: 600;
-            display: block;
-            margin-bottom: 3px;
         }
 
         .detail-value {
+            font-size: 14px;
             color: #333;
+            font-weight: 500;
         }
 
         .action-buttons {
             display: flex;
             gap: 10px;
-            margin-top: 20px;
             flex-wrap: wrap;
         }
 
@@ -346,67 +359,74 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
             padding: 10px 20px;
             border: none;
             border-radius: 8px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
-            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .btn-verify {
-            background: #10b981;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             color: white;
         }
 
         .btn-verify:hover {
-            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
         .btn-suspend {
-            background: #f59e0b;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
             color: white;
         }
 
         .btn-suspend:hover {
-            background: #d97706;
-        }
-
-        .btn-delete {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-delete:hover {
-            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
         }
 
         .btn-view {
-            background: #3b82f6;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
         }
 
         .btn-view:hover {
-            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
-        .success-message {
-            background: #d1fae5;
-            color: #065f46;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 4px solid #10b981;
+        .btn-delete {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
 
         .no-results {
             text-align: center;
             padding: 60px 20px;
-            color: #999;
+            background: white;
+            border-radius: 15px;
         }
 
         .no-results-icon {
-            font-size: 60px;
-            margin-bottom: 15px;
-            opacity: 0.5;
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .no-results h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .no-results p {
+            color: #666;
         }
 
         .modal {
@@ -416,10 +436,10 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 9999;
-            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
             justify-content: center;
+            align-items: center;
         }
 
         .modal.active {
@@ -432,17 +452,18 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
             border-radius: 15px;
             max-width: 500px;
             width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         }
 
         .modal-header {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: bold;
             color: #333;
+            margin-bottom: 20px;
         }
 
         .modal-body {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             color: #666;
             line-height: 1.6;
         }
@@ -453,21 +474,49 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
             justify-content: flex-end;
         }
 
+        .admin-badge {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .pending-badge {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .nav-link.admin-nav {
+            background: rgba(30, 60, 114, 0.1);
+        }
+
+        .nav-link.admin-nav:hover {
+            background: rgba(30, 60, 114, 0.2);
+        }
+
         @media (max-width: 768px) {
-            .stats-row {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
             .search-form {
+                grid-template-columns: 1fr;
+            }
+
+            .patient-details {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
                 flex-direction: column;
             }
-            
-            .form-group {
+
+            .btn {
                 width: 100%;
-            }
-            
-            .patient-header {
-                flex-direction: column;
+                justify-content: center;
             }
         }
     </style>
@@ -475,35 +524,47 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
 <body>
     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
+    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="logo">
             <div class="logo-icon">🛡️</div>
             ADMIN PANEL
         </div>
+
+        <!-- Admin Profile -->
         <div class="user-profile">
             <div class="user-avatar">👨‍💼</div>
             <div class="user-info">
                 <h3><?php echo htmlspecialchars($_SESSION['admin_name']); ?></h3>
+                <span class="admin-badge">ADMINISTRATOR</span>
             </div>
         </div>
+
+        <!-- Navigation Menu -->
         <nav>
             <ul class="nav-menu">
                 <li class="nav-item">
-                    <a class="nav-link" href="admin_dashboard.php">
+                    <a class="nav-link admin-nav" href="admin_dashboard.php">
                         <span class="nav-icon">🏠</span>
                         <span>Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="admin_doctors.php">
+                    <a class="nav-link admin-nav" href="admin_doctors.php">
                         <span class="nav-icon">👨‍⚕️</span>
                         <span>Manage Doctors</span>
+                        <?php if ($pending_doctors > 0): ?>
+                            <span class="pending-badge"><?php echo $pending_doctors; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" href="admin_patients.php">
+                    <a class="nav-link admin-nav active" href="admin_patients.php">
                         <span class="nav-icon">👥</span>
                         <span>Manage Patients</span>
+                        <?php if ($pending_patients > 0): ?>
+                            <span class="pending-badge"><?php echo $pending_patients; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -514,42 +575,50 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
                 </li>
             </ul>
         </nav>
+
+        <!-- Logout Button -->
         <form method="post" action="admin_logout.php">
             <button class="logout-btn" type="submit">🚪 Logout</button>
         </form>
     </aside>
 
+    <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
+    <!-- Main Content -->
     <main class="main-content">
-        <h1 style="font-size: 32px; margin-bottom: 10px;">👥 Manage Patients</h1>
-        <p style="color: #666; margin-bottom: 30px;">View and manage all patient registrations</p>
+        <div class="hero-banner" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+            <h2>👥 Patient Management</h2>
+            <p>Manage patient accounts and verify new registrations</p>
+        </div>
 
         <?php if (isset($message)): ?>
-            <div class="success-message"><?php echo $message; ?></div>
+            <div style="background: #d1fae5; color: #065f46; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #10b981;">
+                ✅ <?php echo $message; ?>
+            </div>
         <?php endif; ?>
 
         <!-- Statistics Cards -->
         <div class="stats-row">
-            <div class="stat-card">
+            <div class="stat-card total">
                 <div class="stat-icon">👥</div>
-                <div class="stat-number total"><?php echo $total_patients; ?></div>
+                <div class="stat-number"><?php echo $total_patients; ?></div>
                 <div class="stat-label">Total Patients</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card verified">
                 <div class="stat-icon">✅</div>
-                <div class="stat-number verified"><?php echo $verified_patients; ?></div>
-                <div class="stat-label">Verified</div>
+                <div class="stat-number"><?php echo $verified_patients; ?></div>
+                <div class="stat-label">Verified Patients</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card pending">
                 <div class="stat-icon">⏳</div>
-                <div class="stat-number pending"><?php echo $pending_patients; ?></div>
-                <div class="stat-label">Pending</div>
+                <div class="stat-number"><?php echo $pending_patients; ?></div>
+                <div class="stat-label">Pending Verification</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card suspended">
                 <div class="stat-icon">🚫</div>
-                <div class="stat-number suspended"><?php echo $suspended_patients; ?></div>
-                <div class="stat-label">Suspended</div>
+                <div class="stat-number"><?php echo $suspended_patients; ?></div>
+                <div class="stat-label">Suspended Accounts</div>
             </div>
         </div>
 
@@ -647,9 +716,9 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
                             </button>
                         <?php endif; ?>
                         
-                        <button class="btn btn-view" onclick="alert('Patient details view - Feature coming soon!')">
+                        <a href="admin_patient_profile.php?id=<?php echo $patient['id']; ?>" class="btn btn-view">
                             👁️ View Full Profile
-                        </button>
+                        </a>
                         
                         <button class="btn btn-delete" onclick="confirmAction(<?php echo $patient['id']; ?>, 'delete', '<?php echo htmlspecialchars($patient['first_name'] . ' ' . $patient['last_name']); ?>')">
                             🗑️ Delete
