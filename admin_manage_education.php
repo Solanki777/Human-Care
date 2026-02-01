@@ -2,8 +2,8 @@
 session_start();
 
 // Check if admin is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'admin') {
-    header("Location: login.php");
+if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
+    header("Location: admin_login.php");
     exit();
 }
 
@@ -17,13 +17,13 @@ if ($admin_conn->connect_error) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_POST['content_id'])) {
     $content_id = intval($_POST['content_id']);
     $action = $_POST['action'];
-    
+
     if ($action === 'approve') {
         $stmt = $admin_conn->prepare("UPDATE educational_content SET status = 'approved' WHERE id = ?");
     } elseif ($action === 'reject') {
         $stmt = $admin_conn->prepare("UPDATE educational_content SET status = 'rejected' WHERE id = ?");
     }
-    
+
     if (isset($stmt)) {
         $stmt->bind_param("i", $content_id);
         $stmt->execute();
@@ -69,6 +69,7 @@ $admin_conn->close();
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -86,7 +87,7 @@ $admin_conn->close();
             background: white;
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             text-align: center;
         }
 
@@ -96,15 +97,23 @@ $admin_conn->close();
             margin-bottom: 5px;
         }
 
-        .stat-card.pending .stat-number { color: #f59e0b; }
-        .stat-card.approved .stat-number { color: #10b981; }
-        .stat-card.rejected .stat-number { color: #ef4444; }
+        .stat-card.pending .stat-number {
+            color: #f59e0b;
+        }
+
+        .stat-card.approved .stat-number {
+            color: #10b981;
+        }
+
+        .stat-card.rejected .stat-number {
+            color: #ef4444;
+        }
 
         .content-table-container {
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             overflow-x: auto;
         }
 
@@ -209,7 +218,7 @@ $admin_conn->close();
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0, 0, 0, 0.5);
             overflow-y: auto;
         }
 
@@ -220,7 +229,7 @@ $admin_conn->close();
             border-radius: 15px;
             width: 90%;
             max-width: 900px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
         }
 
         .modal-header {
@@ -276,40 +285,74 @@ $admin_conn->close();
         }
     </style>
 </head>
+
 <body>
     <!-- Sidebar -->
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>🏥 Admin Panel</h2>
-            <button class="close-btn" onclick="toggleSidebar()">×</button>
+        <div class="logo">
+            <div class="logo-icon">🛡️</div>
+            ADMIN PANEL
         </div>
-        <nav class="sidebar-nav">
-            <a href="admin_dashboard.php" class="nav-item">
-                <span class="nav-icon">📊</span>
-                <span class="nav-text">Dashboard</span>
-            </a>
-            <a href="admin_manage_education.php" class="nav-item active">
-                <span class="nav-icon">📚</span>
-                <span class="nav-text">Education Content</span>
-            </a>
-            <a href="logout.php" class="nav-item">
-                <span class="nav-icon">🚪</span>
-                <span class="nav-text">Logout</span>
-            </a>
+
+        <!-- Admin Profile -->
+        <div class="user-profile">
+            <div class="user-avatar">👨‍💼</div>
+            <div class="user-info">
+                <h3><?php echo htmlspecialchars($_SESSION['admin_name']); ?></h3>
+                <span class="admin-badge">ADMINISTRATOR</span>
+            </div>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a class="nav-link active admin-nav" onclick="showSection('dashboard')">
+                        <span class="nav-icon">🏠</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link admin-nav" href="admin_doctors.php">
+                        <span class="nav-icon">👨‍⚕️</span>
+                        <span>Manage Doctors</span>
+                        
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link admin-nav" href="admin_patients.php">
+                        <span class="nav-icon">👥</span>
+                        <span>Manage Patients</span>
+                        
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link admin-nav" href="admin_appointments.php">
+                        <span class="nav-icon">📅</span>
+                        <span>Appointments</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link admin-nav" href="admin_manage_education.php">
+                        <span class="nav-icon">📚 </span>
+                        <span>Approve Education</span>
+                    </a>
+                </li>
+
+            </ul>
         </nav>
+
+        <!-- Logout Button -->
+        <form method="post" action="admin_logout.php">
+            <button class="logout-btn" type="submit">🚪 Logout</button>
+        </form>
     </aside>
 
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
-    <!-- Top Bar -->
-    <header class="top-bar">
-        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-        <h1>Manage Educational Content</h1>
-        <div class="user-info">
-            <span class="user-name">Admin</span>
-        </div>
-    </header>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -332,7 +375,7 @@ $admin_conn->close();
         <!-- Content Table -->
         <div class="content-table-container">
             <h3 style="margin-bottom: 20px;">All Educational Content</h3>
-            
+
             <?php if ($all_contents->num_rows > 0): ?>
                 <table class="content-table">
                     <thead>
@@ -355,7 +398,8 @@ $admin_conn->close();
                                 </td>
                                 <td>
                                     Dr. <?php echo htmlspecialchars($content['doctor_name']); ?><br>
-                                    <small style="color: #6b7280;"><?php echo htmlspecialchars($content['doctor_specialty']); ?></small>
+                                    <small
+                                        style="color: #6b7280;"><?php echo htmlspecialchars($content['doctor_specialty']); ?></small>
                                 </td>
                                 <td><?php echo ucfirst($content['category']); ?></td>
                                 <td>
@@ -405,13 +449,13 @@ $admin_conn->close();
     </div>
 
     <script>
-        const contentData = <?php 
-            $all_contents->data_seek(0);
-            $contents_array = [];
-            while ($row = $all_contents->fetch_assoc()) {
-                $contents_array[] = $row;
-            }
-            echo json_encode($contents_array); 
+        const contentData = <?php
+        $all_contents->data_seek(0);
+        $contents_array = [];
+        while ($row = $all_contents->fetch_assoc()) {
+            $contents_array[] = $row;
+        }
+        echo json_encode($contents_array);
         ?>;
 
         function viewContent(contentId) {
@@ -419,7 +463,7 @@ $admin_conn->close();
             if (!content) return;
 
             document.getElementById('modalTitle').innerHTML = content.icon + ' ' + content.title;
-            
+
             const modalBody = document.getElementById('modalBody');
             modalBody.innerHTML = `
                 <div class="detail-row">
@@ -481,7 +525,7 @@ $admin_conn->close();
         }
 
         // Close modal when clicking outside
-        window.onclick = function(event) {
+        window.onclick = function (event) {
             const modal = document.getElementById('viewModal');
             if (event.target == modal) {
                 closeModal();
@@ -489,4 +533,5 @@ $admin_conn->close();
         }
     </script>
 </body>
+
 </html>

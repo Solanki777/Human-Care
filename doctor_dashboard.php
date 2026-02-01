@@ -473,7 +473,7 @@ $doctors_conn->close();
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="education.php">
+                    <a class="nav-link" href="doctor_add_education.php">
                         <span class="nav-icon">👤</span>
                         <span>Edit learning page</span>
                     </a>

@@ -478,37 +478,46 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
     </style>
 </head>
 <body>
+     <!-- Sidebar -->
     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
+    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="logo">
             <div class="logo-icon">🛡️</div>
             ADMIN PANEL
         </div>
+
+        <!-- Admin Profile -->
         <div class="user-profile">
             <div class="user-avatar">👨‍💼</div>
             <div class="user-info">
                 <h3><?php echo htmlspecialchars($_SESSION['admin_name']); ?></h3>
+                <span class="admin-badge">ADMINISTRATOR</span>
             </div>
         </div>
+
+        <!-- Navigation Menu -->
         <nav>
             <ul class="nav-menu">
                 <li class="nav-item">
-                    <a class="nav-link" href="admin_dashboard.php">
+                    <a class="nav-link active admin-nav" onclick="showSection('dashboard')">
                         <span class="nav-icon">🏠</span>
                         <span>Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" href="admin_doctors.php">
+                    <a class="nav-link admin-nav" href="admin_doctors.php">
                         <span class="nav-icon">👨‍⚕️</span>
                         <span>Manage Doctors</span>
+                        
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="admin_patients.php">
+                    <a class="nav-link admin-nav" href="admin_patients.php">
                         <span class="nav-icon">👥</span>
                         <span>Manage Patients</span>
+                        
                     </a>
                 </li>
                 <li class="nav-item">
@@ -517,14 +526,26 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                         <span>Appointments</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link admin-nav" href="admin_manage_education.php">
+                        <span class="nav-icon">📚 </span>
+                        <span>Approve Education</span>
+                    </a>
+                </li>
+
             </ul>
         </nav>
+
+        <!-- Logout Button -->
         <form method="post" action="admin_logout.php">
             <button class="logout-btn" type="submit">🚪 Logout</button>
         </form>
     </aside>
 
+    <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+
 
     <main class="main-content">
         <h1 style="font-size: 32px; margin-bottom: 10px;">👨‍⚕️ Manage Doctors</h1>

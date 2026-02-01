@@ -272,6 +272,7 @@ $doctors_conn->close();
     </style>
 </head>
 <body>
+     <!-- Sidebar -->
     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
     <!-- Sidebar -->
@@ -294,7 +295,7 @@ $doctors_conn->close();
         <nav>
             <ul class="nav-menu">
                 <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_dashboard.php">
+                    <a class="nav-link active admin-nav" onclick="showSection('dashboard')">
                         <span class="nav-icon">🏠</span>
                         <span>Dashboard</span>
                     </a>
@@ -303,27 +304,29 @@ $doctors_conn->close();
                     <a class="nav-link admin-nav" href="admin_doctors.php">
                         <span class="nav-icon">👨‍⚕️</span>
                         <span>Manage Doctors</span>
-                        <?php if ($pending_doctors > 0): ?>
-                            <span class="pending-badge"><?php echo $pending_doctors; ?></span>
-                        <?php endif; ?>
+                        
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link admin-nav" href="admin_patients.php">
                         <span class="nav-icon">👥</span>
                         <span>Manage Patients</span>
-                        <?php if ($pending_patients > 0): ?>
-                            <span class="pending-badge"><?php echo $pending_patients; ?></span>
-                        <?php endif; ?>
+                        
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link admin-nav active" href="admin_appointments.php">
+                    <a class="nav-link admin-nav" href="admin_appointments.php">
                         <span class="nav-icon">📅</span>
                         <span>Appointments</span>
                     </a>
                 </li>
-                
+                <li class="nav-item">
+                    <a class="nav-link admin-nav" href="admin_manage_education.php">
+                        <span class="nav-icon">📚 </span>
+                        <span>Approve Education</span>
+                    </a>
+                </li>
+
             </ul>
         </nav>
 

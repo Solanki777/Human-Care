@@ -200,6 +200,12 @@ $recent_logs = $admin_conn->query("SELECT * FROM activity_logs ORDER BY created_
                         <span>Appointments</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link admin-nav" href="admin_manage_education.php">
+                        <span class="nav-icon">📚 </span>
+                        <span>Approve Education</span>
+                    </a>
+                </li>
                 
             </ul>
         </nav>

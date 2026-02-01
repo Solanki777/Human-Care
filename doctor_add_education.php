@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $difficulty = $_POST['difficulty'];
     $lesson_count = intval($_POST['lesson_count']);
     $icon = $_POST['icon'];
-    
+
     if (empty($title) || empty($description) || empty($content)) {
         $error_message = "Please fill in all required fields.";
     } else {
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             (doctor_id, doctor_name, doctor_specialty, doctor_qualification, title, category, description, content, difficulty, lesson_count, icon, status) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         ");
-        
+
         $stmt->bind_param(
             "issssssssss",
             $doctor_id,
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $lesson_count,
             $icon
         );
-        
+
         if ($stmt->execute()) {
             $success_message = "Educational content submitted successfully! It will be visible once approved by admin.";
             // Clear form
@@ -97,6 +97,7 @@ $doctors_conn->close();
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -107,7 +108,7 @@ $doctors_conn->close();
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             margin-bottom: 30px;
         }
 
@@ -225,7 +226,7 @@ $doctors_conn->close();
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         }
 
         .content-card {
@@ -304,45 +305,59 @@ $doctors_conn->close();
         }
     </style>
 </head>
+
 <body>
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>🏥 Human Care</h2>
-            <button class="close-btn" onclick="toggleSidebar()">×</button>
+        <div class="logo">
+            <div class="logo-icon">❤️</div>
+            HUMAN CARE
         </div>
-        <nav class="sidebar-nav">
-            <a href="doctor_dashboard.php" class="nav-item">
-                <span class="nav-icon">📊</span>
-                <span class="nav-text">Dashboard</span>
-            </a>
-            <a href="doctor_add_education.php" class="nav-item active">
-                <span class="nav-icon">📚</span>
-                <span class="nav-text">Add Education Content</span>
-            </a>
-            <a href="doctor_profile.php" class="nav-item">
-                <span class="nav-icon">👤</span>
-                <span class="nav-text">My Profile</span>
-            </a>
-            <a href="logout.php" class="nav-item">
-                <span class="nav-icon">🚪</span>
-                <span class="nav-text">Logout</span>
-            </a>
+
+        <!-- Doctor Profile -->
+        <div class="user-profile">
+            <div class="user-avatar">👨‍⚕️</div>
+            <div class="user-info">
+                <h3>Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></h3>
+                <span class="doctor-badge">DOCTOR</span>
+                <p class="specialty-tag"><?php echo htmlspecialchars($doctor['specialty']); ?></p>
+            </div>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a class="nav-link active" href="doctor_dashboard.php">
+                        <span class="nav-icon">🏠</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="doctor_add_education.php">
+                        <span class="nav-icon">👤</span>
+                        <span>Edit learning page</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="index.php">
+                        <span class="nav-icon">🌐</span>
+                        <span>View Website</span>
+                    </a>
+                </li>
+            </ul>
         </nav>
+
+        <!-- Logout Button -->
+        <form method="post" action="logout.php">
+            <button class="logout-btn" type="submit">🚪 Logout</button>
+        </form>
     </aside>
 
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
-    <!-- Top Bar -->
-    <header class="top-bar">
-        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-        <h1>Add Educational Content</h1>
-        <div class="user-info">
-            <span class="user-name">Dr. <?php echo htmlspecialchars($doctor['first_name']); ?></span>
-            <span class="doctor-badge">DOCTOR</span>
-        </div>
-    </header>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -350,7 +365,7 @@ $doctors_conn->close();
         <?php if ($success_message): ?>
             <div class="alert alert-success">✓ <?php echo $success_message; ?></div>
         <?php endif; ?>
-        
+
         <?php if ($error_message): ?>
             <div class="alert alert-error">✗ <?php echo $error_message; ?></div>
         <?php endif; ?>
@@ -361,10 +376,9 @@ $doctors_conn->close();
             <form method="POST" action="">
                 <div class="form-group">
                     <label>Title <span class="required">*</span></label>
-                    <input type="text" name="title" class="form-control" 
-                           placeholder="e.g., Understanding Diabetes Management" 
-                           value="<?php echo isset($_POST['title']) ? htmlspecialchars($_POST['title']) : ''; ?>" 
-                           required>
+                    <input type="text" name="title" class="form-control"
+                        placeholder="e.g., Understanding Diabetes Management"
+                        value="<?php echo isset($_POST['title']) ? htmlspecialchars($_POST['title']) : ''; ?>" required>
                 </div>
 
                 <div class="form-row">
@@ -392,24 +406,24 @@ $doctors_conn->close();
 
                     <div class="form-group">
                         <label>Number of Lessons</label>
-                        <input type="number" name="lesson_count" class="form-control" 
-                               value="<?php echo isset($_POST['lesson_count']) ? $_POST['lesson_count'] : '10'; ?>" 
-                               min="1" max="100">
+                        <input type="number" name="lesson_count" class="form-control"
+                            value="<?php echo isset($_POST['lesson_count']) ? $_POST['lesson_count'] : '10'; ?>" min="1"
+                            max="100">
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Short Description <span class="required">*</span></label>
-                    <textarea name="description" class="form-control" 
-                              placeholder="Brief overview of what learners will gain from this content..." 
-                              required><?php echo isset($_POST['description']) ? htmlspecialchars($_POST['description']) : ''; ?></textarea>
+                    <textarea name="description" class="form-control"
+                        placeholder="Brief overview of what learners will gain from this content..."
+                        required><?php echo isset($_POST['description']) ? htmlspecialchars($_POST['description']) : ''; ?></textarea>
                 </div>
 
                 <div class="form-group">
                     <label>Full Content <span class="required">*</span></label>
-                    <textarea name="content" class="form-control content-textarea" 
-                              placeholder="Detailed educational content including lessons, tips, and important information..." 
-                              required><?php echo isset($_POST['content']) ? htmlspecialchars($_POST['content']) : ''; ?></textarea>
+                    <textarea name="content" class="form-control content-textarea"
+                        placeholder="Detailed educational content including lessons, tips, and important information..."
+                        required><?php echo isset($_POST['content']) ? htmlspecialchars($_POST['content']) : ''; ?></textarea>
                 </div>
 
                 <div class="form-group">
@@ -482,14 +496,15 @@ $doctors_conn->close();
             document.querySelectorAll('.icon-option').forEach(opt => {
                 opt.classList.remove('selected');
             });
-            
+
             // Add selected class to clicked icon
             element.classList.add('selected');
-            
+
             // Update hidden input
             document.getElementById('selectedIcon').value = icon;
         }
     </script>
 </body>
+
 </html>
 <?php $admin_conn->close(); ?>
