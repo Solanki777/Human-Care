@@ -1,5 +1,5 @@
-<?php 
-session_start();
+<?php
+require_once 'includes/session.php';
 ?>
 
 <!DOCTYPE html>
