@@ -21,7 +21,6 @@ $stmt->bind_param("i", $doctor_id);
 $stmt->execute();
 $doctor = $stmt->get_result()->fetch_assoc();
 $stmt->close();
-
 if (!$doctor) {
     header("Location: login.php");
     exit();
