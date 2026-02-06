@@ -1,10 +1,13 @@
 <?php 
 session_start();
-
-// Get doctor ID from URL
-$doctor_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
-if ($doctor_id === 0) {
+// Decide doctor ID source
+if (isset($_SESSION['user_id']) && $_SESSION['user_type'] === 'doctor') {
+    // Doctor viewing his own profile
+    $doctor_id = $_SESSION['user_id'];
+} elseif (isset($_GET['id'])) {
+    // Public / patient viewing doctor profile
+    $doctor_id = intval($_GET['id']);
+} else {
     header("Location: doctors.php");
     exit();
 }

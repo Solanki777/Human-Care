@@ -11,7 +11,7 @@ $conn = Database::getConnection('admin');
 
 /* Handle approve / reject / cancel */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $appointment_id = (int)$_POST['appointment_id'];
+    $appointment_id = (int) $_POST['appointment_id'];
     $action = $_POST['action'];
 
     if ($action === 'approve') {
@@ -24,38 +24,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $stmt->bind_param("ii", $_SESSION['admin_id'], $appointment_id);
         $stmt->execute();
-            // ===== CREATE CHAT ROOM AFTER APPROVAL =====
+        // ===== CREATE CHAT ROOM AFTER APPROVAL =====
 
-    // Get appointment details
-    $info_stmt = $conn->prepare("
+        // Get appointment details
+        $info_stmt = $conn->prepare("
         SELECT patient_id, doctor_id, patient_name, doctor_name
         FROM appointments
         WHERE id = ?
     ");
-    $info_stmt->bind_param("i", $appointment_id);
-    $info_stmt->execute();
-    $appt = $info_stmt->get_result()->fetch_assoc();
-    $info_stmt->close();
+        $info_stmt->bind_param("i", $appointment_id);
+        $info_stmt->execute();
+        $appt = $info_stmt->get_result()->fetch_assoc();
+        $info_stmt->close();
 
-    // Create chat room
-    $chat_stmt = $conn->prepare("
+        // Create chat room
+        $chat_stmt = $conn->prepare("
         INSERT INTO chat_rooms
         (appointment_id, patient_id, doctor_id, patient_name, doctor_name, status)
         VALUES (?, ?, ?, ?, ?, 'active')
         ON DUPLICATE KEY UPDATE status = 'active'
     ");
-    $chat_stmt->bind_param(
-        "iiiss",
-        $appointment_id,
-        $appt['patient_id'],
-        $appt['doctor_id'],
-        $appt['patient_name'],
-        $appt['doctor_name']
-    );
-    $chat_stmt->execute();
-    $chat_stmt->close();
+        $chat_stmt->bind_param(
+            "iiiss",
+            $appointment_id,
+            $appt['patient_id'],
+            $appt['doctor_id'],
+            $appt['patient_name'],
+            $appt['doctor_name']
+        );
+        $chat_stmt->execute();
+        $chat_stmt->close();
 
-        
+
         // Log the action
         $log_stmt = $conn->prepare("INSERT INTO appointment_history (appointment_id, action, performed_by, performed_by_type, old_status, new_status, created_at) VALUES (?, 'approved', ?, 'admin', 'pending', 'approved', NOW())");
         $log_stmt->bind_param("ii", $appointment_id, $_SESSION['admin_id']);
@@ -76,18 +76,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $stmt->bind_param("sii", $reason, $_SESSION['admin_id'], $appointment_id);
         $stmt->execute();
-        
+
         // Log the action
         $log_stmt = $conn->prepare("INSERT INTO appointment_history (appointment_id, action, performed_by, performed_by_type, old_status, new_status, notes, created_at) VALUES (?, 'rejected', ?, 'admin', 'pending', 'rejected', ?, NOW())");
         $log_stmt->bind_param("iis", $appointment_id, $_SESSION['admin_id'], $reason);
         $log_stmt->execute();
         $log_stmt->close();
     }
-    
+
     // NEW: Cancel/Deny an already approved appointment
     if ($action === 'cancel') {
         $cancellation_reason = trim($_POST['cancellation_reason']);
-        
+
         // Get current appointment details before cancelling
         $check_stmt = $conn->prepare("SELECT status FROM appointments WHERE id = ?");
         $check_stmt->bind_param("i", $appointment_id);
@@ -107,13 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $stmt->bind_param("sii", $cancellation_reason, $_SESSION['admin_id'], $appointment_id);
         $stmt->execute();
-        
+
         // Log the cancellation action
         $log_stmt = $conn->prepare("INSERT INTO appointment_history (appointment_id, action, performed_by, performed_by_type, old_status, new_status, notes, created_at) VALUES (?, 'cancelled_by_admin', ?, 'admin', ?, 'cancelled', ?, NOW())");
         $log_stmt->bind_param("iiss", $appointment_id, $_SESSION['admin_id'], $old_status, $cancellation_reason);
         $log_stmt->execute();
         $log_stmt->close();
-        
+
         // Create notifications for patient and doctor
         $notify_stmt = $conn->prepare("
             SELECT patient_id, doctor_id, patient_name, doctor_name, appointment_date, appointment_time 
@@ -123,27 +123,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $notify_stmt->execute();
         $appt_data = $notify_stmt->get_result()->fetch_assoc();
         $notify_stmt->close();
-        
+
         // Notification for patient
-        $patient_msg = "Your appointment with Dr. " . $appt_data['doctor_name'] . " on " . 
-                       date('M d, Y', strtotime($appt_data['appointment_date'])) . " at " . 
-                       date('h:i A', strtotime($appt_data['appointment_time'])) . 
-                       " has been cancelled by admin. Reason: " . $cancellation_reason;
-        
+        $patient_msg = "Your appointment with Dr. " . $appt_data['doctor_name'] . " on " .
+            date('M d, Y', strtotime($appt_data['appointment_date'])) . " at " .
+            date('h:i A', strtotime($appt_data['appointment_time'])) .
+            " has been cancelled by admin. Reason: " . $cancellation_reason;
+
         $notif_stmt = $conn->prepare("INSERT INTO appointment_notifications (appointment_id, recipient_type, recipient_id, notification_type, message) VALUES (?, 'patient', ?, 'cancelled', ?)");
         $notif_stmt->bind_param("iis", $appointment_id, $appt_data['patient_id'], $patient_msg);
         $notif_stmt->execute();
-        
+
         // Notification for doctor
-        $doctor_msg = "Appointment with " . $appt_data['patient_name'] . " on " . 
-                      date('M d, Y', strtotime($appt_data['appointment_date'])) . " at " . 
-                      date('h:i A', strtotime($appt_data['appointment_time'])) . 
-                      " has been cancelled by admin. Reason: " . $cancellation_reason;
-        
+        $doctor_msg = "Appointment with " . $appt_data['patient_name'] . " on " .
+            date('M d, Y', strtotime($appt_data['appointment_date'])) . " at " .
+            date('h:i A', strtotime($appt_data['appointment_time'])) .
+            " has been cancelled by admin. Reason: " . $cancellation_reason;
+
         $notif_stmt->bind_param("iis", $appointment_id, $appt_data['doctor_id'], $doctor_msg);
         $notif_stmt->execute();
         $notif_stmt->close();
     }
+    // NEW: Mark approved appointment as completed
+    if ($action === 'complete') {
+
+        // Ensure only approved appointments can be completed
+        $check_stmt = $conn->prepare("SELECT status FROM appointments WHERE id = ?");
+        $check_stmt->bind_param("i", $appointment_id);
+        $check_stmt->execute();
+        $current = $check_stmt->get_result()->fetch_assoc();
+        $check_stmt->close();
+
+        if ($current && $current['status'] === 'approved') {
+
+            // Update appointment status
+            $stmt = $conn->prepare("
+            UPDATE appointments 
+            SET status = 'completed',
+                completed_at = NOW()
+            WHERE id = ?
+        ");
+            $stmt->bind_param("i", $appointment_id);
+            $stmt->execute();
+            $stmt->close();
+
+            // Log history
+            $log_stmt = $conn->prepare("
+            INSERT INTO appointment_history 
+            (appointment_id, action, performed_by, performed_by_type, old_status, new_status, created_at)
+            VALUES (?, 'completed', ?, 'admin', 'approved', 'completed', NOW())
+        ");
+            $log_stmt->bind_param("ii", $appointment_id, $_SESSION['admin_id']);
+            $log_stmt->execute();
+            $log_stmt->close();
+
+            // Close chat room if exists
+            $chat_stmt = $conn->prepare("
+            UPDATE chat_rooms 
+            SET status = 'closed'
+            WHERE appointment_id = ?
+        ");
+            $chat_stmt->bind_param("i", $appointment_id);
+            $chat_stmt->execute();
+            $chat_stmt->close();
+        }
+    }
+
 }
 
 // Fetch appointments with filter
@@ -188,6 +233,7 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -269,7 +315,7 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             margin-top: 20px;
         }
 
@@ -298,7 +344,8 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
             background: #f9fafb;
         }
 
-        .patient-info, .doctor-info {
+        .patient-info,
+        .doctor-info {
             font-weight: 600;
             color: #333;
             margin-bottom: 3px;
@@ -310,7 +357,8 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
             flex-wrap: wrap;
         }
 
-        .date-badge, .time-badge {
+        .date-badge,
+        .time-badge {
             display: inline-flex;
             align-items: center;
             gap: 5px;
@@ -369,7 +417,9 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
             gap: 10px;
         }
 
-        .approve-form, .reject-form, .cancel-form {
+        .approve-form,
+        .reject-form,
+        .cancel-form {
             margin: 0;
         }
 
@@ -441,7 +491,8 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
             box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
         }
 
-        .rejection-reason, .cancellation-reason {
+        .rejection-reason,
+        .cancellation-reason {
             width: 100%;
             padding: 10px;
             border: 1px solid #e5e7eb;
@@ -453,7 +504,8 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
             font-family: inherit;
         }
 
-        .rejection-reason:focus, .cancellation-reason:focus {
+        .rejection-reason:focus,
+        .cancellation-reason:focus {
             outline: none;
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
@@ -481,7 +533,7 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
             background: white;
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
             text-align: center;
             border-left: 4px solid #3b82f6;
         }
@@ -518,15 +570,15 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
             .filter-tabs {
                 flex-direction: column;
             }
-            
+
             .stats-summary {
                 grid-template-columns: repeat(2, 1fr);
             }
-            
+
             .appointments-table {
                 font-size: 12px;
             }
-            
+
             .appointments-table th,
             .appointments-table td {
                 padding: 10px;
@@ -534,8 +586,9 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
         }
     </style>
 </head>
+
 <body>
-     <!-- Sidebar -->
+    <!-- Sidebar -->
     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
     <!-- Sidebar -->
@@ -637,47 +690,47 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
         <!-- Appointments Container -->
         <div class="appointments-container">
             <h3 style="font-size: 20px; margin-bottom: 20px; color: #333;">
-                <?php 
-                    echo match($filter) {
-                        'all' => '📋 All Appointments',
-                        'pending' => '⏳ Pending Appointment Requests',
-                        'approved' => '✅ Approved Appointments',
-                        'cancelled' => '🚫 Cancelled Appointments',
-                        'rejected' => '❌ Rejected Appointments',
-                        'completed' => '✔️ Completed Appointments',
-                        default => 'Appointments'
-                    };
+                <?php
+                echo match ($filter) {
+                    'all' => '📋 All Appointments',
+                    'pending' => '⏳ Pending Appointment Requests',
+                    'approved' => '✅ Approved Appointments',
+                    'cancelled' => '🚫 Cancelled Appointments',
+                    'rejected' => '❌ Rejected Appointments',
+                    'completed' => '✔️ Completed Appointments',
+                    default => 'Appointments'
+                };
                 ?>
             </h3>
 
             <?php if ($result->num_rows === 0): ?>
                 <div class="no-appointments">
                     <div class="no-appointments-icon">
-                        <?php 
-                            echo match($filter) {
-                                'pending' => '✅',
-                                'approved' => '📭',
-                                'cancelled' => '📭',
-                                'rejected' => '📭',
-                                'completed' => '📭',
-                                default => '📭'
-                            };
+                        <?php
+                        echo match ($filter) {
+                            'pending' => '✅',
+                            'approved' => '📭',
+                            'cancelled' => '📭',
+                            'rejected' => '📭',
+                            'completed' => '📭',
+                            default => '📭'
+                        };
                         ?>
                     </div>
                     <h3 style="font-size: 18px; color: #666; margin-bottom: 10px;">
                         <?php echo $filter === 'pending' ? 'All Clear!' : 'No Appointments Found'; ?>
                     </h3>
                     <p>
-                        <?php 
-                            echo match($filter) {
-                                'pending' => 'No pending appointments at the moment.',
-                                'approved' => 'No approved appointments.',
-                                'cancelled' => 'No cancelled appointments.',
-                                'rejected' => 'No rejected appointments.',
-                                'completed' => 'No completed appointments.',
-                                'all' => 'No appointments in the system.',
-                                default => 'No appointments found.'
-                            };
+                        <?php
+                        echo match ($filter) {
+                            'pending' => 'No pending appointments at the moment.',
+                            'approved' => 'No approved appointments.',
+                            'cancelled' => 'No cancelled appointments.',
+                            'rejected' => 'No rejected appointments.',
+                            'completed' => 'No completed appointments.',
+                            'all' => 'No appointments in the system.',
+                            default => 'No appointments found.'
+                        };
                         ?>
                     </p>
                 </div>
@@ -694,86 +747,107 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
                     </thead>
                     <tbody>
                         <?php while ($row = $result->fetch_assoc()): ?>
-                        <tr>
-                            <td>
-                                <div class="patient-info">👤 <?= htmlspecialchars($row['patient_name']) ?></div>
-                                <div style="font-size: 12px; color: #666;">📧 <?= htmlspecialchars($row['patient_email']) ?></div>
-                                <div style="font-size: 12px; color: #666;">📱 <?= htmlspecialchars($row['patient_phone']) ?></div>
-                            </td>
-                            <td>
-                                <div class="doctor-info">👨‍⚕️ Dr. <?= htmlspecialchars($row['doctor_name']) ?></div>
-                                <div style="font-size: 12px; color: #667eea; font-weight: 600;"><?= htmlspecialchars($row['doctor_specialty']) ?></div>
-                            </td>
-                            <td>
-                                <div class="appointment-datetime">
-                                    <span class="date-badge">📅 <?= date('M d, Y', strtotime($row['appointment_date'])) ?></span>
-                                    <span class="time-badge">🕐 <?= date('h:i A', strtotime($row['appointment_time'])) ?></span>
-                                </div>
-                                <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                                    <strong>Reason:</strong> <?= htmlspecialchars($row['reason_for_visit']) ?>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="status-badge status-<?= $row['status'] ?>">
-                                    <?= ucfirst($row['status']) ?>
-                                </span>
-                                
-                                <?php if (($row['status'] === 'rejected' || $row['status'] === 'cancelled') && $row['rejection_reason']): ?>
-                                    <div class="reason-display">
-                                        <strong>Reason:</strong>
-                                        <?= htmlspecialchars($row['rejection_reason']) ?>
+                            <tr>
+                                <td>
+                                    <div class="patient-info">👤 <?= htmlspecialchars($row['patient_name']) ?></div>
+                                    <div style="font-size: 12px; color: #666;">📧 <?= htmlspecialchars($row['patient_email']) ?>
                                     </div>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <?php if ($row['status'] === 'pending'): ?>
-                                        <!-- Approve -->
-                                        <form method="POST" class="approve-form">
-                                            <input type="hidden" name="appointment_id" value="<?= $row['id'] ?>">
-                                            <input type="hidden" name="action" value="approve">
-                                            <button type="submit" class="btn-approve">
-                                                ✅ Approve
-                                            </button>
-                                        </form>
+                                    <div style="font-size: 12px; color: #666;">📱 <?= htmlspecialchars($row['patient_phone']) ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="doctor-info">👨‍⚕️ Dr. <?= htmlspecialchars($row['doctor_name']) ?></div>
+                                    <div style="font-size: 12px; color: #667eea; font-weight: 600;">
+                                        <?= htmlspecialchars($row['doctor_specialty']) ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="appointment-datetime">
+                                        <span class="date-badge">📅
+                                            <?= date('M d, Y', strtotime($row['appointment_date'])) ?></span>
+                                        <span class="time-badge">🕐
+                                            <?= date('h:i A', strtotime($row['appointment_time'])) ?></span>
+                                    </div>
+                                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                                        <strong>Reason:</strong> <?= htmlspecialchars($row['reason_for_visit']) ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-<?= $row['status'] ?>">
+                                        <?= ucfirst($row['status']) ?>
+                                    </span>
 
-                                        <!-- Reject -->
-                                        <form method="POST" class="reject-form">
-                                            <input type="hidden" name="appointment_id" value="<?= $row['id'] ?>">
-                                            <input type="hidden" name="action" value="reject">
-                                            <textarea 
-                                                name="rejection_reason" 
-                                                class="rejection-reason" 
-                                                required 
-                                                placeholder="Enter reason for rejection..."
-                                            ></textarea>
-                                            <button type="submit" class="btn-reject">
-                                                ❌ Reject
-                                            </button>
-                                        </form>
-                                    <?php elseif ($row['status'] === 'approved'): ?>
-                                        <!-- Cancel Approved Appointment -->
-                                        <form method="POST" class="cancel-form">
-                                            <input type="hidden" name="appointment_id" value="<?= $row['id'] ?>">
-                                            <input type="hidden" name="action" value="cancel">
-                                            <textarea 
-                                                name="cancellation_reason" 
-                                                class="cancellation-reason" 
-                                                required 
-                                                placeholder="Enter reason for cancellation (will notify patient & doctor)..."
-                                            ></textarea>
-                                            <button type="submit" class="btn-cancel" onclick="return confirm('Are you sure you want to cancel this approved appointment? Both patient and doctor will be notified.')">
-                                                🚫 Cancel Appointment
-                                            </button>
-                                        </form>
-                                    <?php else: ?>
-                                        <div style="color: #999; font-size: 13px; text-align: center; padding: 10px;">
-                                            No actions available
+                                    <?php if (($row['status'] === 'rejected' || $row['status'] === 'cancelled') && $row['rejection_reason']): ?>
+                                        <div class="reason-display">
+                                            <strong>Reason:</strong>
+                                            <?= htmlspecialchars($row['rejection_reason']) ?>
                                         </div>
                                     <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <?php if ($row['status'] === 'pending'): ?>
+                                            <!-- Approve -->
+                                            <form method="POST" class="approve-form">
+                                                <input type="hidden" name="appointment_id" value="<?= $row['id'] ?>">
+                                                <input type="hidden" name="action" value="approve">
+                                                <button type="submit" class="btn-approve">
+                                                    ✅ Approve
+                                                </button>
+                                            </form>
+
+                                            <!-- Reject -->
+                                            <form method="POST" class="reject-form">
+                                                <input type="hidden" name="appointment_id" value="<?= $row['id'] ?>">
+                                                <input type="hidden" name="action" value="reject">
+                                                <textarea name="rejection_reason" class="rejection-reason" required
+                                                    placeholder="Enter reason for rejection..."></textarea>
+                                                <button type="submit" class="btn-reject">
+                                                    ❌ Reject
+                                                </button>
+                                            </form>
+                                        <?php elseif ($row['status'] === 'approved'): ?>
+
+                                            <!-- Mark as Completed -->
+                                            <form method="POST">
+                                                <input type="hidden" name="appointment_id" value="<?= $row['id'] ?>">
+                                                <input type="hidden" name="action" value="complete">
+                                                <button type="submit" class="btn-approve"
+                                                    onclick="return confirm('Mark this appointment as COMPLETED? This action cannot be undone.')">
+                                                    ✔️ Mark Completed
+                                                </button>
+                                            </form>
+
+                                            <!-- Cancel Approved Appointment -->
+                                            <form method="POST" class="cancel-form">
+                                                <input type="hidden" name="appointment_id" value="<?= $row['id'] ?>">
+                                                <input type="hidden" name="action" value="cancel">
+                                                <textarea name="cancellation_reason" class="cancellation-reason" required
+                                                    placeholder="Enter reason for cancellation..."></textarea>
+                                                <button type="submit" class="btn-cancel">
+                                                    🚫 Cancel Appointment
+                                                </button>
+                                            </form>
+
+                                            <!-- Cancel Approved Appointment -->
+                                            <form method="POST" class="cancel-form">
+                                                <input type="hidden" name="appointment_id" value="<?= $row['id'] ?>">
+                                                <input type="hidden" name="action" value="cancel">
+                                                <textarea name="cancellation_reason" class="cancellation-reason" required
+                                                    placeholder="Enter reason for cancellation (will notify patient & doctor)..."></textarea>
+                                                <button type="submit" class="btn-cancel"
+                                                    onclick="return confirm('Are you sure you want to cancel this approved appointment? Both patient and doctor will be notified.')">
+                                                    🚫 Cancel Appointment
+                                                </button>
+                                            </form>
+                                        <?php else: ?>
+                                            <div style="color: #999; font-size: 13px; text-align: center; padding: 10px;">
+                                                No actions available
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
                         <?php endwhile; ?>
                     </tbody>
                 </table>
@@ -788,4 +862,5 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
         }
     </script>
 </body>
+
 </html>

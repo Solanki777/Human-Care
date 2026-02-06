@@ -114,11 +114,27 @@ $stmt->execute();
 $cancelled_appointments_list = $stmt->get_result();
 $stmt->close();
 
+$stmt = $admin_conn->prepare("
+    SELECT *
+    FROM appointments
+    WHERE doctor_name = ?
+    AND status = 'completed'
+    ORDER BY completed_at DESC
+    LIMIT 10
+");
+$stmt->bind_param("s", $doctor_name);
+$stmt->execute();
+$completed_appointments_list = $stmt->get_result();
+$stmt->close();
+
+
+
 $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -194,14 +210,14 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
             background: white;
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             text-align: center;
             transition: transform 0.3s;
         }
 
         .stat-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
         }
 
         .stat-icon {
@@ -276,7 +292,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         }
 
         .appointment-card {
@@ -289,7 +305,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
         }
 
         .appointment-card:hover {
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             transform: translateX(5px);
         }
 
@@ -457,6 +473,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
         }
     </style>
 </head>
+
 <body>
     <!-- Menu Toggle Button -->
     <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
@@ -508,12 +525,6 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                         <span>Edit Learning Page</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="index.php">
-                        <span class="nav-icon">🌐</span>
-                        <span>View Website</span>
-                    </a>
-                </li>
             </ul>
         </nav>
 
@@ -542,10 +553,10 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                     <div class="quick-stat-label">Upcoming Approved</div>
                 </div>
                 <?php if ($unreadCount > 0): ?>
-                <div class="quick-stat">
-                    <div class="quick-stat-number"><?php echo $unreadCount; ?></div>
-                    <div class="quick-stat-label">Unread Messages</div>
-                </div>
+                    <div class="quick-stat">
+                        <div class="quick-stat-number"><?php echo $unreadCount; ?></div>
+                        <div class="quick-stat-label">Unread Messages</div>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -587,13 +598,17 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
             <a href="?view=cancelled" class="view-tab <?php echo $filter === 'cancelled' ? 'active' : ''; ?>">
                 🚫 Cancelled Appointments
             </a>
+            <a href="?view=completed" class="view-tab <?php echo $filter === 'completed' ? 'active' : ''; ?>">
+                ✔️ Completed Appointments
+            </a>
+
         </div>
 
         <!-- Appointments Section -->
         <div class="appointments-section">
             <?php if ($filter === 'upcoming'): ?>
                 <h3 style="font-size: 20px; margin-bottom: 20px; color: #333;">📅 Upcoming Appointments</h3>
-                
+
                 <?php if ($upcoming_appointments->num_rows === 0): ?>
                     <div class="no-appointments">
                         <div class="no-appointments-icon">✅</div>
@@ -608,7 +623,8 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                                     <div class="patient-name">👤 <?= htmlspecialchars($appt['patient_name']) ?></div>
                                     <div class="appointment-date">
                                         📅 <?= date('l, F j, Y', strtotime($appt['appointment_date'])) ?>
-                                        <span class="appointment-time">🕐 <?= date('h:i A', strtotime($appt['appointment_time'])) ?></span>
+                                        <span class="appointment-time">🕐
+                                            <?= date('h:i A', strtotime($appt['appointment_time'])) ?></span>
                                     </div>
                                 </div>
                             </div>
@@ -618,7 +634,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                                 <p><strong>🩺 Reason:</strong> <?= htmlspecialchars($appt['reason_for_visit']) ?></p>
                                 <p><strong>💼 Type:</strong> <?= ucfirst($appt['consultation_type']) ?></p>
                             </div>
-                            
+
                             <?php if ($appt['chat_room_id']): ?>
                                 <div class="appointment-actions">
                                     <a href="doctor_chat.php?room_id=<?= $appt['chat_room_id'] ?>" class="chat-btn">
@@ -633,10 +649,29 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                         </div>
                     <?php endwhile; ?>
                 <?php endif; ?>
+            <?php elseif ($filter === 'completed'): ?>
+
+                <h3>✔️ Completed Appointments</h3>
+
+                <?php if ($completed_appointments_list->num_rows === 0): ?>
+                    <p>No completed appointments yet.</p>
+                <?php else: ?>
+                    <?php while ($appt = $completed_appointments_list->fetch_assoc()): ?>
+                        <div class="appointment-card" style="border-left-color:#10b981;">
+                            <strong>👤 <?= htmlspecialchars($appt['patient_name']) ?></strong><br>
+                            📅 <?= date('M d, Y', strtotime($appt['appointment_date'])) ?>
+                            🕐 <?= date('h:i A', strtotime($appt['appointment_time'])) ?><br>
+
+                            ✔ Completed on:
+                            <?= date('M d, Y h:i A', strtotime($appt['completed_at'])) ?>
+                        </div>
+                    <?php endwhile; ?>
+                <?php endif; ?>
+
 
             <?php else: ?>
                 <h3 style="font-size: 20px; margin-bottom: 20px; color: #333;">🚫 Cancelled Appointments</h3>
-                
+
                 <?php if ($cancelled_appointments_list->num_rows === 0): ?>
                     <div class="no-appointments">
                         <div class="no-appointments-icon">✅</div>
@@ -651,7 +686,8 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                                     <div class="patient-name">👤 <?= htmlspecialchars($appt['patient_name']) ?></div>
                                     <div class="appointment-date">
                                         📅 <?= date('l, F j, Y', strtotime($appt['appointment_date'])) ?>
-                                        <span class="appointment-time">🕐 <?= date('h:i A', strtotime($appt['appointment_time'])) ?></span>
+                                        <span class="appointment-time">🕐
+                                            <?= date('h:i A', strtotime($appt['appointment_time'])) ?></span>
                                     </div>
                                 </div>
                             </div>
@@ -660,7 +696,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                                 <p><strong>📱 Phone:</strong> <?= htmlspecialchars($appt['patient_phone']) ?></p>
                                 <p><strong>🩺 Original Reason:</strong> <?= htmlspecialchars($appt['reason_for_visit']) ?></p>
                             </div>
-                            
+
                             <?php if ($appt['rejection_reason']): ?>
                                 <div class="cancellation-box">
                                     <strong>🚫 Cancellation Reason (Admin):</strong>
@@ -686,13 +722,13 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
         }
 
         // Close sidebar when clicking outside on mobile
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
             const menuToggle = document.getElementById('menuToggle');
 
             if (overlay) {
-                overlay.addEventListener('click', function() {
+                overlay.addEventListener('click', function () {
                     sidebar.classList.remove('active');
                     overlay.classList.remove('active');
                 });
@@ -700,6 +736,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
         });
     </script>
 </body>
+
 </html>
 
 <?php

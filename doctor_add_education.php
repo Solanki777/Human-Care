@@ -307,7 +307,8 @@ $doctors_conn->close();
 </head>
 
 <body>
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <!-- Menu Toggle Button -->
+    <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
 
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
@@ -336,17 +337,24 @@ $doctors_conn->close();
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="doctor_add_education.php">
-                        <span class="nav-icon">👤</span>
-                        <span>Edit learning page</span>
+                    <a class="nav-link" href="doctor_chat.php">
+                        <span class="nav-icon">💬</span>
+                        <span>Patient Chats</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="index.php">
-                        <span class="nav-icon">🌐</span>
-                        <span>View Website</span>
+                    <a class="nav-link" href="doctor_profile.php">
+                        <span class="nav-icon">👤</span>
+                        <span>My Profile</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="doctor_add_education.php">
+                        <span class="nav-icon">📚</span>
+                        <span>Edit Learning Page</span>
+                    </a>
+                </li>
+               
             </ul>
         </nav>
 
