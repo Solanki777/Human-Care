@@ -6,6 +6,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
     header("Location: login.php");
     exit();
 }
+$active_page = 'education'; // Change based on page
 
 // Get doctor info from doctors database
 $doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
@@ -310,62 +311,7 @@ $doctors_conn->close();
     <!-- Menu Toggle Button -->
     <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
 
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
-        </div>
-
-        <!-- Doctor Profile -->
-        <div class="user-profile">
-            <div class="user-avatar">👨‍⚕️</div>
-            <div class="user-info">
-                <h3>Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></h3>
-                <span class="doctor-badge">DOCTOR</span>
-                <p class="specialty-tag"><?php echo htmlspecialchars($doctor['specialty']); ?></p>
-            </div>
-        </div>
-
-        <!-- Navigation Menu -->
-        <nav>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a class="nav-link active" href="doctor_dashboard.php">
-                        <span class="nav-icon">🏠</span>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="doctor_chat.php">
-                        <span class="nav-icon">💬</span>
-                        <span>Patient Chats</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="doctor_profile.php">
-                        <span class="nav-icon">👤</span>
-                        <span>My Profile</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="doctor_add_education.php">
-                        <span class="nav-icon">📚</span>
-                        <span>Edit Learning Page</span>
-                    </a>
-                </li>
-               
-            </ul>
-        </nav>
-
-        <!-- Logout Button -->
-        <form method="post" action="logout.php">
-            <button class="logout-btn" type="submit">🚪 Logout</button>
-        </form>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <?php include 'includes/doctor_sidebar.php'; ?>
 
     <!-- Main Content -->
     <main class="main-content">

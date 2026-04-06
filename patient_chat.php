@@ -36,6 +36,7 @@ if ($selectedRoomId) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -46,24 +47,29 @@ if ($selectedRoomId) {
         body {
             background: #f5f7fa;
         }
+
         .chat-page-container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 30px 20px;
             padding-top: 80px;
         }
+
         .page-header {
             margin-bottom: 30px;
         }
+
         .page-header h1 {
             font-size: 28px;
             color: #333;
             margin-bottom: 10px;
         }
+
         .page-header p {
             color: #666;
             font-size: 14px;
         }
+
         .unread-badge {
             background: #ff4757;
             color: white;
@@ -75,62 +81,11 @@ if ($selectedRoomId) {
         }
     </style>
 </head>
+
 <body>
     <!-- Menu Toggle Button -->
-    <button class="menu-toggle" id="menuToggle">☰</button>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
-        </div>
-
-        <ul class="sidebar-nav">
-            <li><a href="index.php">
-                <span class="nav-icon">🏠</span>
-                <span>Home</span>
-            </a></li>
-            <li><a href="doctors.php">
-                <span class="nav-icon">👨‍⚕️</span>
-                <span>Our Doctors</span>
-            </a></li>
-            <li><a href="education.php">
-                <span class="nav-icon">📚</span>
-                <span>Learning Center</span>
-            </a></li>
-            <li><a href="book_appointment.php">
-                <span class="nav-icon">📅</span>
-                <span>Book Appointment</span>
-            </a></li>
-            <li><a href="patient_appointments.php">
-                <span class="nav-icon">📋</span>
-                <span>My Appointments</span>
-            </a></li>
-            <li><a href="patient_chat.php" class="active">
-                <span class="nav-icon">💬</span>
-                <span>My Chats</span>
-                <?php if ($unreadCount > 0): ?>
-                    <span class="unread-badge"><?php echo $unreadCount; ?></span>
-                <?php endif; ?>
-            </a></li>
-            <li><a href="contact.php">
-                <span class="nav-icon">📞</span>
-                <span>Contact & Support</span>
-            </a></li>
-        </ul>
-
-        <div class="user-box-sidebar">
-            <div class="user-name-sidebar">
-                👤 <?php echo htmlspecialchars($userName); ?>
-            </div>
-            <a href="patient_appointments.php" class="login-btn-sidebar">My Dashboard</a>
-            <a href="logout.php" class="logout-btn-sidebar">Logout</a>
-        </div>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <?php $active_page = 'chats'; ?>
+    <?php include 'includes/public_sidebar.php'; ?>
 
     <!-- Main Content -->
     <div class="chat-page-container">
@@ -161,14 +116,14 @@ if ($selectedRoomId) {
                         </div>
                     <?php else: ?>
                         <?php foreach ($chatRooms as $room): ?>
-                            <div class="chat-list-item <?php echo $selectedRoomId == $room['id'] ? 'active' : ''; ?>" 
-                                 onclick="openChat(<?php echo $room['id']; ?>)">
+                            <div class="chat-list-item <?php echo $selectedRoomId == $room['id'] ? 'active' : ''; ?>"
+                                onclick="openChat(<?php echo $room['id']; ?>)">
                                 <div class="chat-avatar">👨‍⚕️</div>
                                 <div class="chat-preview">
                                     <div class="chat-preview-header">
                                         <h4>Dr. <?php echo htmlspecialchars($room['doctor_name']); ?></h4>
                                         <span class="chat-time">
-                                            <?php 
+                                            <?php
                                             if ($room['last_message_time']) {
                                                 echo date('M j, g:i A', strtotime($room['last_message_time']));
                                             }
@@ -235,12 +190,8 @@ if ($selectedRoomId) {
                         <!-- Message Input -->
                         <div class="message-input-container">
                             <form id="messageForm">
-                                <textarea 
-                                    id="messageInput" 
-                                    placeholder="Type your message here..." 
-                                    rows="1"
-                                    required
-                                ></textarea>
+                                <textarea id="messageInput" placeholder="Type your message here..." rows="1"
+                                    required></textarea>
                                 <button type="submit" class="send-btn">
                                     <span>Send</span>
                                     <span>📤</span>
@@ -249,7 +200,7 @@ if ($selectedRoomId) {
                             <div class="message-hint">Press Enter to send, Shift+Enter for new line</div>
                         </div>
                     </div>
-                <?php endif; ?>
+             <?php endif; ?>
             </div>
         </div>
     </div>
@@ -263,13 +214,13 @@ if ($selectedRoomId) {
         let typingTimeout = null;
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             if (chatRoomId) {
                 loadMessages();
                 startPolling();
                 setupMessageInput();
             }
-            setupSidebar();
+
         });
 
         // Load messages
@@ -291,7 +242,7 @@ if ($selectedRoomId) {
         function displayMessages(messages) {
             const container = document.getElementById('messagesContainer');
             const loading = document.getElementById('messagesLoading');
-            
+
             if (loading) loading.style.display = 'none';
 
             if (messages.length === 0) {
@@ -307,9 +258,9 @@ if ($selectedRoomId) {
             let html = '';
             messages.forEach(msg => {
                 const isMine = msg.sender_type === userType;
-                const time = new Date(msg.created_at).toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit' 
+                const time = new Date(msg.created_at).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit'
                 });
 
                 html += `
@@ -336,7 +287,7 @@ if ($selectedRoomId) {
                             appendMessages(data.messages);
                             lastMessageId = data.messages[data.messages.length - 1].id;
                         }
-                        
+
                         // Update typing indicator
                         const typingIndicator = document.getElementById('typingIndicator');
                         if (data.isTyping) {
@@ -352,12 +303,12 @@ if ($selectedRoomId) {
         // Append new messages
         function appendMessages(messages) {
             const container = document.getElementById('messagesContainer');
-            
+
             messages.forEach(msg => {
                 const isMine = msg.sender_type === userType;
-                const time = new Date(msg.created_at).toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit' 
+                const time = new Date(msg.created_at).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit'
                 });
 
                 const messageDiv = document.createElement('div');
@@ -368,7 +319,7 @@ if ($selectedRoomId) {
                         <span class="message-time">${time}</span>
                     </div>
                 `;
-                
+
                 container.appendChild(messageDiv);
             });
 
@@ -380,13 +331,13 @@ if ($selectedRoomId) {
             const form = document.getElementById('messageForm');
             const input = document.getElementById('messageInput');
 
-            form.addEventListener('submit', function(e) {
+            form.addEventListener('submit', function (e) {
                 e.preventDefault();
                 sendMessage();
             });
 
             // Handle Enter key
-            input.addEventListener('keydown', function(e) {
+            input.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
@@ -394,9 +345,9 @@ if ($selectedRoomId) {
             });
 
             // Typing indicator
-            input.addEventListener('input', function() {
+            input.addEventListener('input', function () {
                 updateTypingStatus(true);
-                
+
                 clearTimeout(typingTimeout);
                 typingTimeout = setTimeout(() => {
                     updateTypingStatus(false);
@@ -404,7 +355,7 @@ if ($selectedRoomId) {
             });
 
             // Auto-resize textarea
-            input.addEventListener('input', function() {
+            input.addEventListener('input', function () {
                 this.style.height = 'auto';
                 this.style.height = (this.scrollHeight) + 'px';
             });
@@ -426,32 +377,32 @@ if ($selectedRoomId) {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    input.value = '';
-                    input.style.height = 'auto';
-                    updateTypingStatus(false);
-                    
-                    // Immediately fetch the new message
-                    setTimeout(() => {
-                        fetch(`chat_api.php?action=get_recent_messages&chat_room_id=${chatRoomId}&after_message_id=${lastMessageId}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success && data.messages.length > 0) {
-                                    appendMessages(data.messages);
-                                    lastMessageId = data.messages[data.messages.length - 1].id;
-                                }
-                            });
-                    }, 100);
-                } else {
-                    alert('Failed to send message. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error sending message:', error);
-                alert('Error sending message. Please try again.');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        input.value = '';
+                        input.style.height = 'auto';
+                        updateTypingStatus(false);
+
+                        // Immediately fetch the new message
+                        setTimeout(() => {
+                            fetch(`chat_api.php?action=get_recent_messages&chat_room_id=${chatRoomId}&after_message_id=${lastMessageId}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success && data.messages.length > 0) {
+                                        appendMessages(data.messages);
+                                        lastMessageId = data.messages[data.messages.length - 1].id;
+                                    }
+                                });
+                        }, 100);
+                    } else {
+                        alert('Failed to send message. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error sending message:', error);
+                    alert('Error sending message. Please try again.');
+                });
         }
 
         // Update typing status
@@ -492,28 +443,13 @@ if ($selectedRoomId) {
             container.classList.remove('hidden');
         }
 
-        // Setup sidebar
-        function setupSidebar() {
-            const menuToggle = document.getElementById('menuToggle');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-
-            menuToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('active');
-                overlay.classList.toggle('active');
-            });
-
-            overlay.addEventListener('click', function() {
-                sidebar.classList.remove('active');
-                overlay.classList.remove('active');
-            });
-        }
+       
 
         // Search chats
-        document.getElementById('chatSearch')?.addEventListener('input', function(e) {
+        document.getElementById('chatSearch')?.addEventListener('input', function (e) {
             const search = e.target.value.toLowerCase();
             const items = document.querySelectorAll('.chat-list-item');
-            
+
             items.forEach(item => {
                 const text = item.textContent.toLowerCase();
                 item.style.display = text.includes(search) ? 'flex' : 'none';
@@ -521,7 +457,7 @@ if ($selectedRoomId) {
         });
 
         // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {
+        window.addEventListener('beforeunload', function () {
             if (pollingInterval) {
                 clearInterval(pollingInterval);
             }
@@ -531,4 +467,5 @@ if ($selectedRoomId) {
         });
     </script>
 </body>
+
 </html>

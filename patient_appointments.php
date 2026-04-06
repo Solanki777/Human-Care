@@ -304,73 +304,8 @@ $unreadCount = $chat->getUnreadCount($userId, 'patient');
 
 <body>
     <!-- Menu Toggle Button -->
-    <button class="menu-toggle" id="menuToggle">☰</button>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
-        </div>
-
-        <ul class="sidebar-nav">
-            <li><a href="index.php">
-                    <span class="nav-icon">🏠</span>
-                    <span>Home</span>
-                </a></li>
-            <li><a href="doctors.php">
-                    <span class="nav-icon">👨‍⚕️</span>
-                    <span>Our Doctors</span>
-                </a></li>
-            <li><a href="education.php">
-                    <span class="nav-icon">📚</span>
-                    <span>Learning Center</span>
-                </a></li>
-            <li>
-                <a href="book_appointment.php">
-                    <span class="nav-icon">📅</span>
-                    <span>Book Appointment</span>
-                </a>
-            </li>
-            <?php if (isset($_SESSION['user_name'])): ?>
-                <li>
-                    <a href="patient_appointments.php" class="active">
-                        <span class="nav-icon">📋</span>
-                        <span>My Appointments</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="patient_chat.php">
-                        <span class="nav-icon">💬</span>
-                        <span>My Chats</span>
-                        <?php if ($unreadCount > 0): ?>
-                            <span class="unread-badge"><?php echo $unreadCount; ?></span>
-                        <?php endif; ?>
-                    </a>
-                </li>
-            <?php endif; ?>
-            <li>
-                <a href="contact.php">
-                    <span class="nav-icon">📞</span>
-                    <span>Contact & Support</span>
-                </a>
-            </li>
-        </ul>
-        <div class="user-box-sidebar">
-            <?php if (isset($_SESSION['user_name'])): ?>
-                <div class="user-name-sidebar">
-                    👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-                </div>
-                <a href="patient_appointments.php" class="login-btn-sidebar">My Dashboard</a>
-                <a href="logout.php" class="logout-btn-sidebar">Logout</a>
-            <?php else: ?>
-                <a href="login.php" class="login-btn-sidebar">Login / Sign Up</a>
-            <?php endif; ?>
-        </div>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <?php $active_page = 'appointments'; ?>
+    <?php include 'includes/public_sidebar.php'; ?>
 
     <div style="max-width:900px; margin:auto; padding: 30px 20px;">
         <div class="page-title">
@@ -505,50 +440,7 @@ $unreadCount = $chat->getUnreadCount($userId, 'patient');
         <?php endif; ?>
     </div>
 
-    <!-- JavaScript for Sidebar Toggle -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const menuToggle = document.getElementById('menuToggle');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-
-            function toggleSidebar() {
-                if (sidebar && overlay) {
-                    sidebar.classList.toggle('active');
-                    overlay.classList.toggle('active');
-                }
-            }
-
-            if (menuToggle) {
-                menuToggle.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    toggleSidebar();
-                });
-            }
-
-            if (overlay) {
-                overlay.addEventListener('click', function () {
-                    toggleSidebar();
-                });
-            }
-
-            if (sidebar) {
-                sidebar.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                });
-            }
-
-            document.addEventListener('click', function (event) {
-                if (sidebar && menuToggle &&
-                    sidebar.classList.contains('active') &&
-                    !sidebar.contains(event.target) &&
-                    !menuToggle.contains(event.target)) {
-                    toggleSidebar();
-                }
-            });
-        });
-    </script>
-
+    
 </body>
 
 </html>

@@ -1,4 +1,4 @@
-<?php 
+<?php
 session_start();
 // Decide doctor ID source
 if (isset($_SESSION['user_id']) && $_SESSION['user_type'] === 'doctor') {
@@ -11,6 +11,8 @@ if (isset($_SESSION['user_id']) && $_SESSION['user_type'] === 'doctor') {
     header("Location: doctors.php");
     exit();
 }
+
+$active_page = 'profile'; // Change based on page
 
 // Connect to doctors database
 $conn = new mysqli("localhost", "root", "", "human_care_doctors");
@@ -41,6 +43,7 @@ $conn->close();
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -64,7 +67,7 @@ $conn->close();
         .profile-card {
             background: white;
             border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
             overflow: hidden;
             margin-bottom: 30px;
         }
@@ -378,7 +381,23 @@ $conn->close();
             padding: 20px;
         }
 
+        /* ── Page wrapper so content shifts beside sidebar ── */
+        .main-wrapper {
+            margin-left: 0;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+            padding-top: 20px;
+        }
+
+        body.sidebar-open .main-wrapper {
+            margin-left: 260px;
+        }
+
         @media (max-width: 768px) {
+            body.sidebar-open .main-wrapper {
+                margin-left: 0;
+            }
+
             .profile-header {
                 flex-direction: column;
                 align-items: center;
@@ -399,300 +418,254 @@ $conn->close();
         }
     </style>
 </head>
+
 <body>
-    <!-- Menu Toggle Button -->
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <?php $active_page = 'doctors'; ?>
+    <?php include 'includes/public_sidebar.php'; ?>
 
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
-        </div>
+    <!-- ── Main Wrapper (wraps content + footer) ── -->
+    <div class="main-wrapper" id="mainWrapper">
 
-        <ul class="sidebar-nav">
-            <li><a href="index.php">
-                <span class="nav-icon">🏠</span>
-                <span>Home</span>
-            </a></li>
-            <li><a href="doctors.php" class="active">
-                <span class="nav-icon">👨‍⚕️</span>
-                <span>Our Doctors</span>
-            </a></li>
-            <li><a href="education.php">
-                <span class="nav-icon">📚</span>
-                <span>Health Education</span>
-            </a></li>
-            <li><a href="contact.php">
-                <span class="nav-icon">💬</span>
-                <span>Contact Us</span>
-            </a></li>
-        </ul>
+        <div class="profile-container">
+            <!-- Profile Card -->
+            <div class="profile-card">
+                <!-- Profile Header -->
+                <div class="profile-header">
+                    <div class="doctor-avatar-large">👨‍⚕️</div>
 
-        <div class="user-box-sidebar">
-            <?php if (isset($_SESSION['user_name'])): ?>
-                <div class="user-name-sidebar">
-                    👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?>
+                    <div class="profile-info">
+                        <h1 class="doctor-name-large">
+                            Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?>
+                        </h1>
+                        <div class="specialty-large">
+                            <?php echo htmlspecialchars($doctor['specialty']); ?>
+                        </div>
+                        <div class="verified-badge-large">
+                            ✓ Verified & Licensed Doctor
+                        </div>
+
+                        <div class="quick-stats">
+                            <div class="stat-item">
+                                <div class="stat-number"><?php echo $doctor['experience_years']; ?>+</div>
+                                <div class="stat-label">Years Experience</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number"><?php echo $appointment_count; ?>+</div>
+                                <div class="stat-label">Appointments</div>
+                            </div>
+                            <?php if ($doctor['consultation_fee']): ?>
+                                <div class="stat-item">
+                                    <div class="stat-number">₹<?php echo number_format($doctor['consultation_fee']); ?></div>
+                                    <div class="stat-label">Consultation Fee</div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
-                <a href="dashboard.php" class="login-btn-sidebar">My Dashboard</a>
-                <a href="logout.php" class="logout-btn-sidebar">Logout</a>
-            <?php else: ?>
-                <a href="login.php" class="login-btn-sidebar">Login / Sign Up</a>
-            <?php endif; ?>
-        </div>
-    </aside>
 
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
-    <!-- Profile Hero -->
-    <div class="profile-hero">
-        <div class="container">
-            <a href="doctors.php" class="back-btn">← Back to All Doctors</a>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="profile-container">
-        <!-- Profile Card -->
-        <div class="profile-card">
-            <!-- Profile Header -->
-            <div class="profile-header">
-                <div class="doctor-avatar-large">👨‍⚕️</div>
-                
-                <div class="profile-info">
-                    <h1 class="doctor-name-large">
-                        Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?>
-                    </h1>
-                    <div class="specialty-large">
-                        <?php echo htmlspecialchars($doctor['specialty']); ?>
+                <!-- About Section -->
+                <?php if ($doctor['about']): ?>
+                    <div class="profile-section">
+                        <h2 class="section-title">
+                            📋 About Dr. <?php echo htmlspecialchars($doctor['first_name']); ?>
+                        </h2>
+                        <div class="about-section">
+                            <?php echo nl2br(htmlspecialchars($doctor['about'])); ?>
+                        </div>
                     </div>
-                    <div class="verified-badge-large">
-                        ✓ Verified & Licensed Doctor
+                <?php endif; ?>
+
+                <!-- Professional Information -->
+                <div class="profile-section">
+                    <h2 class="section-title">
+                        🎓 Professional Information
+                    </h2>
+
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">
+                                <span class="info-icon">🎓</span> Qualification
+                            </div>
+                            <div class="info-value"><?php echo htmlspecialchars($doctor['qualification']); ?></div>
+                        </div>
+
+                        <div class="info-item">
+                            <div class="info-label">
+                                <span class="info-icon">⭐</span> Experience
+                            </div>
+                            <div class="info-value"><?php echo $doctor['experience_years']; ?> Years</div>
+                        </div>
+
+                        <div class="info-item">
+                            <div class="info-label">
+                                <span class="info-icon">🆔</span> License Number
+                            </div>
+                            <div class="info-value"><?php echo htmlspecialchars($doctor['license_number']); ?></div>
+                        </div>
+
+                        <?php if ($doctor['hospital_affiliation']): ?>
+                            <div class="info-item">
+                                <div class="info-label">
+                                    <span class="info-icon">🏥</span> Hospital Affiliation
+                                </div>
+                                <div class="info-value"><?php echo htmlspecialchars($doctor['hospital_affiliation']); ?></div>
+                            </div>
+                        <?php endif; ?>
                     </div>
-                    
-                    <div class="quick-stats">
-                        <div class="stat-item">
-                            <div class="stat-number"><?php echo $doctor['experience_years']; ?>+</div>
-                            <div class="stat-label">Years Experience</div>
+
+                    <?php if ($doctor['qualification']): ?>
+                        <div class="qualifications-list">
+                            <?php
+                            $quals = explode(',', $doctor['qualification']);
+                            foreach ($quals as $qual):
+                                ?>
+                                <span class="qualification-badge"><?php echo trim(htmlspecialchars($qual)); ?></span>
+                            <?php endforeach; ?>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-number"><?php echo $appointment_count; ?>+</div>
-                            <div class="stat-label">Appointments</div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Availability & Schedule -->
+                <?php if ($doctor['available_days'] || $doctor['available_time']): ?>
+                    <div class="profile-section">
+                        <h2 class="section-title">
+                            📅 Availability & Schedule
+                        </h2>
+
+                        <div class="availability-grid">
+                            <?php if ($doctor['available_days']): ?>
+                                <div class="availability-card">
+                                    <div class="availability-icon">📅</div>
+                                    <div class="availability-label">Available Days</div>
+                                    <div class="availability-value"><?php echo htmlspecialchars($doctor['available_days']); ?></div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($doctor['available_time']): ?>
+                                <div class="availability-card">
+                                    <div class="availability-icon">🕐</div>
+                                    <div class="availability-label">Available Time</div>
+                                    <div class="availability-value"><?php echo htmlspecialchars($doctor['available_time']); ?></div>
+                                </div>
+                            <?php endif; ?>
                         </div>
-                        <?php if ($doctor['consultation_fee']): ?>
-                        <div class="stat-item">
-                            <div class="stat-number">₹<?php echo number_format($doctor['consultation_fee']); ?></div>
-                            <div class="stat-label">Consultation Fee</div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Consultation Fee -->
+                <?php if ($doctor['consultation_fee']): ?>
+                    <div class="profile-section">
+                        <h2 class="section-title">
+                            💰 Consultation Fee
+                        </h2>
+
+                        <div class="consultation-fee-box">
+                            <div class="fee-label">Consultation Charges</div>
+                            <div class="fee-amount">₹<?php echo number_format($doctor['consultation_fee'], 2); ?></div>
+                            <div class="fee-note">Per consultation session</div>
                         </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Contact Information -->
+                <div class="profile-section">
+                    <h2 class="section-title">
+                        📞 Contact Information
+                    </h2>
+
+                    <div class="contact-card">
+                        <div class="contact-item">
+                            <div class="contact-icon-box">📧</div>
+                            <div class="contact-details">
+                                <div class="contact-label">Email Address</div>
+                                <div class="contact-value"><?php echo htmlspecialchars($doctor['email']); ?></div>
+                            </div>
+                        </div>
+
+                        <div class="contact-item">
+                            <div class="contact-icon-box">📱</div>
+                            <div class="contact-details">
+                                <div class="contact-label">Phone Number</div>
+                                <div class="contact-value"><?php echo htmlspecialchars($doctor['phone']); ?></div>
+                            </div>
+                        </div>
+
+                        <?php if ($doctor['hospital_affiliation']): ?>
+                            <div class="contact-item">
+                                <div class="contact-icon-box">🏥</div>
+                                <div class="contact-details">
+                                    <div class="contact-label">Hospital/Clinic</div>
+                                    <div class="contact-value"><?php echo htmlspecialchars($doctor['hospital_affiliation']); ?></div>
+                                </div>
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
-            </div>
 
-            <!-- About Section -->
-            <?php if ($doctor['about']): ?>
-            <div class="profile-section">
-                <h2 class="section-title">
-                    📋 About Dr. <?php echo htmlspecialchars($doctor['first_name']); ?>
-                </h2>
-                <div class="about-section">
-                    <?php echo nl2br(htmlspecialchars($doctor['about'])); ?>
-                </div>
-            </div>
-            <?php endif; ?>
+                <!-- Book Appointment Section -->
+                <div class="action-section">
+                    <h3 style="font-size: 24px; margin-bottom: 15px; color: #333;">
+                        Ready to Book an Appointment?
+                    </h3>
+                    <p style="color: #666; margin-bottom: 25px; font-size: 16px;">
+                        Schedule your consultation with Dr. <?php echo htmlspecialchars($doctor['first_name']); ?> today
+                    </p>
 
-            <!-- Professional Information -->
-            <div class="profile-section">
-                <h2 class="section-title">
-                    🎓 Professional Information
-                </h2>
-                
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">
-                            <span class="info-icon">🎓</span> Qualification
-                        </div>
-                        <div class="info-value"><?php echo htmlspecialchars($doctor['qualification']); ?></div>
-                    </div>
-                    
-                    <div class="info-item">
-                        <div class="info-label">
-                            <span class="info-icon">⭐</span> Experience
-                        </div>
-                        <div class="info-value"><?php echo $doctor['experience_years']; ?> Years</div>
-                    </div>
-                    
-                    <div class="info-item">
-                        <div class="info-label">
-                            <span class="info-icon">🆔</span> License Number
-                        </div>
-                        <div class="info-value"><?php echo htmlspecialchars($doctor['license_number']); ?></div>
-                    </div>
-                    
-                    <?php if ($doctor['hospital_affiliation']): ?>
-                    <div class="info-item">
-                        <div class="info-label">
-                            <span class="info-icon">🏥</span> Hospital Affiliation
-                        </div>
-                        <div class="info-value"><?php echo htmlspecialchars($doctor['hospital_affiliation']); ?></div>
-                    </div>
+                    <?php if (isset($_SESSION['user_name']) && $_SESSION['user_type'] === 'patient'): ?>
+                        <a href="book_appointment.php?doctor_id=<?php echo $doctor['id']; ?>" class="book-appointment-btn"
+                            style="text-decoration: none;">
+                            📅 Book Appointment Now
+                        </a>
+                    <?php else: ?>
+                        <a href="login.php" class="book-appointment-btn" style="text-decoration: none;">
+                            🔐 Login to Book Appointment
+                        </a>
                     <?php endif; ?>
-                </div>
 
-                <?php if ($doctor['qualification']): ?>
-                <div class="qualifications-list">
-                    <?php 
-                    $quals = explode(',', $doctor['qualification']);
-                    foreach ($quals as $qual): 
-                    ?>
-                        <span class="qualification-badge"><?php echo trim(htmlspecialchars($qual)); ?></span>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- Availability & Schedule -->
-            <?php if ($doctor['available_days'] || $doctor['available_time']): ?>
-            <div class="profile-section">
-                <h2 class="section-title">
-                    📅 Availability & Schedule
-                </h2>
-                
-                <div class="availability-grid">
-                    <?php if ($doctor['available_days']): ?>
-                    <div class="availability-card">
-                        <div class="availability-icon">📅</div>
-                        <div class="availability-label">Available Days</div>
-                        <div class="availability-value"><?php echo htmlspecialchars($doctor['available_days']); ?></div>
+                    <div style="margin-top: 20px;">
+                        <a href="doctors.php" class="btn-secondary"
+                            style="display: inline-block; padding: 12px 30px; text-decoration: none;">
+                            ← View Other Doctors
+                        </a>
                     </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($doctor['available_time']): ?>
-                    <div class="availability-card">
-                        <div class="availability-icon">🕐</div>
-                        <div class="availability-label">Available Time</div>
-                        <div class="availability-value"><?php echo htmlspecialchars($doctor['available_time']); ?></div>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Consultation Fee -->
-            <?php if ($doctor['consultation_fee']): ?>
-            <div class="profile-section">
-                <h2 class="section-title">
-                    💰 Consultation Fee
-                </h2>
-                
-                <div class="consultation-fee-box">
-                    <div class="fee-label">Consultation Charges</div>
-                    <div class="fee-amount">₹<?php echo number_format($doctor['consultation_fee'], 2); ?></div>
-                    <div class="fee-note">Per consultation session</div>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Contact Information -->
-            <div class="profile-section">
-                <h2 class="section-title">
-                    📞 Contact Information
-                </h2>
-                
-                <div class="contact-card">
-                    <div class="contact-item">
-                        <div class="contact-icon-box">📧</div>
-                        <div class="contact-details">
-                            <div class="contact-label">Email Address</div>
-                            <div class="contact-value"><?php echo htmlspecialchars($doctor['email']); ?></div>
-                        </div>
-                    </div>
-                    
-                    <div class="contact-item">
-                        <div class="contact-icon-box">📱</div>
-                        <div class="contact-details">
-                            <div class="contact-label">Phone Number</div>
-                            <div class="contact-value"><?php echo htmlspecialchars($doctor['phone']); ?></div>
-                        </div>
-                    </div>
-                    
-                    <?php if ($doctor['hospital_affiliation']): ?>
-                    <div class="contact-item">
-                        <div class="contact-icon-box">🏥</div>
-                        <div class="contact-details">
-                            <div class="contact-label">Hospital/Clinic</div>
-                            <div class="contact-value"><?php echo htmlspecialchars($doctor['hospital_affiliation']); ?></div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Book Appointment Section -->
-            <div class="action-section">
-                <h3 style="font-size: 24px; margin-bottom: 15px; color: #333;">
-                    Ready to Book an Appointment?
-                </h3>
-                <p style="color: #666; margin-bottom: 25px; font-size: 16px;">
-                    Schedule your consultation with Dr. <?php echo htmlspecialchars($doctor['first_name']); ?> today
-                </p>
-                
-                <?php if (isset($_SESSION['user_name']) && $_SESSION['user_type'] === 'patient'): ?>
-                    <a href="book_appointment.php?doctor_id=<?php echo $doctor['id']; ?>" class="book-appointment-btn" style="text-decoration: none;">
-                        📅 Book Appointment Now
-                    </a>
-                <?php else: ?>
-                    <a href="login.php" class="book-appointment-btn" style="text-decoration: none;">
-                        🔐 Login to Book Appointment
-                    </a>
-                <?php endif; ?>
-                
-                <div style="margin-top: 20px;">
-                    <a href="doctors.php" class="btn-secondary" style="display: inline-block; padding: 12px 30px; text-decoration: none;">
-                        ← View Other Doctors
-                    </a>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>Human Care</h3>
-                    <p>Your health, our priority</p>
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <h3>Human Care</h3>
+                        <p>Your health, our priority</p>
+                    </div>
+                    <div class="footer-section">
+                        <h4>Quick Links</h4>
+                        <ul>
+                            <li><a href="index.php">Home</a></li>
+                            <li><a href="doctors.php">Doctors</a></li>
+                            <li><a href="education.php">Education</a></li>
+                            <li><a href="contact.php">Contact</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-section">
+                        <h4>Contact</h4>
+                        <p>📞 +91 1234-567890</p>
+                        <p>📧 info@humancare.com</p>
+                        <p>📍 Rajkot, Gujarat, India</p>
+                    </div>
                 </div>
-                <div class="footer-section">
-                    <h4>Quick Links</h4>
-                    <ul>
-                        <li><a href="index.php">Home</a></li>
-                        <li><a href="doctors.php">Doctors</a></li>
-                        <li><a href="education.php">Education</a></li>
-                        <li><a href="contact.php">Contact</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Contact</h4>
-                    <p>📞 +91 1234-567890</p>
-                    <p>📧 info@humancare.com</p>
-                    <p>📍 Rajkot, Gujarat, India</p>
+                <div class="footer-bottom">
+                    <p>&copy; 2025 Human Care. All rights reserved.</p>
                 </div>
             </div>
-            <div class="footer-bottom">
-                <p>&copy; 2025 Human Care. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
+        </footer>
+
+    </div><!-- end .main-wrapper -->
 
     <script src="scripts/main.js"></script>
-    <script>
-        function bookAppointment(doctorId, doctorName) {
-            alert('Booking appointment with Dr. ' + doctorName + '\n\nAppointment booking feature coming soon!');
-            // Future: window.location.href = 'book_appointment.php?doctor_id=' + doctorId;
-        }
-    </script>
+   
 </body>
+
 </html>

@@ -7,6 +7,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
     exit();
 }
 
+$active_page = 'prescriptions'; // Change based on page
+
 $doctor_id = $_SESSION['user_id'];
 $doctor_name = $_SESSION['user_name'];
 
@@ -49,8 +51,8 @@ if ($appointment_id > 0) {
     // Check if appointment exists and belongs to this doctor
     if (!$appointment) {
         $error_message = "Appointment not found or you don't have access to it.";
-    } elseif ($appointment['status'] !== 'completed') {
-        $error_message = "You can only prescribe medicines for completed appointments.";
+    } elseif (!in_array($appointment['status'], ['approved', 'completed'])) {
+        $error_message = "You can only prescribe medicines for approved or completed appointments.";
     } else {
         // Check if prescription already exists
         $stmt = $doctors_conn->prepare("SELECT * FROM prescriptions WHERE appointment_id = ?");
@@ -101,19 +103,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $appointment) {
                 (appointment_id, doctor_id, patient_id, medicines, diagnosis, additional_notes, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, NOW())
             ");
-            $stmt->bind_param("iiisss", 
-                $appointment_id, 
-                $doctor_id, 
-                $appointment['patient_id'], 
-                $medicines_json, 
-                $diagnosis, 
+            $stmt->bind_param(
+                "iiisss",
+                $appointment_id,
+                $doctor_id,
+                $appointment['patient_id'],
+                $medicines_json,
+                $diagnosis,
                 $additional_notes
             );
         }
 
         if ($stmt->execute()) {
             $success_message = "Prescription saved successfully!";
-            
+
             // Refresh prescription data
             $stmt = $doctors_conn->prepare("SELECT * FROM prescriptions WHERE appointment_id = ?");
             $stmt->bind_param("i", $appointment_id);
@@ -137,6 +140,7 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -154,7 +158,7 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 25px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .patient-info-header {
@@ -205,7 +209,7 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .form-section-title {
@@ -443,55 +447,12 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
         }
     </style>
 </head>
+
 <body>
     <!-- Menu Toggle Button -->
     <button class="menu-toggle" id="menuToggle">☰</button>
 
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">⚕️</div>
-            DOCTOR PANEL
-        </div>
-
-        <div class="user-profile">
-            <div class="user-avatar">👨‍⚕️</div>
-            <div class="user-info">
-                <h3>Dr. <?php echo htmlspecialchars($doctor_name); ?></h3>
-                <p>Doctor</p>
-            </div>
-        </div>
-
-        <nav>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a class="nav-link" href="doctor_dashboard.php">
-                        <span class="nav-icon">🏠</span>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" href="doctor_dashboard.php">
-                        <span class="nav-icon">💊</span>
-                        <span>Prescriptions</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="doctor_profile.php">
-                        <span class="nav-icon">👤</span>
-                        <span>My Profile</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-
-        <form method="post" action="logout.php">
-            <button class="logout-btn" type="submit">🚪 Logout</button>
-        </form>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <?php include 'includes/doctor_sidebar.php'; ?>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -530,27 +491,33 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
                     <div class="patient-details">
                         <div class="detail-item">
                             <span class="detail-label">Appointment Date</span>
-                            <span class="detail-value"><?php echo date('F d, Y', strtotime($appointment['appointment_date'])); ?></span>
+                            <span
+                                class="detail-value"><?php echo date('F d, Y', strtotime($appointment['appointment_date'])); ?></span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Appointment Time</span>
-                            <span class="detail-value"><?php echo date('h:i A', strtotime($appointment['appointment_time'])); ?></span>
+                            <span
+                                class="detail-value"><?php echo date('h:i A', strtotime($appointment['appointment_time'])); ?></span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Gender</span>
-                            <span class="detail-value"><?php echo htmlspecialchars($appointment['patient_gender'] ?? 'N/A'); ?></span>
+                            <span
+                                class="detail-value"><?php echo htmlspecialchars($appointment['patient_gender'] ?? 'N/A'); ?></span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Date of Birth</span>
-                            <span class="detail-value"><?php echo $appointment['patient_dob'] ? date('F d, Y', strtotime($appointment['patient_dob'])) : 'N/A'; ?></span>
+                            <span
+                                class="detail-value"><?php echo $appointment['patient_dob'] ? date('F d, Y', strtotime($appointment['patient_dob'])) : 'N/A'; ?></span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Phone</span>
-                            <span class="detail-value"><?php echo htmlspecialchars($appointment['patient_phone'] ?? 'N/A'); ?></span>
+                            <span
+                                class="detail-value"><?php echo htmlspecialchars($appointment['patient_phone'] ?? 'N/A'); ?></span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Email</span>
-                            <span class="detail-value"><?php echo htmlspecialchars($appointment['patient_email'] ?? 'N/A'); ?></span>
+                            <span
+                                class="detail-value"><?php echo htmlspecialchars($appointment['patient_email'] ?? 'N/A'); ?></span>
                         </div>
                     </div>
                 </div>
@@ -581,39 +548,33 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
                                     <?php foreach ($saved_medicines as $index => $medicine): ?>
                                         <tr>
                                             <td>
-                                                <input type="text" 
-                                                       name="medicine_name[]" 
-                                                       class="medicine-input" 
-                                                       placeholder="e.g., Paracetamol 500mg"
-                                                       value="<?php echo htmlspecialchars($medicine['name']); ?>"
-                                                       required>
+                                                <input type="text" name="medicine_name[]" class="medicine-input"
+                                                    placeholder="e.g., Paracetamol 500mg"
+                                                    value="<?php echo htmlspecialchars($medicine['name']); ?>" required>
                                             </td>
                                             <td>
-                                                <textarea name="medicine_description[]" 
-                                                          class="medicine-description" 
-                                                          placeholder="Enter dosage, timing, duration, and instructions.&#10;&#10;Example:&#10;• Take 1 tablet twice daily (morning & evening)&#10;• Take after meals&#10;• Duration: 5 days&#10;• For fever and pain relief"><?php echo htmlspecialchars($medicine['description']); ?></textarea>
+                                                <textarea name="medicine_description[]" class="medicine-description"
+                                                    placeholder="Enter dosage, timing, duration, and instructions.&#10;&#10;Example:&#10;• Take 1 tablet twice daily (morning & evening)&#10;• Take after meals&#10;• Duration: 5 days&#10;• For fever and pain relief"><?php echo htmlspecialchars($medicine['description']); ?></textarea>
                                             </td>
                                             <td style="text-align: center;">
-                                                <button type="button" class="remove-btn" onclick="removeMedicineRow(this)">Remove</button>
+                                                <button type="button" class="remove-btn"
+                                                    onclick="removeMedicineRow(this)">Remove</button>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
                                         <td>
-                                            <input type="text" 
-                                                   name="medicine_name[]" 
-                                                   class="medicine-input" 
-                                                   placeholder="e.g., Paracetamol 500mg"
-                                                   required>
+                                            <input type="text" name="medicine_name[]" class="medicine-input"
+                                                placeholder="e.g., Paracetamol 500mg" required>
                                         </td>
                                         <td>
-                                            <textarea name="medicine_description[]" 
-                                                      class="medicine-description" 
-                                                      placeholder="Enter dosage, timing, duration, and instructions.&#10;&#10;Example:&#10;• Take 1 tablet twice daily (morning & evening)&#10;• Take after meals&#10;• Duration: 5 days&#10;• For fever and pain relief"></textarea>
+                                            <textarea name="medicine_description[]" class="medicine-description"
+                                                placeholder="Enter dosage, timing, duration, and instructions.&#10;&#10;Example:&#10;• Take 1 tablet twice daily (morning & evening)&#10;• Take after meals&#10;• Duration: 5 days&#10;• For fever and pain relief"></textarea>
                                         </td>
                                         <td style="text-align: center;">
-                                            <button type="button" class="remove-btn" onclick="removeMedicineRow(this)">Remove</button>
+                                            <button type="button" class="remove-btn"
+                                                onclick="removeMedicineRow(this)">Remove</button>
                                         </td>
                                     </tr>
                                 <?php endif; ?>
@@ -622,17 +583,15 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
 
                         <div class="form-group">
                             <label for="diagnosis">Diagnosis (Optional)</label>
-                            <textarea id="diagnosis" 
-                                      name="diagnosis" 
-                                      placeholder="Enter patient's diagnosis or medical condition..."><?php echo htmlspecialchars($existing_prescription['diagnosis'] ?? ''); ?></textarea>
+                            <textarea id="diagnosis" name="diagnosis"
+                                placeholder="Enter patient's diagnosis or medical condition..."><?php echo htmlspecialchars($existing_prescription['diagnosis'] ?? ''); ?></textarea>
                             <p class="helper-text">Medical condition or reason for prescription</p>
                         </div>
 
                         <div class="form-group">
                             <label for="additional_notes">Additional Notes (Optional)</label>
-                            <textarea id="additional_notes" 
-                                      name="additional_notes" 
-                                      placeholder="Any additional instructions or notes for the patient..."><?php echo htmlspecialchars($existing_prescription['additional_notes'] ?? ''); ?></textarea>
+                            <textarea id="additional_notes" name="additional_notes"
+                                placeholder="Any additional instructions or notes for the patient..."><?php echo htmlspecialchars($existing_prescription['additional_notes'] ?? ''); ?></textarea>
                             <p class="helper-text">Special instructions, precautions, or follow-up recommendations</p>
                         </div>
 
@@ -660,7 +619,7 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
 
     <script>
         // Sidebar toggle functionality
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const menuToggle = document.getElementById('menuToggle');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
@@ -670,14 +629,14 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
                 overlay.classList.toggle('active');
             }
 
-            menuToggle.addEventListener('click', function(e) {
+            menuToggle.addEventListener('click', function (e) {
                 e.stopPropagation();
                 toggleSidebar();
             });
 
             overlay.addEventListener('click', toggleSidebar);
 
-            sidebar.addEventListener('click', function(e) {
+            sidebar.addEventListener('click', function (e) {
                 e.stopPropagation();
             });
         });
@@ -710,7 +669,7 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
         function removeMedicineRow(button) {
             const tbody = document.getElementById('medicinesBody');
             const rows = tbody.getElementsByTagName('tr');
-            
+
             if (rows.length > 1) {
                 button.closest('tr').remove();
             } else {
@@ -719,7 +678,7 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
         }
 
         // Form validation
-        document.getElementById('prescriptionForm')?.addEventListener('submit', function(e) {
+        document.getElementById('prescriptionForm')?.addEventListener('submit', function (e) {
             const medicineNames = document.querySelectorAll('input[name="medicine_name[]"]');
             let hasValidMedicine = false;
 
@@ -736,6 +695,7 @@ if ($existing_prescription && !empty($existing_prescription['medicines'])) {
         });
     </script>
 </body>
+
 </html>
 
 <?php

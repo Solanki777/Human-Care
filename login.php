@@ -1,6 +1,18 @@
 <?php
 session_start();
 
+$ip = $_SERVER['REMOTE_ADDR'];
+$blockedFile = "C:/xampp/htdocs/security_logs/blocked_ips.txt";
+
+if (file_exists($blockedFile)) {
+    $blockedIps = file($blockedFile, FILE_IGNORE_NEW_LINES);
+    if (in_array($ip, $blockedIps)) {
+        die("🚫 Your IP has been blocked by Nexora Security System.");
+    }
+}
+
+
+
 $servername = "localhost";
 $username = "root";
 $password = "";
@@ -49,6 +61,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 exit;
             } else {
                 $error = "Invalid email or password.";
+                $ip = $_SERVER['REMOTE_ADDR'];
+                $status = "failed";
+                $timestamp = date("Y-m-d H:i:s");
+
+                $logFile = "C:/xampp/htdocs/security_logs/login_logs.csv";
+                $logLine = "$ip,$status,$timestamp\n";
+
+                file_put_contents($logFile, $logLine, FILE_APPEND);
+
+
             }
         } else {
 
@@ -89,9 +111,37 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     }
                 } else {
                     $error = "Invalid email or password.";
+
+                    $ip = $_SERVER['REMOTE_ADDR'];
+                    $status = "failed";
+                    $timestamp = date("Y-m-d H:i:s");
+
+                    $logFile = "C:/xampp/htdocs/security_logs/login_logs.csv";
+                    $logLine = "$ip,$status,$timestamp\n";
+
+                    file_put_contents($logFile, $logLine, FILE_APPEND);
+
+                    $ip = $_SERVER['REMOTE_ADDR'];
+                    $status = "failed";
+                    $timestamp = date("Y-m-d H:i:s");
+
+                    $logFile = "C:/xampp/htdocs/security_logs/login_logs.csv";
+                    $logLine = "$ip,$status,$timestamp\n";
+
+                    file_put_contents($logFile, $logLine, FILE_APPEND);
                 }
-            } else {
+            } 
+            else {
                 $error = "Invalid email or password.";
+
+                $ip = $_SERVER['REMOTE_ADDR'];
+                $status = "failed";
+                $timestamp = date("Y-m-d H:i:s");
+
+                $logFile = "C:/xampp/htdocs/security_logs/login_logs.csv";
+                $logLine = "$ip,$status,$timestamp\n";
+
+                file_put_contents($logFile, $logLine, FILE_APPEND);
             }
         }
         $stmt->close();
@@ -211,7 +261,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 <div class="divider">or</div>
 
-               <div class="signup-link">
+                <div class="signup-link">
                     Don't have an account? <a href="register.php">Sign Up Now</a><br>
                     <small style="color: #666; margin-top: 10px; display: inline-block;">
                         Doctor? <a href="check_status.php" style="color: #667eea;">Check verification status</a>

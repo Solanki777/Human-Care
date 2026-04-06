@@ -14,71 +14,8 @@ require_once 'config/config.php';
 </head>
 
 <body>
-
-    <!-- Menu Toggle Button -->
-    <button class="menu-toggle" id="menuToggle">☰</button>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
-        </div>
-
-        <ul class="sidebar-nav">
-            <li><a href="index.php">
-                    <span class="nav-icon">🏠</span>
-                    <span>Home</span>
-                </a></li>
-            <li><a href="doctors.php">
-                    <span class="nav-icon">👨‍⚕️</span>
-                    <span>Our Doctors</span>
-                </a></li>
-            <li><a href="education.php">
-                    <span class="nav-icon">📚</span>
-                    <span>Learning Center</span>
-                </a></li>
-            <li>
-                <a href="book_appointment.php" class="<?= $currentPage === 'book_appointment.php' ? 'active' : '' ?>">
-                    <span class="nav-icon">📅</span>
-                    <span>Book Appointment</span>
-                </a>
-            </li>
-            <?php if (isset($_SESSION['user_name'])): ?>
-                <li>
-                    <a href="patient_appointments.php"
-                        class="<?= $currentPage === 'patient_appointments.php' ? 'active' : '' ?>">
-                        <span class="nav-icon">📋</span>
-                        <span>My Appointments</span>
-                    </a>
-                </li>
-            <?php endif; ?>
-            <li>
-                <a href="contact.php" class="<?= $currentPage === 'contact.php' ? 'active' : '' ?>">
-                    <span class="nav-icon">💬</span>
-                    <span>Contact & Support</span>
-                </a>
-            </li>
-        </ul>
-        <div class="user-box-sidebar">
-            <?php if (isset($_SESSION['user_name'])): ?>
-                <div class="user-name-sidebar">
-                    👤 <?php echo htmlspecialchars($_SESSION['user_name']); ?>
-                </div>
-                <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'patient'): ?>
-                    <a href="patient_appointments.php" class="login-btn-sidebar">My Dashboard</a>
-                <?php elseif (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'doctor'): ?>
-                    <a href="doctor_dashboard.php" class="login-btn-sidebar">My Dashboard</a>
-                <?php endif; ?>
-                <a href="logout.php" class="logout-btn-sidebar">Logout</a>
-            <?php else: ?>
-                <a href="login.php" class="login-btn-sidebar">Login / Sign Up</a>
-            <?php endif; ?>
-        </div>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <?php $active_page = 'home'; ?>
+    <?php include 'includes/public_sidebar.php'; ?>
 
     <!-- Hero Section -->
     <section class="hero">
@@ -194,60 +131,7 @@ require_once 'config/config.php';
         </div>
     </footer>
 
-    <!-- JavaScript for Sidebar Toggle - INLINE TO ENSURE IT WORKS -->
-    <script>
-        // Wait for DOM to be fully loaded
-        document.addEventListener('DOMContentLoaded', function () {
-
-            // Get elements
-            const menuToggle = document.getElementById('menuToggle');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-
-            // Toggle sidebar function
-            function toggleSidebar() {
-                if (sidebar && overlay) {
-                    sidebar.classList.toggle('active');
-                    overlay.classList.toggle('active');
-                }
-            }
-
-            // Menu button click
-            if (menuToggle) {
-                menuToggle.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    toggleSidebar();
-                    console.log('Menu toggle clicked!'); // Debug log
-                });
-            }
-
-            // Overlay click to close
-            if (overlay) {
-                overlay.addEventListener('click', function () {
-                    toggleSidebar();
-                });
-            }
-
-            // Prevent sidebar clicks from bubbling
-            if (sidebar) {
-                sidebar.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                });
-            }
-
-            // Close sidebar when clicking outside
-            document.addEventListener('click', function (event) {
-                if (sidebar && menuToggle &&
-                    sidebar.classList.contains('active') &&
-                    !sidebar.contains(event.target) &&
-                    !menuToggle.contains(event.target)) {
-                    toggleSidebar();
-                }
-            });
-
-            console.log('Sidebar script loaded successfully!'); // Debug log
-        });
-    </script>
+    
 
     <!-- Load main.js for other functionality -->
     <script src="scripts/main.js"></script>

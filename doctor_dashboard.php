@@ -6,6 +6,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
     header("Location: login.php");
     exit();
 }
+$active_page = 'dashboard'; // Change based on page
 
 require_once 'classes/Chat.php';
 
@@ -478,64 +479,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
     <!-- Menu Toggle Button -->
     <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
 
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
-        </div>
-
-        <!-- Doctor Profile -->
-        <div class="user-profile">
-            <div class="user-avatar">👨‍⚕️</div>
-            <div class="user-info">
-                <h3>Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></h3>
-                <span class="doctor-badge">DOCTOR</span>
-                <p class="specialty-tag"><?php echo htmlspecialchars($doctor['specialty']); ?></p>
-            </div>
-        </div>
-
-        <!-- Navigation Menu -->
-        <nav>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a class="nav-link active" href="doctor_dashboard.php">
-                        <span class="nav-icon">🏠</span>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="doctor_chat.php">
-                        <span class="nav-icon">💬</span>
-                        <span>Patient Chats</span>
-                        <?php if ($unreadCount > 0): ?>
-                            <span class="badge"><?php echo $unreadCount; ?></span>
-                        <?php endif; ?>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="doctor_profile.php">
-                        <span class="nav-icon">👤</span>
-                        <span>My Profile</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="doctor_add_education.php">
-                        <span class="nav-icon">📚</span>
-                        <span>Edit Learning Page</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-
-        <!-- Logout Button -->
-        <form method="post" action="logout.php">
-            <button class="logout-btn" type="submit">🚪 Logout</button>
-        </form>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <?php include 'includes/doctor_sidebar.php'; ?>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -602,6 +546,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                 ✔️ Completed Appointments
             </a>
 
+
         </div>
 
         <!-- Appointments Section -->
@@ -638,13 +583,18 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                             <?php if ($appt['chat_room_id']): ?>
                                 <div class="appointment-actions">
                                     <a href="doctor_chat.php?room_id=<?= $appt['chat_room_id'] ?>" class="chat-btn">
-                                        <span class="chat-btn-icon">💬</span>
-                                        <span>Chat with Patient</span>
+                                        💬 Chat with Patient
                                         <?php if ($appt['doctor_unread_count'] > 0): ?>
                                             <span class="unread-badge"><?= $appt['doctor_unread_count'] ?></span>
                                         <?php endif; ?>
                                     </a>
+
+                                    <a href="doctor_prescriptions_list.php?appointment_id=<?= $appt['id'] ?>" class="chat-btn"
+                                        style="background:#10b981;">
+                                        💊 Prescribe Medicine
+                                    </a>
                                 </div>
+
                             <?php endif; ?>
                         </div>
                     <?php endwhile; ?>
