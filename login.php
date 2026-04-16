@@ -202,9 +202,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <ul class="features">
                 <li>Easy appointment booking</li>
                 <li>24/7 online consultation</li>
-                <li>Access medical records anytime</li>
-                <li>Prescription management</li>
-                <li>Health tracking & reminders</li>
+                <li>Doctor and Patient Validation</li>
+                <li>Education</li>
             </ul>
         </div>
 

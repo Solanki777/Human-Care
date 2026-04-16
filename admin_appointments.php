@@ -230,6 +230,8 @@ $rejected_count = $conn->query("SELECT COUNT(*) as count FROM appointments WHERE
 $cancelled_count = $conn->query("SELECT COUNT(*) as count FROM appointments WHERE status = 'cancelled'")->fetch_assoc()['count'];
 $completed_count = $conn->query("SELECT COUNT(*) as count FROM appointments WHERE status = 'completed'")->fetch_assoc()['count'];
 $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch_assoc()['count'];
+
+$pending_education = $conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -638,6 +640,9 @@ $total_count = $conn->query("SELECT COUNT(*) as count FROM appointments")->fetch
                     <a class="nav-link admin-nav" href="admin_manage_education.php">
                         <span class="nav-icon">📚 </span>
                         <span>Approve Education</span>
+                        <?php if ($pending_education > 0): ?>
+                            <span class="pending-badge" style="background: #fee2e2; color: #991b1b;"><?php echo $pending_education; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
             </ul>

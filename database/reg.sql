@@ -383,6 +383,32 @@ CREATE TABLE appointments (
 );
 
 -- =====================================================
+-- EDUCATIONAL CONTENT TABLE (in human_care_admin DB)
+-- Doctors submit content; admin approves before users see it
+-- =====================================================
+CREATE TABLE educational_content (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    doctor_id INT NOT NULL,
+    doctor_name VARCHAR(100) NOT NULL,
+    doctor_specialty VARCHAR(100) NOT NULL,
+    doctor_qualification VARCHAR(255),
+    title VARCHAR(255) NOT NULL,
+    category ENUM('prevention', 'nutrition', 'fitness', 'mental', 'general') NOT NULL,
+    description TEXT NOT NULL,
+    content LONGTEXT NOT NULL,
+    difficulty ENUM('Beginner', 'Intermediate', 'Advanced', 'All Levels') DEFAULT 'Beginner',
+    lesson_count INT DEFAULT 1,
+    icon VARCHAR(10) DEFAULT '📚',
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    views INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_status (status),
+    INDEX idx_doctor (doctor_id),
+    INDEX idx_category (category)
+);
+
+-- =====================================================
 -- APPOINTMENT NOTIFICATIONS TABLE
 -- =====================================================
 CREATE TABLE appointment_notifications (

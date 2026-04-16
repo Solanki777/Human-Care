@@ -8,7 +8,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 }
 
 // Get counts from databases
-// Patients count
+// Patients 
 $patients_conn = new mysqli("localhost", "root", "", "human_care_patients");
 $total_patients = $patients_conn->query("SELECT COUNT(*) as count FROM patients")->fetch_assoc()['count'];
 $pending_patients = $patients_conn->query("SELECT COUNT(*) as count FROM patients WHERE verification_status = 'pending'")->fetch_assoc()['count'];
@@ -24,6 +24,7 @@ $doctors_conn->close();
 // Recent activity
 $admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
 $recent_logs = $admin_conn->query("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 5");
+$pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
 ?>
 
 <!DOCTYPE html>
@@ -204,6 +205,9 @@ $recent_logs = $admin_conn->query("SELECT * FROM activity_logs ORDER BY created_
                     <a class="nav-link admin-nav" href="admin_manage_education.php">
                         <span class="nav-icon">📚 </span>
                         <span>Approve Education</span>
+                        <?php if ($pending_education > 0): ?>
+                            <span class="pending-badge" style="background: #fee2e2; color: #991b1b;"><?php echo $pending_education; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
                 
@@ -254,9 +258,9 @@ $recent_logs = $admin_conn->query("SELECT * FROM activity_logs ORDER BY created_
                 </div>
 
                 <div class="card stat-card admin">
-                    <div class="card-icon">⏰</div>
-                    <h3>Pending Verifications</h3>
-                    <p style="font-size: 32px; font-weight: bold; color: #1e3c72; margin: 10px 0;"><?php echo $pending_doctors + $pending_patients; ?></p>
+                    <div class="card-icon">📚</div>
+                    <h3>Pending Education</h3>
+                    <p style="font-size: 32px; font-weight: bold; color: #1e3c72; margin: 10px 0;"><?php echo $pending_education; ?></p>
                 </div>
             </div>
 
@@ -281,11 +285,13 @@ $recent_logs = $admin_conn->query("SELECT * FROM activity_logs ORDER BY created_
                     <div class="action-desc">Monitor all appointments</div>
                 </a>
 
-                <a href="admin_settings.php" class="action-card">
-                    <div class="action-icon">⚙️</div>
-                    <div class="action-title">System Settings</div>
-                    <div class="action-desc">Configure system parameters</div>
+                <a href="admin_manage_education.php" class="action-card">
+                    <div class="action-icon">📚</div>
+                    <div class="action-title">Approve Education</div>
+                    <div class="action-desc">Review educational content from doctors</div>
                 </a>
+
+                
 
               
 
@@ -295,6 +301,27 @@ $recent_logs = $admin_conn->query("SELECT * FROM activity_logs ORDER BY created_
                     <div class="action-desc">Preview public website</div>
                 </a>
             </div>
+
+            <!-- Pending Education Review (Quick Action Section) -->
+            <?php if ($pending_education > 0): ?>
+                <?php
+                $pending_list = $admin_conn->query("SELECT * FROM educational_content WHERE status = 'pending' ORDER BY created_at DESC LIMIT 3");
+                ?>
+                <h3 style="font-size: 24px; margin: 30px 0 20px; color: #333;">📚 Pending Education Reviews</h3>
+                <div class="activity-log" style="border-left: 4px solid #f59e0b;">
+                    <?php while ($edu = $pending_list->fetch_assoc()): ?>
+                        <div class="log-item">
+                            <div>
+                                <div class="log-action"><?php echo $edu['icon']; ?> <?php echo htmlspecialchars($edu['title']); ?></div>
+                                <div style="font-size: 13px; color: #666;">By Dr. <?php echo htmlspecialchars($edu['doctor_name']); ?> (<?php echo htmlspecialchars($edu['category']); ?>)</div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <a href="admin_manage_education.php" class="pending-badge" style="background: #3b82f6; color: white; text-decoration: none; padding: 5px 15px;">Review Now</a>
+                            </div>
+                        </div>
+                    <?php endwhile; ?>
+                </div>
+            <?php endif; ?>
 
             <!-- Recent Activity -->
             <h3 style="font-size: 24px; margin: 30px 0 20px; color: #333;">📋 Recent Activity</h3>

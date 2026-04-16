@@ -138,6 +138,10 @@ $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE
 $doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
 $pending_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors WHERE verification_status = 'pending'")->fetch_assoc()['count'];
 $doctors_conn->close();
+
+$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
+$admin_conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -574,6 +578,9 @@ $doctors_conn->close();
                     <a class="nav-link admin-nav" href="admin_manage_education.php">
                         <span class="nav-icon">📚 </span>
                         <span>Approve Education</span>
+                        <?php if ($pending_education > 0): ?>
+                            <span class="pending-badge" style="background: #fee2e2; color: #991b1b;"><?php echo $pending_education; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
 

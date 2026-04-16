@@ -26,9 +26,8 @@ require_once 'config/config.php';
                 <a href="login.php" class="hero-btn">Get Started</a>
             <?php else: ?>
                 <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'patient'): ?>
-                    <a href="patient_appointments.php" class="hero-btn">Go to Dashboard</a>
+                    
                 <?php elseif (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'doctor'): ?>
-                    <a href="doctor_dashboard.php" class="hero-btn">Go to Dashboard</a>
                 <?php else: ?>
                     <a href="login.php" class="hero-btn">Get Started</a>
                 <?php endif; ?>

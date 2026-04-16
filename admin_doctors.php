@@ -7,6 +7,9 @@ if (!isset($_SESSION['admin_logged_in'])) {
 }
 
 $conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
+$admin_conn->close();
 
 // Handle approval/rejection
 if (isset($_POST['action'])) {
@@ -530,6 +533,9 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                     <a class="nav-link admin-nav" href="admin_manage_education.php">
                         <span class="nav-icon">📚 </span>
                         <span>Approve Education</span>
+                        <?php if ($pending_education > 0): ?>
+                            <span class="pending-badge" style="background: #fee2e2; color: #991b1b;"><?php echo $pending_education; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
 

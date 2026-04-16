@@ -589,10 +589,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                                         <?php endif; ?>
                                     </a>
 
-                                    <a href="doctor_prescriptions_list.php?appointment_id=<?= $appt['id'] ?>" class="chat-btn"
-                                        style="background:#10b981;">
-                                        💊 Prescribe Medicine
-                                    </a>
+                                   
                                 </div>
 
                             <?php endif; ?>

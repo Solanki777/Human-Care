@@ -6,7 +6,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
     header("Location: login.php");
     exit();
 }
-$active_page = 'education'; // Change based on page
+$active_page = 'education';
 
 // Get doctor info from doctors database
 $doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
@@ -20,6 +20,7 @@ $stmt->bind_param("i", $doctor_id);
 $stmt->execute();
 $doctor = $stmt->get_result()->fetch_assoc();
 $stmt->close();
+$doctors_conn->close();
 
 if (!$doctor) {
     header("Location: login.php");
@@ -28,7 +29,7 @@ if (!$doctor) {
 
 $doctor_name = $doctor['first_name'] . ' ' . $doctor['last_name'];
 
-// Connect to admin database
+// Connect to admin database (where educational_content lives)
 $admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
 if ($admin_conn->connect_error) {
     die("Connection failed: " . $admin_conn->connect_error);
@@ -36,24 +37,24 @@ if ($admin_conn->connect_error) {
 
 // Handle form submission
 $success_message = '';
-$error_message = '';
+$error_message   = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = trim($_POST['title']);
-    $category = $_POST['category'];
-    $description = trim($_POST['description']);
-    $content = trim($_POST['content']);
-    $difficulty = $_POST['difficulty'];
+    $title        = trim($_POST['title']);
+    $category     = $_POST['category'];
+    $description  = trim($_POST['description']);
+    $content      = trim($_POST['content']);
+    $difficulty   = $_POST['difficulty'];
     $lesson_count = intval($_POST['lesson_count']);
-    $icon = $_POST['icon'];
+    $icon         = $_POST['icon'];
 
-    if (empty($title) || empty($description) || empty($content)) {
+    if (empty($title) || empty($description) || empty($content) || empty($category)) {
         $error_message = "Please fill in all required fields.";
     } else {
         $stmt = $admin_conn->prepare("
             INSERT INTO educational_content 
-            (doctor_id, doctor_name, doctor_specialty, doctor_qualification, title, category, description, content, difficulty, lesson_count, icon, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+            (doctor_id, doctor_name, doctor_specialty, doctor_qualification, title, category, description, content, difficulty, lesson_count, icon, status, views, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, NOW())
         ");
 
         $stmt->bind_param(
@@ -72,17 +73,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
 
         if ($stmt->execute()) {
-            $success_message = "Educational content submitted successfully! It will be visible once approved by admin.";
-            // Clear form
-            $_POST = array();
+            $success_message = "Your educational content has been submitted for admin review. It will become visible to users once approved.";
+            $_POST = []; // clear form
         } else {
-            $error_message = "Error submitting content. Please try again.";
+            $error_message = "Error submitting content: " . $admin_conn->error . ". Please try again.";
         }
         $stmt->close();
     }
 }
 
-// Get doctor's educational content
+// Get this doctor's submitted content (all statuses)
 $stmt = $admin_conn->prepare("
     SELECT * FROM educational_content 
     WHERE doctor_id = ? 
@@ -92,13 +92,10 @@ $stmt->bind_param("i", $doctor_id);
 $stmt->execute();
 $doctor_contents = $stmt->get_result();
 $stmt->close();
-
-$doctors_conn->close();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -109,13 +106,11 @@ $doctors_conn->close();
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             margin-bottom: 30px;
         }
 
-        .form-group {
-            margin-bottom: 20px;
-        }
+        .form-group { margin-bottom: 20px; }
 
         .form-group label {
             display: block;
@@ -125,9 +120,7 @@ $doctors_conn->close();
             font-size: 14px;
         }
 
-        .form-group label .required {
-            color: #ef4444;
-        }
+        .form-group label .required { color: #ef4444; }
 
         .form-control {
             width: 100%;
@@ -136,12 +129,13 @@ $doctors_conn->close();
             border-radius: 8px;
             font-size: 14px;
             transition: all 0.3s;
+            box-sizing: border-box;
         }
 
         .form-control:focus {
             outline: none;
             border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
         }
 
         textarea.form-control {
@@ -150,9 +144,7 @@ $doctors_conn->close();
             font-family: inherit;
         }
 
-        .content-textarea {
-            min-height: 200px;
-        }
+        .content-textarea { min-height: 200px; }
 
         .form-row {
             display: grid;
@@ -177,15 +169,8 @@ $doctors_conn->close();
             transition: all 0.3s;
         }
 
-        .icon-option:hover {
-            border-color: #3b82f6;
-            background: #eff6ff;
-        }
-
-        .icon-option.selected {
-            border-color: #3b82f6;
-            background: #dbeafe;
-        }
+        .icon-option:hover  { border-color: #3b82f6; background: #eff6ff; }
+        .icon-option.selected { border-color: #3b82f6; background: #dbeafe; }
 
         .submit-btn {
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
@@ -201,7 +186,7 @@ $doctors_conn->close();
 
         .submit-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 5px 15px rgba(59,130,246,0.3);
         }
 
         .alert {
@@ -209,50 +194,46 @@ $doctors_conn->close();
             border-radius: 8px;
             margin-bottom: 20px;
             font-weight: 500;
+            border-left: 4px solid;
         }
 
-        .alert-success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 2px solid #10b981;
-        }
+        .alert-success { background: #d1fae5; color: #065f46; border-color: #10b981; }
+        .alert-error   { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
 
-        .alert-error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 2px solid #ef4444;
-        }
-
+        /* My content cards */
         .my-content-section {
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
 
         .content-card {
-            background: #f9fafb;
-            padding: 20px;
+            border: 1px solid #e5e7eb;
             border-radius: 10px;
+            padding: 20px;
             margin-bottom: 15px;
-            border-left: 4px solid #3b82f6;
+            transition: box-shadow 0.2s;
         }
+
+        .content-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+        /* Status-specific left border */
+        .content-card.status-pending  { border-left: 4px solid #f59e0b; }
+        .content-card.status-approved { border-left: 4px solid #10b981; }
+        .content-card.status-rejected { border-left: 4px solid #ef4444; }
 
         .content-header {
             display: flex;
             justify-content: space-between;
-            align-items: start;
-            margin-bottom: 10px;
-        }
-
-        .content-title {
-            font-size: 18px;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
             font-weight: 600;
             color: #1f2937;
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
+
+        .content-title { display: flex; align-items: center; gap: 8px; font-size: 16px; }
 
         .status-badge {
             padding: 4px 12px;
@@ -261,20 +242,20 @@ $doctors_conn->close();
             font-weight: 600;
         }
 
-        .status-pending {
-            background: #fef3c7;
-            color: #92400e;
+        .status-pending  { background: #fef3c7; color: #92400e; }
+        .status-approved { background: #d1fae5; color: #065f46; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+
+        .status-note {
+            font-size: 13px;
+            margin-top: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
         }
 
-        .status-approved {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .status-rejected {
-            background: #fee2e2;
-            color: #991b1b;
-        }
+        .status-note.pending  { background: #fffbeb; color: #92400e; }
+        .status-note.approved { background: #ecfdf5; color: #065f46; }
+        .status-note.rejected { background: #fef2f2; color: #991b1b; }
 
         .content-meta {
             display: flex;
@@ -285,17 +266,9 @@ $doctors_conn->close();
             color: #6b7280;
         }
 
-        .content-meta span {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        .content-meta span { display: flex; align-items: center; gap: 5px; }
 
-        .no-content {
-            text-align: center;
-            padding: 40px;
-            color: #6b7280;
-        }
+        .no-content { text-align: center; padding: 40px; color: #6b7280; }
 
         .section-title {
             font-size: 24px;
@@ -308,25 +281,29 @@ $doctors_conn->close();
 </head>
 
 <body>
-    <!-- Menu Toggle Button -->
     <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
 
     <?php include 'includes/doctor_sidebar.php'; ?>
 
     <!-- Main Content -->
     <main class="main-content">
+
         <!-- Success/Error Messages -->
         <?php if ($success_message): ?>
-            <div class="alert alert-success">✓ <?php echo $success_message; ?></div>
+            <div class="alert alert-success">✅ <?php echo htmlspecialchars($success_message); ?></div>
         <?php endif; ?>
 
         <?php if ($error_message): ?>
-            <div class="alert alert-error">✗ <?php echo $error_message; ?></div>
+            <div class="alert alert-error">❌ <?php echo htmlspecialchars($error_message); ?></div>
         <?php endif; ?>
 
         <!-- Add Content Form -->
         <div class="content-form-container">
             <h3 class="section-title">📝 Create New Educational Content</h3>
+            <p style="color:#6b7280;margin-bottom:20px;font-size:14px;">
+                ℹ️ Submitted content will be reviewed by admin. Once <strong>approved</strong>, it will be visible to all logged-in users and patients.
+            </p>
+
             <form method="POST" action="">
                 <div class="form-group">
                     <label>Title <span class="required">*</span></label>
@@ -341,28 +318,28 @@ $doctors_conn->close();
                         <select name="category" class="form-control" required>
                             <option value="">Select Category</option>
                             <option value="prevention" <?php echo (isset($_POST['category']) && $_POST['category'] == 'prevention') ? 'selected' : ''; ?>>Disease Prevention</option>
-                            <option value="nutrition" <?php echo (isset($_POST['category']) && $_POST['category'] == 'nutrition') ? 'selected' : ''; ?>>Nutrition & Diet</option>
-                            <option value="fitness" <?php echo (isset($_POST['category']) && $_POST['category'] == 'fitness') ? 'selected' : ''; ?>>Fitness & Exercise</option>
-                            <option value="mental" <?php echo (isset($_POST['category']) && $_POST['category'] == 'mental') ? 'selected' : ''; ?>>Mental Health</option>
-                            <option value="general" <?php echo (isset($_POST['category']) && $_POST['category'] == 'general') ? 'selected' : ''; ?>>General Health</option>
+                            <option value="nutrition"  <?php echo (isset($_POST['category']) && $_POST['category'] == 'nutrition')  ? 'selected' : ''; ?>>Nutrition & Diet</option>
+                            <option value="fitness"    <?php echo (isset($_POST['category']) && $_POST['category'] == 'fitness')    ? 'selected' : ''; ?>>Fitness & Exercise</option>
+                            <option value="mental"     <?php echo (isset($_POST['category']) && $_POST['category'] == 'mental')     ? 'selected' : ''; ?>>Mental Health</option>
+                            <option value="general"    <?php echo (isset($_POST['category']) && $_POST['category'] == 'general')    ? 'selected' : ''; ?>>General Health</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label>Difficulty Level <span class="required">*</span></label>
                         <select name="difficulty" class="form-control" required>
-                            <option value="Beginner" <?php echo (isset($_POST['difficulty']) && $_POST['difficulty'] == 'Beginner') ? 'selected' : ''; ?>>Beginner</option>
+                            <option value="Beginner"     <?php echo (isset($_POST['difficulty']) && $_POST['difficulty'] == 'Beginner')     ? 'selected' : ''; ?>>Beginner</option>
                             <option value="Intermediate" <?php echo (isset($_POST['difficulty']) && $_POST['difficulty'] == 'Intermediate') ? 'selected' : ''; ?>>Intermediate</option>
-                            <option value="Advanced" <?php echo (isset($_POST['difficulty']) && $_POST['difficulty'] == 'Advanced') ? 'selected' : ''; ?>>Advanced</option>
-                            <option value="All Levels" <?php echo (isset($_POST['difficulty']) && $_POST['difficulty'] == 'All Levels') ? 'selected' : ''; ?>>All Levels</option>
+                            <option value="Advanced"     <?php echo (isset($_POST['difficulty']) && $_POST['difficulty'] == 'Advanced')     ? 'selected' : ''; ?>>Advanced</option>
+                            <option value="All Levels"   <?php echo (isset($_POST['difficulty']) && $_POST['difficulty'] == 'All Levels')   ? 'selected' : ''; ?>>All Levels</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label>Number of Lessons</label>
                         <input type="number" name="lesson_count" class="form-control"
-                            value="<?php echo isset($_POST['lesson_count']) ? $_POST['lesson_count'] : '10'; ?>" min="1"
-                            max="100">
+                            value="<?php echo isset($_POST['lesson_count']) ? intval($_POST['lesson_count']) : '10'; ?>"
+                            min="1" max="100">
                     </div>
                 </div>
 
@@ -408,7 +385,7 @@ $doctors_conn->close();
             <h3 class="section-title">📋 My Educational Content</h3>
             <?php if ($doctor_contents->num_rows > 0): ?>
                 <?php while ($content = $doctor_contents->fetch_assoc()): ?>
-                    <div class="content-card">
+                    <div class="content-card status-<?php echo $content['status']; ?>">
                         <div class="content-header">
                             <div class="content-title">
                                 <span><?php echo $content['icon']; ?></span>
@@ -418,7 +395,17 @@ $doctors_conn->close();
                                 <?php echo strtoupper($content['status']); ?>
                             </span>
                         </div>
-                        <p style="color: #6b7280; margin: 10px 0;">
+
+                        <!-- Status explanation note -->
+                        <?php if ($content['status'] === 'pending'): ?>
+                            <div class="status-note pending">⏳ Pending — Not yet visible to users.</div>
+                        <?php elseif ($content['status'] === 'approved'): ?>
+                            <div class="status-note approved">✅ Approved — Visible to all logged-in users and patients.</div>
+                        <?php elseif ($content['status'] === 'rejected'): ?>
+                            <div class="status-note rejected">❌ Rejected — Not visible. You may submit revised content.</div>
+                        <?php endif; ?>
+
+                        <p style="color:#6b7280;margin:10px 0;">
                             <?php echo htmlspecialchars(substr($content['description'], 0, 150)) . '...'; ?>
                         </p>
                         <div class="content-meta">
@@ -433,7 +420,7 @@ $doctors_conn->close();
             <?php else: ?>
                 <div class="no-content">
                     <h3>📭 No Content Yet</h3>
-                    <p>You haven't created any educational content yet. Start by filling out the form above!</p>
+                    <p>You haven't submitted any educational content yet. Fill out the form above to get started!</p>
                 </div>
             <?php endif; ?>
         </div>
@@ -446,19 +433,11 @@ $doctors_conn->close();
         }
 
         function selectIcon(element, icon) {
-            // Remove selected class from all icons
-            document.querySelectorAll('.icon-option').forEach(opt => {
-                opt.classList.remove('selected');
-            });
-
-            // Add selected class to clicked icon
+            document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
             element.classList.add('selected');
-
-            // Update hidden input
             document.getElementById('selectedIcon').value = icon;
         }
     </script>
 </body>
-
 </html>
 <?php $admin_conn->close(); ?>

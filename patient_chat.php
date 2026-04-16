@@ -257,7 +257,7 @@ if ($selectedRoomId) {
 
             let html = '';
             messages.forEach(msg => {
-                const isMine = msg.sender_type === userType;
+                const isMine = msg.sender_id == userId && msg.sender_type.toLowerCase().trim() === userType.toLowerCase().trim();
                 const time = new Date(msg.created_at).toLocaleTimeString('en-US', {
                     hour: 'numeric',
                     minute: '2-digit'
@@ -305,7 +305,7 @@ if ($selectedRoomId) {
             const container = document.getElementById('messagesContainer');
 
             messages.forEach(msg => {
-                const isMine = msg.sender_type === userType;
+                const isMine = msg.sender_id == userId && msg.sender_type.toLowerCase().trim() === userType.toLowerCase().trim();
                 const time = new Date(msg.created_at).toLocaleTimeString('en-US', {
                     hour: 'numeric',
                     minute: '2-digit'
