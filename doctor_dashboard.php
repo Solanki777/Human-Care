@@ -40,7 +40,12 @@ $chat = new Chat();
 $unreadCount = $chat->getUnreadCount($doctor_id, 'doctor');
 
 // Get appointment counts
-$stmt = $admin_conn->prepare("SELECT COUNT(*) as count FROM appointments WHERE doctor_name = ?");
+$stmt = $admin_conn->prepare("
+    SELECT COUNT(*) as count 
+    FROM appointments 
+    WHERE doctor_name = ? 
+    AND status = 'completed'
+");
 $stmt->bind_param("s", $doctor_name);
 $stmt->execute();
 $total_appointments = $stmt->get_result()->fetch_assoc()['count'];
@@ -515,7 +520,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
             <div class="stat-card total">
                 <div class="stat-icon">📋</div>
                 <div class="stat-number"><?php echo $total_appointments; ?></div>
-                <div class="stat-label">Total Appointments</div>
+                <div class="stat-label">Completed Appointments</div>
             </div>
             <div class="stat-card today">
                 <div class="stat-icon">✅</div>

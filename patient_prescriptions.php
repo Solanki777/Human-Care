@@ -1,629 +1,368 @@
 <?php
+/**
+ * patient_prescriptions.php
+ * Shows ONLY approved prescriptions to the patient.
+ * Includes medicine names, prices, dosage, instructions, diagnosis.
+ */
 session_start();
-
-// Check if patient is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'patient') {
     header("Location: login.php");
     exit();
 }
 
-$patient_id = $_SESSION['user_id'];
+$patient_id   = $_SESSION['user_id'];
 $patient_name = $_SESSION['user_name'];
 
-// Database connection
 $doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
-
-if ($doctors_conn->connect_error) {
+$admin_conn   = new mysqli("localhost", "root", "", "human_care_admin");
+if ($doctors_conn->connect_error || $admin_conn->connect_error) {
     die("Connection failed");
 }
 
-// Get all prescriptions for this patient
+// Only fetch APPROVED prescriptions
 $stmt = $doctors_conn->prepare("
-    SELECT 
-        p.*,
-        da.appointment_date,
-        da.appointment_time,
-        da.consultation_type,
-        d.first_name as doctor_first_name,
-        d.last_name as doctor_last_name,
-        d.specialty as doctor_specialty
-    FROM prescriptions p
-    LEFT JOIN doctor_appointments da ON p.appointment_id = da.id
-    LEFT JOIN doctors d ON p.doctor_id = d.id
-    WHERE p.patient_id = ?
-    ORDER BY p.created_at DESC
+    SELECT
+        rx.*,
+        a.appointment_date,
+        a.appointment_time,
+        a.consultation_type,
+        a.reason_for_visit,
+        d.first_name  AS doctor_first,
+        d.last_name   AS doctor_last,
+        d.specialty   AS doctor_specialty,
+        d.qualification AS doctor_qual
+    FROM prescriptions rx
+    LEFT JOIN human_care_admin.appointments a ON rx.appointment_id = a.id
+    LEFT JOIN doctors d ON rx.doctor_id = d.id
+    WHERE rx.patient_id = ? AND rx.status = 'approved'
+    ORDER BY rx.approved_at DESC
 ");
 $stmt->bind_param("i", $patient_id);
 $stmt->execute();
-$result = $stmt->get_result();
-$prescriptions = $result->fetch_all(MYSQLI_ASSOC);
+$prescriptions = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
-?>
 
+// Load items for each prescription
+foreach ($prescriptions as &$rx) {
+    $s = $doctors_conn->prepare("
+        SELECT pi.*, m.dosage_form, m.strength, m.category
+        FROM prescription_items pi
+        LEFT JOIN medicines m ON pi.medicine_id = m.id
+        WHERE pi.prescription_id = ?
+    ");
+    $s->bind_param("i", $rx['id']);
+    $s->execute();
+    $rx['items'] = $s->get_result()->fetch_all(MYSQLI_ASSOC);
+    $s->close();
+
+    $rx['total'] = array_sum(array_column($rx['items'], 'price_at_time'));
+}
+unset($rx);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Prescriptions - Human Care</title>
-    <link rel="stylesheet" href="styles/dashboard.css">
-    <style>
-        .prescriptions-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Prescriptions – Human Care</title>
+<link rel="stylesheet" href="styles/dashboard.css">
+<style>
+.rx-wrap { max-width:1050px; margin:0 auto; padding:20px; }
+.rx-page-hdr { display:flex; align-items:center; gap:14px; margin-bottom:28px; }
+.rx-page-icon { width:56px; height:56px; background:linear-gradient(135deg,#667eea,#764ba2);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:26px; color:#fff; }
 
-        .page-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 30px;
-        }
+.rx-card { background:#fff; border-radius:16px;
+    box-shadow:0 2px 14px rgba(0,0,0,.09); margin-bottom:28px; overflow:hidden;
+    transition:.3s; }
+.rx-card:hover { box-shadow:0 6px 24px rgba(0,0,0,.13); transform:translateY(-2px); }
 
-        .page-icon {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-            color: white;
-        }
+.rx-header { background:linear-gradient(135deg,#667eea,#764ba2);
+    color:#fff; padding:20px 26px;
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+.rx-header h3 { margin:0; font-size:18px; display:flex; align-items:center; gap:10px; }
+.rx-date { font-size:13px; opacity:.9; }
 
-        .empty-state {
-            background: white;
-            padding: 60px 40px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
+.rx-body { padding:24px 26px; }
 
-        .empty-icon {
-            font-size: 80px;
-            margin-bottom: 20px;
-            opacity: 0.3;
-        }
+/* Doctor info strip */
+.doctor-strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+    gap:12px; background:#f8fafc; padding:14px 18px; border-radius:10px; margin-bottom:20px; }
+.ds-item { display:flex; flex-direction:column; }
+.ds-label { font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+.ds-value { font-size:13px; font-weight:600; color:#1e293b; }
 
-        .empty-state h3 {
-            font-size: 24px;
-            color: #333;
-            margin-bottom: 10px;
-        }
+/* Diagnosis */
+.diag-box { padding:14px 18px; background:#fffbeb; border-left:4px solid #f59e0b;
+    border-radius:8px; margin-bottom:20px; }
+.diag-box h4 { margin:0 0 6px; font-size:13px; color:#92400e;
+    display:flex; align-items:center; gap:6px; }
+.diag-box p { margin:0; font-size:14px; color:#1e293b; line-height:1.6; }
 
-        .empty-state p {
-            color: #666;
-            margin-bottom: 20px;
-        }
+/* Medicines table */
+.med-title { font-size:16px; font-weight:700; color:#1e293b;
+    margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.med-table { width:100%; border-collapse:collapse; margin-bottom:12px; }
+.med-table thead { background:linear-gradient(135deg,#667eea,#764ba2); }
+.med-table th { padding:11px 14px; text-align:left; color:#fff;
+    font-size:12px; font-weight:700; letter-spacing:.3px; }
+.med-table td { padding:12px 14px; border-bottom:1px solid #f1f5f9;
+    font-size:13px; vertical-align:top; }
+.med-table tbody tr:hover { background:#fafbff; }
+.med-name-cell { font-weight:700; color:#1e293b; margin-bottom:3px; }
+.med-sub { font-size:11px; color:#64748b; }
+.price-cell { font-weight:700; color:#667eea; white-space:nowrap; }
 
-        .prescription-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
-            overflow: hidden;
-            transition: all 0.3s;
-        }
+/* Total row */
+.total-row td { background:#f0f9ff; font-weight:700; font-size:14px; }
 
-        .prescription-card:hover {
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-            transform: translateY(-2px);
-        }
+/* Notes */
+.notes-box { padding:14px 18px; background:#e0e7ff; border-left:4px solid #667eea;
+    border-radius:8px; margin-top:16px; }
+.notes-box h4 { margin:0 0 6px; font-size:13px; color:#3730a3;
+    display:flex; align-items:center; gap:6px; }
+.notes-box p { margin:0; font-size:14px; color:#1e293b; line-height:1.6; }
 
-        .prescription-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+/* Print btn */
+.print-btn { padding:10px 22px; background:linear-gradient(135deg,#667eea,#764ba2);
+    color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:700;
+    cursor:pointer; transition:.3s; display:inline-flex; align-items:center; gap:8px; }
+.print-btn:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(102,126,234,.35); }
 
-        .prescription-header h3 {
-            margin: 0;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+/* Empty */
+.empty-state { background:#fff; border-radius:14px; padding:70px 30px;
+    text-align:center; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+.empty-icon { font-size:72px; opacity:.25; margin-bottom:16px; }
+.empty-state h3 { color:#1e293b; margin-bottom:8px; }
+.empty-state p { color:#64748b; }
 
-        .prescription-date {
-            font-size: 13px;
-            opacity: 0.9;
-        }
+/* Badge */
+.badge-new { background:#d1fae5; color:#065f46; padding:3px 10px;
+    border-radius:10px; font-size:11px; font-weight:700; }
 
-        .prescription-body {
-            padding: 25px;
-        }
-
-        .doctor-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-
-        .info-item {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .info-label {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 4px;
-        }
-
-        .info-value {
-            font-size: 14px;
-            color: #333;
-            font-weight: 600;
-        }
-
-        .medicines-section {
-            margin-top: 25px;
-        }
-
-        .section-title {
-            font-size: 18px;
-            color: #333;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e0e7ff;
-        }
-
-        .medicines-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-
-        .medicines-table thead {
-            background: #f8f9fa;
-        }
-
-        .medicines-table th {
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .medicines-table td {
-            padding: 15px 12px;
-            vertical-align: top;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .medicine-name {
-            font-weight: 600;
-            color: #667eea;
-            font-size: 15px;
-            margin-bottom: 5px;
-        }
-
-        .medicine-description {
-            color: #666;
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap;
-        }
-
-        .diagnosis-section,
-        .notes-section {
-            margin-top: 20px;
-            padding: 15px;
-            background: #fef3c7;
-            border-left: 4px solid #f59e0b;
-            border-radius: 8px;
-        }
-
-        .notes-section {
-            background: #e0e7ff;
-            border-left-color: #667eea;
-        }
-
-        .diagnosis-section h4,
-        .notes-section h4 {
-            margin: 0 0 10px 0;
-            color: #333;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .diagnosis-section p,
-        .notes-section p {
-            margin: 0;
-            color: #555;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-print {
-            background: #10b981;
-            color: white;
-        }
-
-        .btn-print:hover {
-            background: #059669;
-            transform: translateY(-2px);
-        }
-
-        .btn-download {
-            background: #3b82f6;
-            color: white;
-        }
-
-        .btn-download:hover {
-            background: #2563eb;
-            transform: translateY(-2px);
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .badge-new {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        @media print {
-            .sidebar,
-            .menu-toggle,
-            .action-buttons,
-            .page-header {
-                display: none !important;
-            }
-
-            .main-content {
-                margin-left: 0;
-                padding: 0;
-            }
-
-            .prescription-card {
-                page-break-inside: avoid;
-                box-shadow: none;
-                border: 1px solid #ddd;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .medicines-table {
-                display: block;
-                overflow-x: auto;
-            }
-
-            .doctor-info {
-                grid-template-columns: 1fr;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .prescription-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-        }
-    </style>
+@media print {
+    .sidebar,.menu-toggle,.print-btn,.rx-page-hdr { display:none!important; }
+    .main-content { margin:0!important; padding:0!important; }
+    .rx-card { box-shadow:none; border:1px solid #ddd; break-inside:avoid; }
+}
+</style>
 </head>
 <body>
-    <!-- Menu Toggle Button -->
-    <button class="menu-toggle" id="menuToggle">☰</button>
+<button class="menu-toggle" id="menuToggle">☰</button>
 
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">❤️</div>
-            HUMAN CARE
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <div class="logo"><div class="logo-icon">❤️</div>HUMAN CARE</div>
+    <div class="user-profile">
+        <div class="user-avatar">👤</div>
+        <div class="user-info">
+            <h3><?= htmlspecialchars($patient_name) ?></h3>
+            <p>Patient</p>
+        </div>
+    </div>
+    <nav><ul class="nav-menu">
+        <li><a class="nav-link" href="patient_appointments.php">
+            <span class="nav-icon">🏠</span><span>Dashboard</span></a></li>
+        <li><a class="nav-link" href="patient_appointments.php">
+            <span class="nav-icon">📅</span><span>My Appointments</span></a></li>
+        <li><a class="nav-link active" href="patient_prescriptions.php">
+            <span class="nav-icon">💊</span><span>My Prescriptions</span></a></li>
+        <li><a class="nav-link" href="book_appointment.php">
+            <span class="nav-icon">➕</span><span>Book Appointment</span></a></li>
+    </ul></nav>
+    <form method="post" action="logout.php">
+        <button class="logout-btn" type="submit">🚪 Logout</button>
+    </form>
+</aside>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<main class="main-content">
+<div class="rx-wrap">
+    <div class="rx-page-hdr">
+        <div class="rx-page-icon">💊</div>
+        <div>
+            <h1 style="margin:0;color:#1e293b;">My Prescriptions</h1>
+            <p style="margin:4px 0 0;color:#64748b;font-size:14px;">
+                Prescriptions are visible after your doctor completes the appointment
+            </p>
+        </div>
+    </div>
+
+    <?php if (empty($prescriptions)): ?>
+        <div class="empty-state">
+            <div class="empty-icon">💊</div>
+            <h3>No Prescriptions Yet</h3>
+            <p>Your prescriptions will appear here once your doctor completes an appointment and submits a prescription.</p>
+            <a href="book_appointment.php"
+               style="display:inline-block;margin-top:20px;padding:12px 28px;
+                      background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;
+                      border-radius:8px;text-decoration:none;font-weight:700;">
+                📅 Book an Appointment
+            </a>
         </div>
 
-        <div class="user-profile">
-            <div class="user-avatar">👤</div>
-            <div class="user-info">
-                <h3><?php echo htmlspecialchars($patient_name); ?></h3>
-                <p>Patient</p>
-            </div>
-        </div>
-
-        <nav>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a class="nav-link" href="patient_appointments.php">
-                        <span class="nav-icon">🏠</span>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="patient_appointments.php">
-                        <span class="nav-icon">📅</span>
-                        <span>My Appointments</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" href="patient_prescriptions.php">
-                        <span class="nav-icon">💊</span>
-                        <span>My Prescriptions</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="book_appointment.php">
-                        <span class="nav-icon">➕</span>
-                        <span>Book Appointment</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-
-        <form method="post" action="logout.php">
-            <button class="logout-btn" type="submit">🚪 Logout</button>
-        </form>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="prescriptions-container">
-            <div class="page-header">
-                <div class="page-icon">💊</div>
-                <div>
-                    <h1 style="margin: 0; color: #333;">My Prescriptions</h1>
-                    <p style="margin: 5px 0 0 0; color: #666;">View all your medical prescriptions</p>
+    <?php else: ?>
+        <?php foreach ($prescriptions as $rx):
+            $isNew = (time() - strtotime($rx['approved_at'])) < (7 * 24 * 3600);
+        ?>
+        <div class="rx-card">
+            <!-- Header -->
+            <div class="rx-header">
+                <h3>
+                    👨‍⚕️ Dr. <?= htmlspecialchars($rx['doctor_first'].' '.$rx['doctor_last']) ?>
+                    <?php if ($isNew): ?>
+                        <span class="badge-new">NEW</span>
+                    <?php endif; ?>
+                </h3>
+                <div class="rx-date">
+                    📅 Issued <?= date('F d, Y', strtotime($rx['approved_at'])) ?>
                 </div>
             </div>
 
-            <?php if (empty($prescriptions)): ?>
-                <div class="empty-state">
-                    <div class="empty-icon">💊</div>
-                    <h3>No Prescriptions Yet</h3>
-                    <p>You don't have any prescriptions. Your doctor will provide prescriptions after completing your appointments.</p>
-                    <a href="book_appointment.php" class="btn btn-print" style="margin: 20px auto 0;">
-                        📅 Book an Appointment
-                    </a>
+            <div class="rx-body">
+                <!-- Doctor / Appt strip -->
+                <div class="doctor-strip">
+                    <div class="ds-item">
+                        <span class="ds-label">Specialty</span>
+                        <span class="ds-value"><?= htmlspecialchars($rx['doctor_specialty']??'') ?></span>
+                    </div>
+                    <div class="ds-item">
+                        <span class="ds-label">Qualification</span>
+                        <span class="ds-value"><?= htmlspecialchars($rx['doctor_qual']??'') ?></span>
+                    </div>
+                    <div class="ds-item">
+                        <span class="ds-label">Appointment Date</span>
+                        <span class="ds-value"><?= $rx['appointment_date'] ? date('M d, Y', strtotime($rx['appointment_date'])) : '—' ?></span>
+                    </div>
+                    <div class="ds-item">
+                        <span class="ds-label">Consultation</span>
+                        <span class="ds-value"><?= htmlspecialchars(ucfirst($rx['consultation_type']??'')) ?></span>
+                    </div>
                 </div>
-            <?php else: ?>
-                <?php foreach ($prescriptions as $prescription): ?>
-                    <?php
-                    $medicines = json_decode($prescription['medicines'], true) ?? [];
-                    $isNew = (time() - strtotime($prescription['created_at'])) < (7 * 24 * 60 * 60); // New if within 7 days
-                    ?>
-                    <div class="prescription-card">
-                        <div class="prescription-header">
-                            <h3>
-                                <span>👨‍⚕️</span>
-                                Dr. <?php echo htmlspecialchars($prescription['doctor_first_name'] . ' ' . $prescription['doctor_last_name']); ?>
-                                <?php if ($isNew): ?>
-                                    <span class="badge badge-new">NEW</span>
-                                <?php endif; ?>
-                            </h3>
-                            <div class="prescription-date">
-                                📅 <?php echo date('F d, Y', strtotime($prescription['created_at'])); ?>
-                            </div>
-                        </div>
 
-                        <div class="prescription-body">
-                            <!-- Doctor & Appointment Info -->
-                            <div class="doctor-info">
-                                <div class="info-item">
-                                    <span class="info-label">Specialty</span>
-                                    <span class="info-value"><?php echo htmlspecialchars($prescription['doctor_specialty']); ?></span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Appointment Date</span>
-                                    <span class="info-value"><?php echo date('F d, Y', strtotime($prescription['appointment_date'])); ?></span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Appointment Time</span>
-                                    <span class="info-value"><?php echo date('h:i A', strtotime($prescription['appointment_time'])); ?></span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Consultation Type</span>
-                                    <span class="info-value"><?php echo htmlspecialchars(ucfirst($prescription['consultation_type'])); ?></span>
-                                </div>
-                            </div>
+                <!-- Diagnosis -->
+                <?php if (!empty($rx['diagnosis'])): ?>
+                <div class="diag-box">
+                    <h4>🩺 Diagnosis</h4>
+                    <p><?= nl2br(htmlspecialchars($rx['diagnosis'])) ?></p>
+                </div>
+                <?php endif; ?>
 
-                            <!-- Diagnosis -->
-                            <?php if (!empty($prescription['diagnosis'])): ?>
-                                <div class="diagnosis-section">
-                                    <h4>
-                                        <span>🩺</span>
-                                        <span>Diagnosis</span>
-                                    </h4>
-                                    <p><?php echo nl2br(htmlspecialchars($prescription['diagnosis'])); ?></p>
+                <!-- Medicines table -->
+                <div class="med-title">💊 Prescribed Medicines</div>
+                <div style="overflow-x:auto;">
+                <table class="med-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Medicine</th>
+                            <th>Form / Strength</th>
+                            <th>Dosage</th>
+                            <th>Duration</th>
+                            <th>Instructions</th>
+                            <th>Price / Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($rx['items'] as $idx => $item): ?>
+                        <tr>
+                            <td style="color:#667eea;font-weight:700;"><?= $idx+1 ?></td>
+                            <td>
+                                <div class="med-name-cell"><?= htmlspecialchars($item['medicine_name']) ?></div>
+                            </td>
+                            <td>
+                                <div class="med-sub">
+                                    <?= htmlspecialchars($item['dosage_form']??'') ?>
+                                    <?= $item['strength'] ? '· '.htmlspecialchars($item['strength']) : '' ?>
                                 </div>
-                            <?php endif; ?>
+                            </td>
+                            <td><?= htmlspecialchars($item['dosage'] ?: '—') ?></td>
+                            <td><?= htmlspecialchars($item['duration'] ?: '—') ?></td>
+                            <td><?= !empty($item['instructions']) ? nl2br(htmlspecialchars($item['instructions'])) : '<em style="color:#94a3b8;">—</em>' ?></td>
+                            <td class="price-cell">₹<?= number_format($item['price_at_time'],2) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="6" style="color:#475569;padding:12px 14px;">
+                                💰 Estimated Total (all medicines)
+                            </td>
+                            <td style="color:#667eea;padding:12px 14px;">
+                                ₹<?= number_format($rx['total'],2) ?>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>
 
-                            <!-- Medicines -->
-                            <div class="medicines-section">
-                                <div class="section-title">
-                                    <span style="font-size: 24px;">💊</span>
-                                    <span>Prescribed Medicines</span>
-                                </div>
+                <!-- Notes -->
+                <?php if (!empty($rx['additional_notes'])): ?>
+                <div class="notes-box">
+                    <h4>📝 Doctor's Notes</h4>
+                    <p><?= nl2br(htmlspecialchars($rx['additional_notes'])) ?></p>
+                </div>
+                <?php endif; ?>
 
-                                <table class="medicines-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 5%;">#</th>
-                                            <th style="width: 30%;">Medicine Name</th>
-                                            <th style="width: 65%;">Description / Instructions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($medicines as $index => $medicine): ?>
-                                            <tr>
-                                                <td style="font-weight: 600; color: #667eea;"><?php echo $index + 1; ?></td>
-                                                <td>
-                                                    <div class="medicine-name">
-                                                        <?php echo htmlspecialchars($medicine['name']); ?>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="medicine-description">
-                                                        <?php echo !empty($medicine['description']) 
-                                                            ? nl2br(htmlspecialchars($medicine['description'])) 
-                                                            : '<em style="color: #999;">No description provided</em>'; 
-                                                        ?>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Additional Notes -->
-                            <?php if (!empty($prescription['additional_notes'])): ?>
-                                <div class="notes-section">
-                                    <h4>
-                                        <span>📝</span>
-                                        <span>Additional Notes</span>
-                                    </h4>
-                                    <p><?php echo nl2br(htmlspecialchars($prescription['additional_notes'])); ?></p>
-                                </div>
-                            <?php endif; ?>
-
-                            <!-- Action Buttons -->
-                            <div class="action-buttons">
-                                <button class="btn btn-print" onclick="printPrescription(this)">
-                                    <span>🖨️</span>
-                                    <span>Print Prescription</span>
-                                </button>
-                                <button class="btn btn-download" onclick="downloadPrescription(<?php echo $prescription['id']; ?>)">
-                                    <span>📥</span>
-                                    <span>Download PDF</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
+                <!-- Print -->
+                <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;">
+                    <button class="print-btn" onclick="printThis(this)">
+                        🖨️ Print Prescription
+                    </button>
+                </div>
+            </div>
         </div>
-    </main>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+</main>
 
-    <script>
-        // Sidebar toggle functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const menuToggle = document.getElementById('menuToggle');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
+<script>
+function printThis(btn) {
+    const card = btn.closest('.rx-card');
+    const w = window.open('', '', 'width=850,height=700');
+    w.document.write(`<!DOCTYPE html><html><head><title>Prescription – Human Care</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 24px; color: #1e293b; }
+        h2 { color: #667eea; margin-bottom: 4px; }
+        .rx-header { background: linear-gradient(135deg,#667eea,#764ba2); color:#fff;
+            padding:18px 22px; border-radius:10px 10px 0 0; margin-bottom:0; }
+        .rx-header h3 { margin:0; font-size:18px; }
+        .rx-body { padding:20px; border:1px solid #e2e8f0; border-radius:0 0 10px 10px; }
+        table { width:100%; border-collapse:collapse; margin:16px 0; }
+        th { background:#667eea; color:#fff; padding:10px 12px; text-align:left; font-size:12px; }
+        td { padding:10px 12px; border-bottom:1px solid #f1f5f9; font-size:13px; }
+        .total-row td { font-weight:700; background:#f0f9ff; }
+        .diag-box { padding:12px 16px; background:#fffbeb; border-left:4px solid #f59e0b;
+            border-radius:6px; margin:14px 0; }
+        .notes-box { padding:12px 16px; background:#e0e7ff; border-left:4px solid #667eea;
+            border-radius:6px; margin:14px 0; }
+        .print-btn { display:none; }
+        .doctor-strip { background:#f8fafc; padding:12px 16px; border-radius:8px; margin-bottom:14px;
+            display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+        .ds-label { font-size:10px; color:#94a3b8; text-transform:uppercase; }
+        .ds-value { font-size:13px; font-weight:600; }
+        .brand { text-align:center; margin-bottom:20px; border-bottom:2px solid #667eea; padding-bottom:14px; }
+    </style></head><body>
+    <div class="brand">
+        <h2>❤️ HUMAN CARE</h2>
+        <p style="margin:0;color:#64748b;">Medical Prescription</p>
+    </div>
+    ${card.outerHTML}
+    </body></html>`);
+    w.document.close();
+    setTimeout(() => { w.print(); w.close(); }, 350);
+}
 
-            function toggleSidebar() {
-                sidebar.classList.toggle('active');
-                overlay.classList.toggle('active');
-            }
-
-            menuToggle.addEventListener('click', function(e) {
-                e.stopPropagation();
-                toggleSidebar();
-            });
-
-            overlay.addEventListener('click', toggleSidebar);
-
-            sidebar.addEventListener('click', function(e) {
-                e.stopPropagation();
-            });
-        });
-
-        // Print single prescription
-        function printPrescription(button) {
-            const card = button.closest('.prescription-card');
-            const originalContent = document.body.innerHTML;
-            const prescriptionContent = card.outerHTML;
-
-            // Create print content
-            const printContent = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Prescription - Human Care</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 20px; }
-                        .prescription-card { border: 2px solid #667eea; border-radius: 10px; overflow: hidden; }
-                        .prescription-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; }
-                        .prescription-body { padding: 20px; }
-                        .medicines-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                        .medicines-table th, .medicines-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-                        .medicines-table th { background: #f5f5f5; }
-                        .medicine-name { font-weight: bold; color: #667eea; }
-                        .doctor-info { background: #f8f9fa; padding: 15px; margin: 15px 0; border-radius: 8px; }
-                        .diagnosis-section, .notes-section { padding: 15px; margin: 15px 0; border-left: 4px solid #667eea; background: #f8f9fa; }
-                        .action-buttons { display: none; }
-                    </style>
-                </head>
-                <body>
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <h1 style="color: #667eea; margin: 0;">HUMAN CARE</h1>
-                        <p style="margin: 5px 0;">Medical Prescription</p>
-                    </div>
-                    ${prescriptionContent}
-                </body>
-                </html>
-            `;
-
-            // Open print window
-            const printWindow = window.open('', '', 'height=600,width=800');
-            printWindow.document.write(printContent);
-            printWindow.document.close();
-            printWindow.focus();
-            
-            setTimeout(() => {
-                printWindow.print();
-                printWindow.close();
-            }, 250);
-        }
-
-        // Download PDF (placeholder - would need server-side PDF generation)
-        function downloadPrescription(prescriptionId) {
-            alert('PDF download feature will be implemented with a PDF library on the server.\n\nFor now, please use the Print option and save as PDF from your browser\'s print dialog.');
-            // In production, this would call a PHP script to generate and download PDF
-            // window.location.href = 'generate_prescription_pdf.php?id=' + prescriptionId;
-        }
-    </script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('menuToggle');
+    const sb  = document.getElementById('sidebar');
+    const ov  = document.getElementById('sidebarOverlay');
+    btn.addEventListener('click', e => { e.stopPropagation(); sb.classList.toggle('active'); ov.classList.toggle('active'); });
+    ov.addEventListener('click', () => { sb.classList.remove('active'); ov.classList.remove('active'); });
+});
+</script>
 </body>
 </html>
-
-<?php
-$doctors_conn->close();
-?>
+<?php $doctors_conn->close(); $admin_conn->close(); ?>

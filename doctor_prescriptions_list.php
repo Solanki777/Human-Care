@@ -1,704 +1,743 @@
 <?php
+/**
+ * doctor_prescriptions_list.php
+ * Doctor writes a prescription by selecting medicines from DB.
+ * Prescription goes to admin (status=pending).
+ * Admin marks appointment complete → prescription becomes approved → patient sees it.
+ */
 session_start();
 
-// Check if doctor is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
     header("Location: login.php");
     exit();
 }
 
-$active_page = 'prescriptions'; // Change based on page
+$active_page = 'prescriptions';
+$doctor_id   = $_SESSION['user_id'];
 
-$doctor_id = $_SESSION['user_id'];
-$doctor_name = $_SESSION['user_name'];
-
-// Database connections
+// ── DB connections ────────────────────────────────────────
 $doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
-$patients_conn = new mysqli("localhost", "root", "", "human_care_patients");
-
-if ($doctors_conn->connect_error || $patients_conn->connect_error) {
+$admin_conn   = new mysqli("localhost", "root", "", "human_care_admin");
+if ($doctors_conn->connect_error || $admin_conn->connect_error) {
     die("Connection failed");
 }
 
-$success_message = "";
-$error_message = "";
-$appointment = null;
-$existing_prescription = null;
+// ── Load doctor ───────────────────────────────────────────
+$stmt   = $doctors_conn->prepare("SELECT * FROM doctors WHERE id = ?");
+$stmt->bind_param("i", $doctor_id);
+$stmt->execute();
+$doctor = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+if (!$doctor) { header("Location: login.php"); exit(); }
 
-// Get appointment ID from URL
+$doctor_name = $doctor['first_name'] . ' ' . $doctor['last_name'];
+
+// ── Load ALL medicines from DB (for the picker) ───────────
+$medicines_result = $doctors_conn->query(
+    "SELECT * FROM medicines WHERE is_active = 1 ORDER BY category, name"
+);
+$all_medicines = [];
+$medicines_by_category = [];
+while ($m = $medicines_result->fetch_assoc()) {
+    $all_medicines[$m['id']] = $m;
+    $medicines_by_category[$m['category']][] = $m;
+}
+
+// ── Appointment from URL ──────────────────────────────────
 $appointment_id = isset($_GET['appointment_id']) ? intval($_GET['appointment_id']) : 0;
+$appointment    = null;
+$existing_rx    = null;
+$saved_items    = [];
+$success_msg    = '';
+$error_msg      = '';
 
 if ($appointment_id > 0) {
-    // Get appointment details
-    $stmt = $doctors_conn->prepare("
-        SELECT da.*, 
-               p.first_name as patient_first_name, 
-               p.last_name as patient_last_name,
-               p.email as patient_email,
-               p.phone as patient_phone,
-               p.date_of_birth as patient_dob,
-               p.gender as patient_gender
-        FROM doctor_appointments da
-        LEFT JOIN human_care_patients.patients p ON da.patient_id = p.id
-        WHERE da.id = ? AND da.doctor_id = ?
+    // Fetch from admin DB (appointments live there)
+    $stmt = $admin_conn->prepare("
+        SELECT * FROM appointments WHERE id = ? AND doctor_id = ?
     ");
     $stmt->bind_param("ii", $appointment_id, $doctor_id);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $appointment = $result->fetch_assoc();
+    $appointment = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    // Check if appointment exists and belongs to this doctor
     if (!$appointment) {
-        $error_message = "Appointment not found or you don't have access to it.";
+        $error_msg = "Appointment not found or access denied.";
     } elseif (!in_array($appointment['status'], ['approved', 'completed'])) {
-        $error_message = "You can only prescribe medicines for approved or completed appointments.";
+        $error_msg = "Prescriptions can only be written for approved appointments.";
     } else {
-        // Check if prescription already exists
-        $stmt = $doctors_conn->prepare("SELECT * FROM prescriptions WHERE appointment_id = ?");
+        // Existing prescription?
+        $stmt = $doctors_conn->prepare(
+            "SELECT * FROM prescriptions WHERE appointment_id = ?"
+        );
         $stmt->bind_param("i", $appointment_id);
         $stmt->execute();
-        $result = $stmt->get_result();
-        $existing_prescription = $result->fetch_assoc();
+        $existing_rx = $stmt->get_result()->fetch_assoc();
         $stmt->close();
+
+        if ($existing_rx) {
+            $stmt = $doctors_conn->prepare(
+                "SELECT pi.*, m.dosage_form, m.strength, m.category
+                 FROM prescription_items pi
+                 LEFT JOIN medicines m ON pi.medicine_id = m.id
+                 WHERE pi.prescription_id = ?"
+            );
+            $stmt->bind_param("i", $existing_rx['id']);
+            $stmt->execute();
+            $saved_items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+        }
     }
 }
 
-// Handle form submission
+// ── Handle form submit ────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $appointment) {
-    $medicine_names = $_POST['medicine_name'] ?? [];
-    $medicine_descriptions = $_POST['medicine_description'] ?? [];
-    $diagnosis = trim($_POST['diagnosis'] ?? '');
-    $additional_notes = trim($_POST['additional_notes'] ?? '');
+    $medicine_ids    = $_POST['medicine_id']    ?? [];
+    $dosages         = $_POST['dosage']         ?? [];
+    $durations       = $_POST['duration']       ?? [];
+    $instructions    = $_POST['instructions']   ?? [];
+    $diagnosis       = trim($_POST['diagnosis']       ?? '');
+    $additional_notes= trim($_POST['additional_notes'] ?? '');
 
-    // Remove empty entries
-    $medicines = [];
-    for ($i = 0; $i < count($medicine_names); $i++) {
-        if (!empty(trim($medicine_names[$i]))) {
-            $medicines[] = [
-                'name' => trim($medicine_names[$i]),
-                'description' => trim($medicine_descriptions[$i] ?? '')
+    // Build valid items list
+    $items = [];
+    foreach ($medicine_ids as $i => $mid) {
+        $mid = intval($mid);
+        if ($mid > 0 && isset($all_medicines[$mid])) {
+            $items[] = [
+                'medicine_id'   => $mid,
+                'medicine_name' => $all_medicines[$mid]['name'],
+                'price_at_time' => $all_medicines[$mid]['price'],
+                'dosage'        => trim($dosages[$i]      ?? ''),
+                'duration'      => trim($durations[$i]    ?? ''),
+                'instructions'  => trim($instructions[$i] ?? ''),
             ];
         }
     }
 
-    if (empty($medicines)) {
-        $error_message = "Please add at least one medicine.";
+    if (empty($items)) {
+        $error_msg = "Please select at least one medicine.";
     } else {
-        // Convert medicines array to JSON
-        $medicines_json = json_encode($medicines);
+        $doctors_conn->begin_transaction();
+        try {
+            if ($existing_rx) {
+                // Update prescription header
+                $stmt = $doctors_conn->prepare("
+                    UPDATE prescriptions
+                    SET diagnosis = ?, additional_notes = ?, status = 'pending', updated_at = NOW()
+                    WHERE id = ?
+                ");
+                $stmt->bind_param("ssi", $diagnosis, $additional_notes, $existing_rx['id']);
+                $stmt->execute();
+                $stmt->close();
+                $rx_id = $existing_rx['id'];
+                // Delete old items to replace them
+                $doctors_conn->query("DELETE FROM prescription_items WHERE prescription_id = $rx_id");
+            } else {
+                // Insert new prescription
+                $stmt = $doctors_conn->prepare("
+                    INSERT INTO prescriptions
+                    (appointment_id, doctor_id, patient_id, diagnosis, additional_notes, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'pending', NOW())
+                ");
+                $pid = $appointment['patient_id'] ?? 0;
+                $stmt->bind_param("iiiss", $appointment_id, $doctor_id, $pid, $diagnosis, $additional_notes);
+                $stmt->execute();
+                $rx_id = $doctors_conn->insert_id;
+                $stmt->close();
+            }
 
-        if ($existing_prescription) {
-            // Update existing prescription
+            // Insert items
             $stmt = $doctors_conn->prepare("
-                UPDATE prescriptions 
-                SET medicines = ?, diagnosis = ?, additional_notes = ?, updated_at = NOW()
-                WHERE appointment_id = ?
+                INSERT INTO prescription_items
+                (prescription_id, medicine_id, medicine_name, price_at_time, dosage, duration, instructions)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
-            $stmt->bind_param("sssi", $medicines_json, $diagnosis, $additional_notes, $appointment_id);
-        } else {
-            // Create new prescription
-            $stmt = $doctors_conn->prepare("
-                INSERT INTO prescriptions 
-                (appointment_id, doctor_id, patient_id, medicines, diagnosis, additional_notes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
-            ");
-            $stmt->bind_param(
-                "iiisss",
-                $appointment_id,
-                $doctor_id,
-                $appointment['patient_id'],
-                $medicines_json,
-                $diagnosis,
-                $additional_notes
-            );
-        }
-
-        if ($stmt->execute()) {
-            $success_message = "Prescription saved successfully!";
-
-            // Refresh prescription data
-            $stmt = $doctors_conn->prepare("SELECT * FROM prescriptions WHERE appointment_id = ?");
-            $stmt->bind_param("i", $appointment_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $existing_prescription = $result->fetch_assoc();
+            foreach ($items as $it) {
+                $stmt->bind_param(
+                    "iisdsss",
+                    $rx_id,
+                    $it['medicine_id'],
+                    $it['medicine_name'],
+                    $it['price_at_time'],
+                    $it['dosage'],
+                    $it['duration'],
+                    $it['instructions']
+                );
+                $stmt->execute();
+            }
             $stmt->close();
-        } else {
-            $error_message = "Failed to save prescription. Please try again.";
+
+            $doctors_conn->commit();
+            $success_msg = "✅ Prescription saved and sent to admin for approval. Patient will see it once the appointment is marked complete.";
+
+            // Reload
+            $stmt = $doctors_conn->prepare("SELECT * FROM prescriptions WHERE id = ?");
+            $stmt->bind_param("i", $rx_id);
+            $stmt->execute();
+            $existing_rx = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            $stmt = $doctors_conn->prepare("SELECT pi.*, m.dosage_form, m.strength, m.category FROM prescription_items pi LEFT JOIN medicines m ON pi.medicine_id = m.id WHERE pi.prescription_id = ?");
+            $stmt->bind_param("i", $rx_id);
+            $stmt->execute();
+            $saved_items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmt->close();
+
+        } catch (Exception $e) {
+            $doctors_conn->rollback();
+            $error_msg = "Database error. Please try again.";
         }
-        $stmt->close();
     }
 }
 
-// Parse existing medicines if available
-$saved_medicines = [];
-if ($existing_prescription && !empty($existing_prescription['medicines'])) {
-    $saved_medicines = json_decode($existing_prescription['medicines'], true) ?? [];
+// Status label helper
+$status_label = '';
+$status_color = '';
+if ($existing_rx) {
+    if ($existing_rx['status'] === 'approved') {
+        $status_label = '✅ Approved — Visible to Patient';
+        $status_color = '#065f46';
+        $status_bg    = '#d1fae5';
+    } else {
+        $status_label = '⏳ Pending Admin Approval';
+        $status_color = '#92400e';
+        $status_bg    = '#fef3c7';
+    }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prescribe Medicine - Human Care</title>
-    <link rel="stylesheet" href="styles/dashboard.css">
-    <style>
-        .prescription-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Write Prescription – Human Care</title>
+<link rel="stylesheet" href="styles/dashboard.css">
+<style>
+/* ── Layout ──────────────────────────────── */
+.rx-wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+.rx-page-title { font-size: 26px; font-weight: 700; color: #1e293b; margin-bottom: 24px;
+    display: flex; align-items: center; gap: 10px; }
 
-        .patient-info-card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
+/* ── Patient card ────────────────────────── */
+.patient-card { background:#fff; border-radius:14px;
+    box-shadow:0 2px 12px rgba(0,0,0,.08); padding:24px; margin-bottom:24px; }
+.patient-card-header { display:flex; align-items:center; gap:14px;
+    padding-bottom:16px; border-bottom:2px solid #e0e7ff; margin-bottom:16px; }
+.patient-avatar { width:56px; height:56px; background:linear-gradient(135deg,#667eea,#764ba2);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:26px; color:#fff; flex-shrink:0; }
+.patient-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+.pinfo-item { display:flex; flex-direction:column; }
+.pinfo-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:.5px; margin-bottom:3px; }
+.pinfo-value { font-size:14px; font-weight:600; color:#1e293b; }
 
-        .patient-info-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e0e7ff;
-        }
+/* ── Status pill ─────────────────────────── */
+.rx-status-pill { display:inline-flex; align-items:center; gap:8px;
+    padding:8px 18px; border-radius:50px; font-size:13px; font-weight:600;
+    margin-bottom:20px; }
 
-        .patient-avatar {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            color: white;
-        }
+/* ── Form card ───────────────────────────── */
+.rx-card { background:#fff; border-radius:14px;
+    box-shadow:0 2px 12px rgba(0,0,0,.08); padding:28px; margin-bottom:24px; }
+.rx-section-title { font-size:17px; font-weight:700; color:#1e293b;
+    margin-bottom:18px; display:flex; align-items:center; gap:8px; }
 
-        .patient-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
+/* ── Medicine picker ─────────────────────── */
+.med-search-wrap { position:relative; margin-bottom:14px; }
+.med-search { width:100%; padding:11px 16px 11px 40px;
+    border:2px solid #e2e8f0; border-radius:10px; font-size:14px; outline:none;
+    transition:.3s; box-sizing:border-box; }
+.med-search:focus { border-color:#667eea; box-shadow:0 0 0 3px rgba(102,126,234,.15); }
+.med-search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%);
+    font-size:16px; color:#94a3b8; pointer-events:none; }
 
-        .detail-item {
-            display: flex;
-            flex-direction: column;
-        }
+.cat-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.cat-tab { padding:6px 14px; border:2px solid #e2e8f0; border-radius:20px;
+    background:#fff; color:#64748b; font-size:12px; font-weight:600;
+    cursor:pointer; transition:.2s; }
+.cat-tab:hover, .cat-tab.active { border-color:#667eea; color:#667eea; background:#eff6ff; }
 
-        .detail-label {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 4px;
-        }
+.medicines-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:10px; max-height:340px; overflow-y:auto; padding:4px 2px; }
+.med-item { border:2px solid #e2e8f0; border-radius:10px; padding:12px;
+    cursor:pointer; transition:.2s; background:#fff; user-select:none; }
+.med-item:hover { border-color:#667eea; background:#fafbff; }
+.med-item.selected { border-color:#667eea; background:#eff6ff; }
+.med-name { font-size:13px; font-weight:700; color:#1e293b; margin-bottom:4px; }
+.med-meta { font-size:11px; color:#64748b; }
+.med-price { font-size:13px; font-weight:700; color:#667eea; margin-top:6px; }
 
-        .detail-value {
-            font-size: 14px;
-            color: #333;
-            font-weight: 600;
-        }
+/* ── Selected medicines table ────────────── */
+.selected-table { width:100%; border-collapse:collapse; margin-top:6px; }
+.selected-table th { background:#f1f5f9; padding:11px 12px; text-align:left;
+    font-size:12px; font-weight:700; color:#475569; text-transform:uppercase;
+    letter-spacing:.4px; }
+.selected-table td { padding:10px 12px; border-bottom:1px solid #f1f5f9;
+    vertical-align:top; font-size:13px; }
+.selected-table tbody tr:hover { background:#fafbff; }
+.tbl-med-name { font-weight:700; color:#1e293b; font-size:13px; }
+.tbl-med-meta { font-size:11px; color:#64748b; margin-top:2px; }
+.tbl-price { font-weight:700; color:#667eea; }
+.tbl-input { width:100%; padding:7px 10px; border:1.5px solid #e2e8f0;
+    border-radius:7px; font-size:13px; outline:none; transition:.2s; box-sizing:border-box; }
+.tbl-input:focus { border-color:#667eea; }
+.del-btn { background:#fee2e2; color:#dc2626; border:none; padding:6px 12px;
+    border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; transition:.2s; }
+.del-btn:hover { background:#dc2626; color:#fff; }
 
-        .prescription-form {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
+.total-row { background:#f8fafc; font-weight:700; }
+.total-row td { padding:12px; }
 
-        .form-section-title {
-            font-size: 20px;
-            color: #333;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+/* ── Form fields ─────────────────────────── */
+.form-group { margin-bottom:18px; }
+.form-group label { display:block; font-size:13px; font-weight:600;
+    color:#374151; margin-bottom:7px; }
+.form-control { width:100%; padding:11px 14px; border:2px solid #e2e8f0;
+    border-radius:9px; font-size:14px; font-family:inherit; outline:none;
+    transition:.3s; box-sizing:border-box; resize:vertical; }
+.form-control:focus { border-color:#667eea; box-shadow:0 0 0 3px rgba(102,126,234,.12); }
 
-        .medicines-table {
-            width: 100%;
-            margin-bottom: 20px;
-            border-collapse: collapse;
-        }
+/* ── Alerts ──────────────────────────────── */
+.alert { padding:14px 18px; border-radius:10px; margin-bottom:20px;
+    font-weight:500; border-left:4px solid; display:flex; align-items:center; gap:10px; }
+.alert-success { background:#d1fae5; color:#065f46; border-color:#10b981; }
+.alert-error   { background:#fee2e2; color:#991b1b; border-color:#ef4444; }
 
-        .medicines-table thead {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
+/* ── Buttons ─────────────────────────────── */
+.btn-row { display:flex; gap:14px; margin-top:24px; }
+.btn-save { flex:1; padding:14px; background:linear-gradient(135deg,#667eea,#764ba2);
+    color:#fff; border:none; border-radius:10px; font-size:16px; font-weight:700;
+    cursor:pointer; transition:.3s; }
+.btn-save:hover { transform:translateY(-2px); box-shadow:0 5px 18px rgba(102,126,234,.35); }
+.btn-back { flex:1; padding:14px; background:#f1f5f9; color:#475569; border:none;
+    border-radius:10px; font-size:15px; font-weight:600; cursor:pointer;
+    text-decoration:none; text-align:center; transition:.2s; }
+.btn-back:hover { background:#e2e8f0; }
 
-        .medicines-table th {
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-        }
+/* ── Readonly saved view ─────────────────── */
+.saved-rx { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.08); padding:28px; }
 
-        .medicines-table tbody tr {
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .medicines-table td {
-            padding: 12px;
-            vertical-align: top;
-        }
-
-        .medicine-input {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-
-        .medicine-input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .medicine-description {
-            width: 100%;
-            min-height: 80px;
-            padding: 10px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 13px;
-            font-family: inherit;
-            resize: vertical;
-            transition: all 0.3s;
-        }
-
-        .medicine-description:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .remove-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.3s;
-        }
-
-        .remove-btn:hover {
-            background: #dc2626;
-        }
-
-        .add-medicine-btn {
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-            margin-bottom: 20px;
-        }
-
-        .add-medicine-btn:hover {
-            background: #059669;
-            transform: translateY(-2px);
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .form-group textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-        }
-
-        .submit-btn {
-            flex: 1;
-            padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .cancel-btn {
-            flex: 1;
-            padding: 15px;
-            background: #f3f4f6;
-            color: #333;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            text-align: center;
-        }
-
-        .cancel-btn:hover {
-            background: #e5e7eb;
-        }
-
-        .success-alert {
-            background: #d1fae5;
-            border-left: 4px solid #10b981;
-            color: #065f46;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .error-alert {
-            background: #fee2e2;
-            border-left: 4px solid #ef4444;
-            color: #991b1b;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .helper-text {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-            font-style: italic;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .badge-completed {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        @media (max-width: 768px) {
-            .medicines-table {
-                display: block;
-                overflow-x: auto;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .patient-details {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+/* ── Empty state ─────────────────────────── */
+.empty-box { background:#fff; border-radius:14px; padding:60px 30px;
+    text-align:center; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+.empty-box h3 { color:#1e293b; margin-bottom:10px; }
+.empty-box p { color:#64748b; }
+</style>
 </head>
-
 <body>
-    <!-- Menu Toggle Button -->
-    <button class="menu-toggle" id="menuToggle">☰</button>
+<button class="menu-toggle" id="menuToggle">☰</button>
+<?php include 'includes/doctor_sidebar.php'; ?>
 
-    <?php include 'includes/doctor_sidebar.php'; ?>
+<main class="main-content">
+<div class="rx-wrap">
+    <div class="rx-page-title">💊 Write Prescription</div>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="prescription-container">
-            <h1 style="margin-bottom: 25px; color: #333;">💊 Prescribe Medicine</h1>
+    <?php if ($success_msg): ?>
+        <div class="alert alert-success"><?= $success_msg ?></div>
+    <?php endif; ?>
+    <?php if ($error_msg): ?>
+        <div class="alert alert-error">⚠️ <?= htmlspecialchars($error_msg) ?></div>
+    <?php endif; ?>
 
-            <?php if ($success_message): ?>
-                <div class="success-alert">
-                    <span style="font-size: 20px;">✅</span>
-                    <span><?php echo $success_message; ?></span>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($error_message): ?>
-                <div class="error-alert">
-                    <span style="font-size: 20px;">⚠️</span>
-                    <span><?php echo $error_message; ?></span>
-                </div>
-            <?php endif; ?>
-
-            <?php if ($appointment): ?>
-                <!-- Patient Information Card -->
-                <div class="patient-info-card">
-                    <div class="patient-info-header">
-                        <div class="patient-avatar">
-                            <?php echo $appointment['patient_gender'] === 'Female' ? '👩' : '👨'; ?>
-                        </div>
-                        <div>
-                            <h2 style="margin: 0; color: #333;">
-                                <?php echo htmlspecialchars($appointment['patient_first_name'] . ' ' . $appointment['patient_last_name']); ?>
-                            </h2>
-                            <span class="badge badge-completed">Completed Appointment</span>
-                        </div>
-                    </div>
-
-                    <div class="patient-details">
-                        <div class="detail-item">
-                            <span class="detail-label">Appointment Date</span>
-                            <span
-                                class="detail-value"><?php echo date('F d, Y', strtotime($appointment['appointment_date'])); ?></span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Appointment Time</span>
-                            <span
-                                class="detail-value"><?php echo date('h:i A', strtotime($appointment['appointment_time'])); ?></span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Gender</span>
-                            <span
-                                class="detail-value"><?php echo htmlspecialchars($appointment['patient_gender'] ?? 'N/A'); ?></span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Date of Birth</span>
-                            <span
-                                class="detail-value"><?php echo $appointment['patient_dob'] ? date('F d, Y', strtotime($appointment['patient_dob'])) : 'N/A'; ?></span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Phone</span>
-                            <span
-                                class="detail-value"><?php echo htmlspecialchars($appointment['patient_phone'] ?? 'N/A'); ?></span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Email</span>
-                            <span
-                                class="detail-value"><?php echo htmlspecialchars($appointment['patient_email'] ?? 'N/A'); ?></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Prescription Form -->
-                <div class="prescription-form">
-                    <form method="POST" id="prescriptionForm">
-                        <div class="form-section-title">
-                            <span style="font-size: 24px;">💊</span>
-                            <span>Medicine Prescription</span>
-                        </div>
-
-                        <button type="button" class="add-medicine-btn" onclick="addMedicineRow()">
-                            <span style="font-size: 18px;">+</span>
-                            <span>Add Medicine</span>
-                        </button>
-
-                        <table class="medicines-table" id="medicinesTable">
-                            <thead>
-                                <tr>
-                                    <th style="width: 25%;">Medicine Name</th>
-                                    <th style="width: 60%;">Description / Instructions</th>
-                                    <th style="width: 15%; text-align: center;">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="medicinesBody">
-                                <?php if (!empty($saved_medicines)): ?>
-                                    <?php foreach ($saved_medicines as $index => $medicine): ?>
-                                        <tr>
-                                            <td>
-                                                <input type="text" name="medicine_name[]" class="medicine-input"
-                                                    placeholder="e.g., Paracetamol 500mg"
-                                                    value="<?php echo htmlspecialchars($medicine['name']); ?>" required>
-                                            </td>
-                                            <td>
-                                                <textarea name="medicine_description[]" class="medicine-description"
-                                                    placeholder="Enter dosage, timing, duration, and instructions.&#10;&#10;Example:&#10;• Take 1 tablet twice daily (morning & evening)&#10;• Take after meals&#10;• Duration: 5 days&#10;• For fever and pain relief"><?php echo htmlspecialchars($medicine['description']); ?></textarea>
-                                            </td>
-                                            <td style="text-align: center;">
-                                                <button type="button" class="remove-btn"
-                                                    onclick="removeMedicineRow(this)">Remove</button>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td>
-                                            <input type="text" name="medicine_name[]" class="medicine-input"
-                                                placeholder="e.g., Paracetamol 500mg" required>
-                                        </td>
-                                        <td>
-                                            <textarea name="medicine_description[]" class="medicine-description"
-                                                placeholder="Enter dosage, timing, duration, and instructions.&#10;&#10;Example:&#10;• Take 1 tablet twice daily (morning & evening)&#10;• Take after meals&#10;• Duration: 5 days&#10;• For fever and pain relief"></textarea>
-                                        </td>
-                                        <td style="text-align: center;">
-                                            <button type="button" class="remove-btn"
-                                                onclick="removeMedicineRow(this)">Remove</button>
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-
-                        <div class="form-group">
-                            <label for="diagnosis">Diagnosis (Optional)</label>
-                            <textarea id="diagnosis" name="diagnosis"
-                                placeholder="Enter patient's diagnosis or medical condition..."><?php echo htmlspecialchars($existing_prescription['diagnosis'] ?? ''); ?></textarea>
-                            <p class="helper-text">Medical condition or reason for prescription</p>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="additional_notes">Additional Notes (Optional)</label>
-                            <textarea id="additional_notes" name="additional_notes"
-                                placeholder="Any additional instructions or notes for the patient..."><?php echo htmlspecialchars($existing_prescription['additional_notes'] ?? ''); ?></textarea>
-                            <p class="helper-text">Special instructions, precautions, or follow-up recommendations</p>
-                        </div>
-
-                        <div class="action-buttons">
-                            <button type="submit" class="submit-btn">
-                                💾 Save Prescription
-                            </button>
-                            <a href="doctor_dashboard.php" class="cancel-btn">
-                                ← Back to Dashboard
-                            </a>
-                        </div>
-                    </form>
-                </div>
-            <?php elseif (!$error_message): ?>
-                <div class="error-alert">
-                    <span style="font-size: 20px;">⚠️</span>
-                    <span>No appointment selected. Please select an appointment from your dashboard.</span>
-                </div>
-                <a href="doctor_dashboard.php" class="cancel-btn" style="display: inline-block; margin-top: 20px;">
-                    ← Back to Dashboard
-                </a>
+    <?php if (!$appointment && !$error_msg): ?>
+        <!-- No appointment selected – show list of completed appointments -->
+        <div class="rx-card">
+            <div class="rx-section-title">📋 Select an Appointment to Prescribe</div>
+            <?php
+            $app_list = $admin_conn->prepare("
+                SELECT * FROM appointments
+                WHERE doctor_id = ? AND status IN ('approved')
+                ORDER BY appointment_date DESC LIMIT 30
+            ");
+            $app_list->bind_param("i", $doctor_id);
+            $app_list->execute();
+            $apps = $app_list->get_result();
+            ?>
+            <?php if ($apps->num_rows === 0): ?>
+                <p style="color:#64748b;">No approved or completed appointments found.</p>
+            <?php else: ?>
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f1f5f9;">
+                            <th style="padding:10px;text-align:left;font-size:12px;color:#475569;">Patient</th>
+                            <th style="padding:10px;text-align:left;font-size:12px;color:#475569;">Date</th>
+                            <th style="padding:10px;text-align:left;font-size:12px;color:#475569;">Status</th>
+                            <th style="padding:10px;text-align:left;font-size:12px;color:#475569;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php while ($a = $apps->fetch_assoc()): ?>
+                        <tr style="border-bottom:1px solid #f1f5f9;">
+                            <td style="padding:10px;font-size:14px;font-weight:600;color:#1e293b;">
+                                <?= htmlspecialchars($a['patient_name']) ?>
+                            </td>
+                            <td style="padding:10px;font-size:13px;color:#475569;">
+                                <?= date('M d, Y', strtotime($a['appointment_date'])) ?>
+                            </td>
+                            <td style="padding:10px;">
+                                <span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;
+                                    background:<?= $a['status']==='completed'?'#d1fae5':'#dbeafe' ?>;
+                                    color:<?= $a['status']==='completed'?'#065f46':'#1e40af' ?>;">
+                                    <?= strtoupper($a['status']) ?>
+                                </span>
+                            </td>
+                            <td style="padding:10px;">
+                                <a href="?appointment_id=<?= $a['id'] ?>"
+                                   style="padding:7px 16px;background:linear-gradient(135deg,#667eea,#764ba2);
+                                          color:#fff;border-radius:7px;text-decoration:none;font-size:12px;font-weight:700;">
+                                    💊 Prescribe
+                                </a>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                    </tbody>
+                </table>
             <?php endif; ?>
         </div>
-    </main>
 
-    <script>
-        // Sidebar toggle functionality
-        document.addEventListener('DOMContentLoaded', function () {
-            const menuToggle = document.getElementById('menuToggle');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
+    <?php elseif ($appointment): ?>
 
-            function toggleSidebar() {
-                sidebar.classList.toggle('active');
-                overlay.classList.toggle('active');
-            }
+        <!-- Patient Info Card -->
+        <div class="patient-card">
+            <div class="patient-card-header">
+                <div class="patient-avatar">👤</div>
+                <div>
+                    <div style="font-size:20px;font-weight:700;color:#1e293b;">
+                        <?= htmlspecialchars($appointment['patient_name']) ?>
+                    </div>
+                    <div style="font-size:13px;color:#64748b;">
+                        <?= date('F d, Y', strtotime($appointment['appointment_date'])) ?>
+                        at <?= date('h:i A', strtotime($appointment['appointment_time'])) ?>
+                    </div>
+                </div>
+            </div>
+            <div class="patient-grid">
+                <div class="pinfo-item">
+                    <span class="pinfo-label">Email</span>
+                    <span class="pinfo-value"><?= htmlspecialchars($appointment['patient_email']) ?></span>
+                </div>
+                <div class="pinfo-item">
+                    <span class="pinfo-label">Phone</span>
+                    <span class="pinfo-value"><?= htmlspecialchars($appointment['patient_phone']) ?></span>
+                </div>
+                <div class="pinfo-item">
+                    <span class="pinfo-label">Reason</span>
+                    <span class="pinfo-value"><?= htmlspecialchars(substr($appointment['reason_for_visit']??'',0,60)) ?></span>
+                </div>
+                <div class="pinfo-item">
+                    <span class="pinfo-label">Appointment Status</span>
+                    <span class="pinfo-value" style="text-transform:capitalize;">
+                        <?= htmlspecialchars($appointment['status']) ?>
+                    </span>
+                </div>
+            </div>
+        </div>
 
-            menuToggle.addEventListener('click', function (e) {
-                e.stopPropagation();
-                toggleSidebar();
-            });
+        <!-- Prescription status pill -->
+        <?php if ($existing_rx): ?>
+            <div class="rx-status-pill"
+                 style="background:<?= $status_bg ?>;color:<?= $status_color ?>;">
+                <?= $status_label ?>
+            </div>
+        <?php endif; ?>
 
-            overlay.addEventListener('click', toggleSidebar);
+        <!-- Prescription Form -->
+        <form method="POST" id="rxForm">
+            <!-- STEP 1: Pick medicines from DB -->
+            <div class="rx-card">
+                <div class="rx-section-title">🔍 Step 1 — Search & Select Medicines</div>
 
-            sidebar.addEventListener('click', function (e) {
-                e.stopPropagation();
-            });
-        });
+                <!-- Category tabs -->
+                <div class="cat-tabs">
+                    <button type="button" class="cat-tab active" onclick="filterCat('all',this)">All</button>
+                    <?php foreach (array_keys($medicines_by_category) as $cat): ?>
+                        <button type="button" class="cat-tab"
+                            onclick="filterCat('<?= htmlspecialchars($cat) ?>',this)">
+                            <?= htmlspecialchars($cat) ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
 
-        // Add medicine row
-        function addMedicineRow() {
-            const tbody = document.getElementById('medicinesBody');
-            const newRow = document.createElement('tr');
-            newRow.innerHTML = `
-                <td>
-                    <input type="text" 
-                           name="medicine_name[]" 
-                           class="medicine-input" 
-                           placeholder="e.g., Paracetamol 500mg"
-                           required>
-                </td>
-                <td>
-                    <textarea name="medicine_description[]" 
-                              class="medicine-description" 
-                              placeholder="Enter dosage, timing, duration, and instructions.&#10;&#10;Example:&#10;• Take 1 tablet twice daily (morning & evening)&#10;• Take after meals&#10;• Duration: 5 days&#10;• For fever and pain relief"></textarea>
-                </td>
-                <td style="text-align: center;">
-                    <button type="button" class="remove-btn" onclick="removeMedicineRow(this)">Remove</button>
-                </td>
-            `;
-            tbody.appendChild(newRow);
+                <!-- Search box -->
+                <div class="med-search-wrap">
+                    <span class="med-search-icon">🔍</span>
+                    <input type="text" class="med-search" id="medSearch"
+                           placeholder="Search medicine name…" oninput="searchMeds()">
+                </div>
+
+                <!-- Medicines grid -->
+                <div class="medicines-grid" id="medsGrid">
+                    <?php foreach ($all_medicines as $m): ?>
+                        <div class="med-item"
+                             id="medcard_<?= $m['id'] ?>"
+                             data-id="<?= $m['id'] ?>"
+                             data-name="<?= htmlspecialchars($m['name'],ENT_QUOTES) ?>"
+                             data-price="<?= $m['price'] ?>"
+                             data-form="<?= htmlspecialchars($m['dosage_form'],ENT_QUOTES) ?>"
+                             data-strength="<?= htmlspecialchars($m['strength'],ENT_QUOTES) ?>"
+                             data-cat="<?= htmlspecialchars($m['category'],ENT_QUOTES) ?>"
+                             onclick="toggleMed(this)">
+                            <div class="med-name"><?= htmlspecialchars($m['name']) ?></div>
+                            <div class="med-meta">
+                                <?= htmlspecialchars($m['dosage_form']) ?> · <?= htmlspecialchars($m['strength']) ?>
+                            </div>
+                            <div class="med-price">₹<?= number_format($m['price'],2) ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- STEP 2: Selected medicines table -->
+            <div class="rx-card" id="selectedSection" style="display:none;">
+                <div class="rx-section-title">📋 Step 2 — Selected Medicines & Instructions</div>
+                <div style="overflow-x:auto;">
+                <table class="selected-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Medicine</th>
+                            <th>Price/Unit</th>
+                            <th>Dosage</th>
+                            <th>Duration</th>
+                            <th>Instructions</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="selectedBody"></tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="2" style="color:#475569;">Total (all medicines)</td>
+                            <td id="totalPrice" style="color:#667eea;">₹0.00</td>
+                            <td colspan="4"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>
+                <p style="font-size:12px;color:#94a3b8;margin-top:8px;">
+                    * Price shown is per unit. Actual total depends on quantity prescribed.
+                </p>
+            </div>
+
+            <!-- STEP 3: Diagnosis & Notes -->
+            <div class="rx-card">
+                <div class="rx-section-title">🩺 Step 3 — Diagnosis & Notes</div>
+                <div class="form-group">
+                    <label>Diagnosis</label>
+                    <textarea name="diagnosis" class="form-control" rows="3"
+                        placeholder="Patient's diagnosis or medical condition…"><?=
+                        htmlspecialchars($existing_rx['diagnosis'] ?? '')
+                    ?></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Additional Notes / Follow-up</label>
+                    <textarea name="additional_notes" class="form-control" rows="3"
+                        placeholder="Special instructions, precautions, follow-up date…"><?=
+                        htmlspecialchars($existing_rx['additional_notes'] ?? '')
+                    ?></textarea>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button type="submit" class="btn-save" id="saveBtn" disabled>
+                    📤 Submit Prescription for Approval
+                </button>
+                <a href="doctor_prescriptions_list.php" class="btn-back">← Back</a>
+            </div>
+        </form>
+
+        <!-- Show already-saved items highlighted -->
+        <?php if (!empty($saved_items)): ?>
+        <div class="saved-rx" style="margin-top:24px;">
+            <div class="rx-section-title">💾 Last Saved Prescription</div>
+            <div style="overflow-x:auto;">
+            <table class="selected-table">
+                <thead>
+                    <tr>
+                        <th>#</th><th>Medicine</th><th>Price/Unit</th>
+                        <th>Dosage</th><th>Duration</th><th>Instructions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php $tot = 0; foreach ($saved_items as $idx => $it): $tot += $it['price_at_time']; ?>
+                    <tr>
+                        <td style="color:#667eea;font-weight:700;"><?= $idx+1 ?></td>
+                        <td>
+                            <div class="tbl-med-name"><?= htmlspecialchars($it['medicine_name']) ?></div>
+                            <div class="tbl-med-meta">
+                                <?= htmlspecialchars($it['dosage_form']??'') ?>
+                                <?= $it['strength']?'· '.htmlspecialchars($it['strength']):'' ?>
+                            </div>
+                        </td>
+                        <td class="tbl-price">₹<?= number_format($it['price_at_time'],2) ?></td>
+                        <td><?= htmlspecialchars($it['dosage']??'—') ?></td>
+                        <td><?= htmlspecialchars($it['duration']??'—') ?></td>
+                        <td><?= nl2br(htmlspecialchars($it['instructions']??'—')) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="2" style="color:#475569;">Total</td>
+                        <td style="color:#667eea;">₹<?= number_format($tot,2) ?></td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+            </div>
+            <?php if (!empty($existing_rx['diagnosis'])): ?>
+                <div style="margin-top:16px;padding:14px;background:#fffbeb;border-left:4px solid #f59e0b;border-radius:8px;">
+                    <strong>Diagnosis:</strong> <?= nl2br(htmlspecialchars($existing_rx['diagnosis'])) ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+    <?php endif; ?>
+</div>
+</main>
+
+<script>
+// ── Medicine state ────────────────────────────────────────
+const selected = {}; // id → {name,price,form,strength}
+
+function toggleMed(card) {
+    const id = card.dataset.id;
+    if (selected[id]) {
+        card.classList.remove('selected');
+        delete selected[id];
+    } else {
+        card.classList.add('selected');
+        selected[id] = {
+            name:     card.dataset.name,
+            price:    parseFloat(card.dataset.price),
+            form:     card.dataset.form,
+            strength: card.dataset.strength
+        };
+    }
+    renderSelected();
+}
+
+function renderSelected() {
+    const tbody = document.getElementById('selectedBody');
+    const section = document.getElementById('selectedSection');
+    const saveBtn = document.getElementById('saveBtn');
+    const ids = Object.keys(selected);
+
+    if (ids.length === 0) {
+        tbody.innerHTML = '';
+        section.style.display = 'none';
+        saveBtn.disabled = true;
+        document.getElementById('totalPrice').textContent = '₹0.00';
+        return;
+    }
+
+    section.style.display = '';
+    saveBtn.disabled = false;
+
+    let rows = '';
+    let total = 0;
+    ids.forEach((id, i) => {
+        const m = selected[id];
+        total += m.price;
+        rows += `
+        <tr>
+          <td style="color:#667eea;font-weight:700;">${i+1}</td>
+          <td>
+            <input type="hidden" name="medicine_id[]" value="${id}">
+            <div class="tbl-med-name">${m.name}</div>
+            <div class="tbl-med-meta">${m.form} · ${m.strength}</div>
+          </td>
+          <td class="tbl-price">₹${m.price.toFixed(2)}</td>
+          <td>
+            <input type="text" name="dosage[]" class="tbl-input"
+                   placeholder="e.g. 1 tablet twice daily">
+          </td>
+          <td>
+            <input type="text" name="duration[]" class="tbl-input"
+                   placeholder="e.g. 5 days">
+          </td>
+          <td>
+            <input type="text" name="instructions[]" class="tbl-input"
+                   placeholder="Take after meals…">
+          </td>
+          <td>
+            <button type="button" class="del-btn" onclick="removeMed('${id}',this)">✕</button>
+          </td>
+        </tr>`;
+    });
+    tbody.innerHTML = rows;
+    document.getElementById('totalPrice').textContent = '₹' + total.toFixed(2);
+}
+
+function removeMed(id, btn) {
+    delete selected[id];
+    const card = document.getElementById('medcard_' + id);
+    if (card) card.classList.remove('selected');
+    renderSelected();
+}
+
+// ── Category filter ───────────────────────────────────────
+function filterCat(cat, btn) {
+    document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.med-item').forEach(c => {
+        c.style.display = (cat === 'all' || c.dataset.cat === cat) ? '' : 'none';
+    });
+}
+
+// ── Search ────────────────────────────────────────────────
+function searchMeds() {
+    const q = document.getElementById('medSearch').value.toLowerCase();
+    document.querySelectorAll('.med-item').forEach(c => {
+        c.style.display = c.dataset.name.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+// ── Pre-select saved medicines on page reload ─────────────
+<?php if (!empty($saved_items)): ?>
+window.addEventListener('DOMContentLoaded', () => {
+    <?php foreach ($saved_items as $it): ?>
+    (function(){
+        const card = document.getElementById('medcard_<?= $it['medicine_id'] ?>');
+        if (card) {
+            card.classList.add('selected');
+            selected['<?= $it['medicine_id'] ?>'] = {
+                name:     card.dataset.name,
+                price:    parseFloat(card.dataset.price),
+                form:     card.dataset.form,
+                strength: card.dataset.strength
+            };
         }
+    })();
+    <?php endforeach; ?>
+    renderSelected();
 
-        // Remove medicine row
-        function removeMedicineRow(button) {
-            const tbody = document.getElementById('medicinesBody');
-            const rows = tbody.getElementsByTagName('tr');
+    // Restore dosage/duration/instructions after re-render
+    <?php foreach ($saved_items as $idx => $it): ?>
+    (function(){
+        const inputs = document.querySelectorAll('input[name="dosage[]"]');
+        if (inputs[<?= $idx ?>]) inputs[<?= $idx ?>].value = <?= json_encode($it['dosage']??'') ?>;
+        const dur = document.querySelectorAll('input[name="duration[]"]');
+        if (dur[<?= $idx ?>]) dur[<?= $idx ?>].value = <?= json_encode($it['duration']??'') ?>;
+        const ins = document.querySelectorAll('input[name="instructions[]"]');
+        if (ins[<?= $idx ?>]) ins[<?= $idx ?>].value = <?= json_encode($it['instructions']??'') ?>;
+    })();
+    <?php endforeach; ?>
+});
+<?php endif; ?>
 
-            if (rows.length > 1) {
-                button.closest('tr').remove();
-            } else {
-                alert('At least one medicine is required!');
-            }
-        }
-
-        // Form validation
-        document.getElementById('prescriptionForm')?.addEventListener('submit', function (e) {
-            const medicineNames = document.querySelectorAll('input[name="medicine_name[]"]');
-            let hasValidMedicine = false;
-
-            medicineNames.forEach(input => {
-                if (input.value.trim() !== '') {
-                    hasValidMedicine = true;
-                }
-            });
-
-            if (!hasValidMedicine) {
-                e.preventDefault();
-                alert('Please add at least one medicine!');
-            }
-        });
-    </script>
+// ── Sidebar toggle ────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('menuToggle');
+    const sb  = document.getElementById('sidebar');
+    const ov  = document.getElementById('sidebarOverlay');
+    if (btn && sb && ov) {
+        btn.addEventListener('click', e => { e.stopPropagation(); sb.classList.toggle('active'); ov.classList.toggle('active'); });
+        ov.addEventListener('click', () => { sb.classList.remove('active'); ov.classList.remove('active'); });
+    }
+});
+</script>
 </body>
-
 </html>
-
-<?php
-$doctors_conn->close();
-$patients_conn->close();
-?>
+<?php $doctors_conn->close(); $admin_conn->close(); ?>
