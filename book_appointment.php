@@ -35,7 +35,7 @@ if ($doctors_result) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    
+
     // Validate input
     $validator = new Validator();
     $valid = $validator->validate($_POST, [
@@ -45,31 +45,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'reason' => 'required|min:10|max:500',
         'consultation_type' => 'required'
     ]);
-    
+
     if (!$valid) {
         $error = $validator->firstError();
     } else {
-        
+
         $doctor_id = intval($_POST['doctor_id']);
         $appointment_date = Validator::sanitize($_POST['appointment_date']);
         $appointment_time = Validator::sanitize($_POST['appointment_time']);
         $consultation_type = Validator::sanitize($_POST['consultation_type']);
         $reason = Validator::sanitize($_POST['reason']);
         $symptoms = Validator::sanitize($_POST['symptoms'] ?? '');
-        
+
         // Get doctor details
         $stmt = $doctors_conn->prepare("SELECT first_name, last_name, specialty FROM doctors WHERE id = ? AND is_verified = 1");
         $stmt->bind_param("i", $doctor_id);
         $stmt->execute();
         $doctor = $stmt->get_result()->fetch_assoc();
         $stmt->close();
-        
+
         if (!$doctor) {
             $error = "Selected doctor is not available";
         } else {
-            
+
             $doctor_name = $doctor['first_name'] . ' ' . $doctor['last_name'];
-            
+
             // Insert appointment into admin database
             $admin_conn = Database::getConnection('admin');
             $stmt = $admin_conn->prepare("
@@ -80,10 +80,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     reason_for_visit, symptoms, status
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             ");
-            
+
             $patient_age = (new DateTime($patient['dob']))->diff(new DateTime())->y;
             $patient_name = $patient['first_name'] . ' ' . $patient['last_name'];
-            
+
             $stmt->bind_param(
                 "issssisssssss",
                 $patient_id,
@@ -100,10 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $reason,
                 $symptoms
             );
-            
+
             if ($stmt->execute()) {
                 $appointment_id = $stmt->insert_id;
-                
+
                 // Log appointment creation
                 $history_stmt = $admin_conn->prepare("
                     INSERT INTO appointment_history (appointment_id, action, performed_by, performed_by_type, new_status, notes)
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $history_stmt->bind_param("ii", $appointment_id, $patient_id);
                 $history_stmt->execute();
-                
+
                 // Send confirmation email to patient
                 $emailData = [
                     'patient_name' => $patient_name,
@@ -121,18 +121,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'appointment_time' => date('h:i A', strtotime($appointment_time)),
                     'reason' => $reason
                 ];
-                
+
                 $emailContent = EmailTemplate::appointmentPending($emailData);
                 EmailTemplate::send($patient['email'], 'Appointment Request Received', $emailContent);
-                
+
                 // Send notification email to admin
                 $emailData['patient_phone'] = $patient['phone'];
                 $emailData['patient_email'] = $patient['email'];
                 $emailData['created_at'] = date('F d, Y h:i A');
-                
+
                 $adminEmailContent = EmailTemplate::newAppointmentAdmin($emailData);
                 EmailTemplate::send(ADMIN_EMAIL, 'New Appointment Request', $adminEmailContent);
-                
+
                 // Create notification for admin
                 $notif_stmt = $admin_conn->prepare("
                     INSERT INTO appointment_notifications (appointment_id, recipient_type, recipient_id, notification_type, message)
@@ -141,17 +141,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $notif_message = "New appointment request from $patient_name for Dr. $doctor_name";
                 $notif_stmt->bind_param("is", $appointment_id, $notif_message);
                 $notif_stmt->execute();
-                
+
                 $success = "Appointment request submitted successfully! You will receive a confirmation email once approved by admin.";
-                
+
                 // Clear form
                 $_POST = [];
-                
+
             } else {
                 $error = "Failed to book appointment. Please try again.";
                 error_log("Appointment insert failed: " . $stmt->error);
             }
-            
+
             $stmt->close();
         }
     }
@@ -160,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -172,33 +173,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 40px;
             background: white;
             border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
         }
-        
+
         .booking-header {
             text-align: center;
             margin-bottom: 40px;
         }
-        
+
         .booking-header h1 {
             color: #333;
             margin-bottom: 10px;
         }
-        
+
         .booking-header p {
             color: #666;
         }
-        
+
         .form-section {
             margin-bottom: 30px;
             padding-bottom: 30px;
             border-bottom: 2px solid #f0f0f0;
         }
-        
+
         .form-section:last-child {
             border-bottom: none;
         }
-        
+
         .section-title {
             font-size: 18px;
             font-weight: 600;
@@ -208,18 +209,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-items: center;
             gap: 10px;
         }
-        
+
         .form-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 8px;
@@ -227,11 +228,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-weight: 600;
             font-size: 14px;
         }
-        
+
         .required {
             color: #ef4444;
         }
-        
+
         .form-group input,
         .form-group select,
         .form-group textarea {
@@ -243,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-family: inherit;
             transition: all 0.3s;
         }
-        
+
         .form-group input:focus,
         .form-group select:focus,
         .form-group textarea:focus {
@@ -251,18 +252,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-        
+
         .form-group textarea {
             min-height: 100px;
             resize: vertical;
         }
-        
+
         .form-hint {
             font-size: 12px;
             color: #999;
             margin-top: 5px;
         }
-        
+
         .submit-btn {
             width: 100%;
             padding: 16px;
@@ -275,12 +276,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             cursor: pointer;
             transition: all 0.3s;
         }
-        
+
         .submit-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
         }
-        
+
         .alert {
             padding: 15px 20px;
             border-radius: 10px;
@@ -288,19 +289,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 14px;
             line-height: 1.5;
         }
-        
+
         .alert-success {
             background: #d1fae5;
             color: #065f46;
             border-left: 4px solid #10b981;
         }
-        
+
         .alert-error {
             background: #fee2e2;
             color: #991b1b;
             border-left: 4px solid #ef4444;
         }
-        
+
         .doctor-info {
             background: #f8f9fa;
             padding: 15px;
@@ -308,26 +309,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 10px;
             display: none;
         }
-        
+
         .doctor-info.active {
             display: block;
         }
-        
+
         .consultation-types {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 15px;
         }
-        
+
         .consultation-type {
             position: relative;
         }
-        
+
         .consultation-type input[type="radio"] {
             position: absolute;
             opacity: 0;
         }
-        
+
         .consultation-type label {
             display: block;
             padding: 15px;
@@ -338,8 +339,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transition: all 0.3s;
             text-align: center;
         }
-        
-        .consultation-type input[type="radio"]:checked + label {
+
+        .consultation-type input[type="radio"]:checked+label {
             background: #e0e7ff;
             border-color: #667eea;
             color: #667eea;
@@ -347,6 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </style>
 </head>
+
 <body>
     <?php $active_page = 'book'; ?>
 
@@ -371,24 +373,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="">
-            
+
             <!-- Patient Information -->
             <div class="form-section">
                 <div class="section-title">
                     👤 Patient Information
                 </div>
-                
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Full Name</label>
-                        <input type="text" value="<?php echo htmlspecialchars($patient['first_name'] . ' ' . $patient['last_name']); ?>" disabled>
+                        <input type="text"
+                            value="<?php echo htmlspecialchars($patient['first_name'] . ' ' . $patient['last_name']); ?>"
+                            disabled>
                     </div>
                     <div class="form-group">
                         <label>Email</label>
                         <input type="email" value="<?php echo htmlspecialchars($patient['email']); ?>" disabled>
                     </div>
                 </div>
-                
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Phone</label>
@@ -396,7 +400,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="form-group">
                         <label>Age</label>
-                        <input type="text" value="<?php echo (new DateTime($patient['dob']))->diff(new DateTime())->y; ?> years" disabled>
+                        <input type="text"
+                            value="<?php echo (new DateTime($patient['dob']))->diff(new DateTime())->y; ?> years"
+                            disabled>
                     </div>
                 </div>
             </div>
@@ -406,7 +412,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="section-title">
                     👨‍⚕️ Select Doctor
                 </div>
-                
+
                 <div class="form-group">
                     <label>Choose Doctor <span class="required">*</span></label>
                     <select name="doctor_id" id="doctorSelect" required onchange="showDoctorInfo(this.value)">
@@ -415,7 +421,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $specialties = [];
                         foreach ($doctors as $doctor) {
                             if (!in_array($doctor['specialty'], $specialties)) {
-                                if (!empty($specialties)) echo '</optgroup>';
+                                if (!empty($specialties))
+                                    echo '</optgroup>';
                                 echo '<optgroup label="' . htmlspecialchars($doctor['specialty']) . '">';
                                 $specialties[] = $doctor['specialty'];
                             }
@@ -426,12 +433,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                             echo '</option>';
                         }
-                        if (!empty($specialties)) echo '</optgroup>';
+                        if (!empty($specialties))
+                            echo '</optgroup>';
                         ?>
                     </select>
                     <div class="form-hint">Select the doctor you want to consult</div>
                 </div>
-                
+
                 <div id="doctorInfo" class="doctor-info"></div>
             </div>
 
@@ -440,14 +448,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="section-title">
                     📅 Appointment Date & Time
                 </div>
-                
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Preferred Date <span class="required">*</span></label>
-                        <input type="date" name="appointment_date" required min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>" max="<?php echo date('Y-m-d', strtotime('+30 days')); ?>" value="<?php echo $_POST['appointment_date'] ?? ''; ?>">
+                        <input type="date" name="appointment_date" required
+                            min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>"
+                            max="<?php echo date('Y-m-d', strtotime('+30 days')); ?>"
+                            value="<?php echo $_POST['appointment_date'] ?? ''; ?>">
                         <div class="form-hint">Select a date within the next 30 days</div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Preferred Time <span class="required">*</span></label>
                         <select name="appointment_time" required>
@@ -477,7 +488,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="section-title">
                     💼 Consultation Type
                 </div>
-                
+
                 <div class="consultation-types">
                     <div class="consultation-type">
                         <input type="radio" id="in-person" name="consultation_type" value="in-person" checked>
@@ -487,7 +498,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div style="font-size: 11px; color: #999; margin-top: 5px;">Visit hospital</div>
                         </label>
                     </div>
-                    
+
                     <div class="consultation-type">
                         <input type="radio" id="online" name="consultation_type" value="online">
                         <label for="online">
@@ -504,25 +515,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="section-title">
                     📝 Reason for Visit
                 </div>
-                
+
                 <div class="form-group">
                     <label>Chief Complaint <span class="required">*</span></label>
-                    <textarea name="reason" required placeholder="Please describe your main health concern..." maxlength="500"><?php echo $_POST['reason'] ?? ''; ?></textarea>
+                    <textarea name="reason" required placeholder="Please describe your main health concern..."
+                        maxlength="500"><?php echo $_POST['reason'] ?? ''; ?></textarea>
                     <div class="form-hint">Minimum 10 characters, maximum 500 characters</div>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Additional Symptoms (Optional)</label>
-                    <textarea name="symptoms" placeholder="Any other symptoms or information you'd like to share..." maxlength="1000"><?php echo $_POST['symptoms'] ?? ''; ?></textarea>
+                    <textarea name="symptoms" placeholder="Any other symptoms or information you'd like to share..."
+                        maxlength="1000"><?php echo $_POST['symptoms'] ?? ''; ?></textarea>
                     <div class="form-hint">This helps the doctor prepare for your consultation</div>
                 </div>
             </div>
 
             <!-- Important Notice -->
-            <div style="background: #fef3c7; padding: 15px; border-radius: 10px; border-left: 4px solid #f59e0b; margin-bottom: 25px;">
+            <div
+                style="background: #fef3c7; padding: 15px; border-radius: 10px; border-left: 4px solid #f59e0b; margin-bottom: 25px;">
                 <strong>⏳ Please Note:</strong>
                 <p style="margin: 10px 0 0 0; font-size: 14px; color: #92400e;">
-                    Your appointment request will be reviewed by our admin team. You will receive a confirmation email once approved. This typically takes less than 24 hours.
+                    Your appointment request will be reviewed by our admin team. You will receive a confirmation email
+                    once approved. This typically takes less than 24 hours.
                 </p>
             </div>
 
@@ -537,18 +552,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function showDoctorInfo(doctorId) {
             const select = document.getElementById('doctorSelect');
             const infoDiv = document.getElementById('doctorInfo');
-            
+
             if (!doctorId) {
                 infoDiv.classList.remove('active');
                 return;
             }
-            
+
             const option = select.options[select.selectedIndex];
             const specialty = option.getAttribute('data-specialty');
             const fee = option.getAttribute('data-fee');
             const days = option.getAttribute('data-days');
             const time = option.getAttribute('data-time');
-            
+
             infoDiv.innerHTML = `
                 <strong>Doctor Information:</strong><br>
                 <div style="margin-top: 10px;">
@@ -562,4 +577,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </script>
 </body>
+
 </html>

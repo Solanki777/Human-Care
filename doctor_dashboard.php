@@ -594,7 +594,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                                         <?php endif; ?>
                                     </a>
 
-                                   
+
                                 </div>
 
                             <?php endif; ?>
