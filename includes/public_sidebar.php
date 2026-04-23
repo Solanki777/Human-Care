@@ -16,7 +16,8 @@ $active_page = $active_page ?? '';
 $unreadCount = $unreadCount ?? 0;
 
 // Helper: returns 'active' class string if the page matches
-function sb_active(string $page, string $current): string {
+function sb_active(string $page, string $current): string
+{
     return $page === $current ? 'active' : '';
 }
 ?>
@@ -58,6 +59,12 @@ function sb_active(string $page, string $current): string {
             <a href="book_appointment.php" class="<?= sb_active('book', $active_page) ?>">
                 <span class="nav-icon">📅</span>
                 <span>Book Appointment</span>
+            </a>
+        </li>
+        <li>
+            <a href="patient_prescriptions.php" class="<?= sb_active('prescriptions', $active_page) ?>">
+                <span class="nav-icon">💊</span>
+                <span>My Prescriptions</span>
             </a>
         </li>
 
@@ -116,54 +123,54 @@ function sb_active(string $page, string $current): string {
       if already initialized via data attribute)
 ════════════════════════════════════════════ -->
 <script>
-(function () {
-    // Guard: only initialise once per page
-    if (document.body.dataset.sidebarInit) return;
-    document.body.dataset.sidebarInit = '1';
+    (function () {
+        // Guard: only initialise once per page
+        if (document.body.dataset.sidebarInit) return;
+        document.body.dataset.sidebarInit = '1';
 
-    document.addEventListener('DOMContentLoaded', function () {
-        var toggle  = document.getElementById('menuToggle');
-        var sidebar = document.getElementById('sidebar');
-        var overlay = document.getElementById('sidebarOverlay');
+        document.addEventListener('DOMContentLoaded', function () {
+            var toggle = document.getElementById('menuToggle');
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.getElementById('sidebarOverlay');
 
-        if (!toggle || !sidebar || !overlay) return;
+            if (!toggle || !sidebar || !overlay) return;
 
-        function openSidebar() {
-            sidebar.classList.add('active');
-            overlay.classList.add('active');
-            document.body.classList.add('sidebar-open');
-        }
-
-        function closeSidebar() {
-            sidebar.classList.remove('active');
-            overlay.classList.remove('active');
-            document.body.classList.remove('sidebar-open');
-        }
-
-        toggle.addEventListener('click', function (e) {
-            e.stopPropagation();
-            sidebar.classList.contains('active') ? closeSidebar() : openSidebar();
-        });
-
-        // Close on overlay click
-        overlay.addEventListener('click', closeSidebar);
-
-        // Close on Escape key
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeSidebar();
-        });
-
-        // Close when clicking anywhere outside sidebar
-        document.addEventListener('click', function (e) {
-            if (sidebar.classList.contains('active') &&
-                !sidebar.contains(e.target) &&
-                !toggle.contains(e.target)) {
-                closeSidebar();
+            function openSidebar() {
+                sidebar.classList.add('active');
+                overlay.classList.add('active');
+                document.body.classList.add('sidebar-open');
             }
-        });
 
-        // Prevent clicks inside sidebar from bubbling to document
-        sidebar.addEventListener('click', function (e) { e.stopPropagation(); });
-    });
-}());
+            function closeSidebar() {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+                document.body.classList.remove('sidebar-open');
+            }
+
+            toggle.addEventListener('click', function (e) {
+                e.stopPropagation();
+                sidebar.classList.contains('active') ? closeSidebar() : openSidebar();
+            });
+
+            // Close on overlay click
+            overlay.addEventListener('click', closeSidebar);
+
+            // Close on Escape key
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeSidebar();
+            });
+
+            // Close when clicking anywhere outside sidebar
+            document.addEventListener('click', function (e) {
+                if (sidebar.classList.contains('active') &&
+                    !sidebar.contains(e.target) &&
+                    !toggle.contains(e.target)) {
+                    closeSidebar();
+                }
+            });
+
+            // Prevent clicks inside sidebar from bubbling to document
+            sidebar.addEventListener('click', function (e) { e.stopPropagation(); });
+        });
+    }());
 </script>
