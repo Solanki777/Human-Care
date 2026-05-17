@@ -7,7 +7,7 @@
  *   - Review prescription medicines → Approve, Edit items, or Cancel (reject) the prescription
  *   - Marking prescription approved → marks appointment completed + patient sees it
  */
-session_start();
+require_once __DIR__ . '/config/config.php';
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header("Location: admin_login.php");
     exit();
@@ -24,6 +24,7 @@ $msg_type = '';
 
 // ── Handle actions ────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['appointment_id'])) {
+    if (!csrf_validate()) { die('Invalid CSRF token'); }
     $aid = intval($_POST['appointment_id']);
     $action = $_POST['action'];
     $admin_id = $_SESSION['admin_id'] ?? 0;
@@ -135,8 +136,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['app
                 $s->execute();
                 $s->close();
 
-                // Replace items
-                $doctors_conn->query("DELETE FROM prescription_items WHERE prescription_id = $rx_id");
+                // Replace items (prepared statement)
+                $del_stmt = $doctors_conn->prepare("DELETE FROM prescription_items WHERE prescription_id = ?");
+                $del_stmt->bind_param("i", $rx_id);
+                $del_stmt->execute();
+                $del_stmt->close();
                 $si = $doctors_conn->prepare("
                     INSERT INTO prescription_items
                     (prescription_id, medicine_id, medicine_name, price_at_time, dosage, duration, instructions)
@@ -173,10 +177,9 @@ $filter = $_GET['filter'] ?? 'all';
 $allowed = ['all', 'pending', 'approved', 'completed', 'rejected', 'cancelled'];
 if (!in_array($filter, $allowed))
     $filter = 'all';
-$where = $filter !== 'all' ? "WHERE a.status = '$filter'" : '';
 
-// ── Load appointments ─────────────────────────────────────────────────────────
-$appointments = $admin_conn->query("
+// ── Load appointments (prepared statement) ────────────────────────────────────
+$appt_sql = "
     SELECT a.*,
            p.id              AS rx_id,
            p.status          AS rx_status,
@@ -184,11 +187,19 @@ $appointments = $admin_conn->query("
            p.additional_notes AS rx_notes
     FROM appointments a
     LEFT JOIN human_care_doctors.prescriptions p ON p.appointment_id = a.id
-    $where
-    ORDER BY
-        CASE a.status WHEN 'pending' THEN 1 WHEN 'approved' THEN 2 WHEN 'completed' THEN 3 ELSE 4 END,
-        a.appointment_date ASC
-");
+";
+if ($filter !== 'all') {
+    $appt_sql .= " WHERE a.status = ?";
+}
+$appt_sql .= " ORDER BY CASE a.status WHEN 'pending' THEN 1 WHEN 'approved' THEN 2 WHEN 'completed' THEN 3 ELSE 4 END, a.appointment_date ASC";
+
+$appt_stmt = $admin_conn->prepare($appt_sql);
+if ($filter !== 'all') {
+    $appt_stmt->bind_param("s", $filter);
+}
+$appt_stmt->execute();
+$appointments = $appt_stmt->get_result();
+$appt_stmt->close();
 
 // ── Load prescription items for each appointment that has a pending rx ────────
 $rx_items = [];
@@ -962,12 +973,14 @@ foreach (['all', 'pending', 'approved', 'completed', 'rejected', 'cancelled'] as
                                     <!-- Approve -->
                                     <form class="action-form" method="POST"
                                         onsubmit="return confirm('Approve this appointment?')">
+                                        <?php echo csrf_field(); ?>
                                         <input type="hidden" name="appointment_id" value="<?= $a['id'] ?>">
                                         <button name="action" value="approve" class="act-btn act-approve">✓ Approve</button>
                                     </form>
                                     <!-- Reject -->
                                     <form class="action-form" method="POST"
                                         onsubmit="return confirm('Reject this appointment?')">
+                                        <?php echo csrf_field(); ?>
                                         <input type="hidden" name="appointment_id" value="<?= $a['id'] ?>">
                                         <button name="action" value="reject" class="act-btn act-reject">✗ Reject</button>
                                     </form>
@@ -1001,6 +1014,7 @@ foreach (['all', 'pending', 'approved', 'completed', 'rejected', 'cancelled'] as
                                     <!-- ★ Cancel appointment button (always available for approved) -->
                                     <form class="action-form" method="POST"
                                         onsubmit="return confirm('Cancel this approved appointment?')">
+                                        <?php echo csrf_field(); ?>
                                         <input type="hidden" name="appointment_id" value="<?= $a['id'] ?>">
                                         <button name="action" value="cancel" class="act-btn act-cancel" style="margin-top:4px;">
                                             🚫 Cancel
@@ -1148,6 +1162,7 @@ foreach (['all', 'pending', 'approved', 'completed', 'rejected', 'cancelled'] as
             <div class="modal-footer">
                 <!-- Hidden form for approve -->
                 <form method="POST" id="formApprove" style="display:inline;">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="action" value="rx_approve">
                     <input type="hidden" name="appointment_id" id="fa-aid">
                     <input type="hidden" name="rx_id" id="fa-rxid">
@@ -1166,6 +1181,7 @@ foreach (['all', 'pending', 'approved', 'completed', 'rejected', 'cancelled'] as
 
                 <!-- Hidden form for edit submit -->
                 <form method="POST" id="formEdit" style="display:none;">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="action" value="rx_edit">
                     <input type="hidden" name="appointment_id" id="fe-aid">
                     <input type="hidden" name="rx_id" id="fe-rxid">
@@ -1174,6 +1190,7 @@ foreach (['all', 'pending', 'approved', 'completed', 'rejected', 'cancelled'] as
 
                 <!-- Cancel prescription -->
                 <form method="POST" id="formCancel" style="display:inline;">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="action" value="rx_cancel">
                     <input type="hidden" name="appointment_id" id="fc-aid">
                     <input type="hidden" name="rx_id" id="fc-rxid">

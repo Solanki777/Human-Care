@@ -5,7 +5,7 @@
  * Prescription goes to admin (status=pending).
  * Admin marks appointment complete → prescription becomes approved → patient sees it.
  */
-session_start();
+require_once __DIR__ . '/config/config.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
     header("Location: login.php");
@@ -95,6 +95,7 @@ if ($appointment_id > 0) {
 
 // ── Handle form submit ────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $appointment) {
+    if (!csrf_validate()) { die('Invalid CSRF token'); }
     $medicine_ids = $_POST['medicine_id'] ?? [];
     $dosages = $_POST['dosage'] ?? [];
     $durations = $_POST['duration'] ?? [];
@@ -135,7 +136,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $appointment) {
                 $stmt->close();
                 $rx_id = $existing_rx['id'];
                 // Delete old items to replace them
-                $doctors_conn->query("DELETE FROM prescription_items WHERE prescription_id = $rx_id");
+                $del_stmt = $doctors_conn->prepare("DELETE FROM prescription_items WHERE prescription_id = ?");
+                $del_stmt->bind_param("i", $rx_id);
+                $del_stmt->execute();
+                $del_stmt->close();
             } else {
                 // Insert new prescription
                 $stmt = $doctors_conn->prepare("

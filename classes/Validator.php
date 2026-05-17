@@ -15,10 +15,10 @@ class Validator {
         $this->data = $data;
         
         foreach ($rules as $field => $ruleSet) {
-            $rules = explode('|', $ruleSet);
+            $ruleList = explode('|', $ruleSet);
             $value = $data[$field] ?? '';
             
-            foreach ($rules as $rule) {
+            foreach ($ruleList as $rule) {
                 $this->applyRule($field, $value, $rule);
             }
         }

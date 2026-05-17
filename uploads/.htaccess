@@ -1,0 +1,19 @@
+# Block PHP execution in uploads directory
+<IfModule mod_authz_core.c>
+    <FilesMatch "\.ph(p[3457]?|t|tml|ar)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    <FilesMatch "\.ph(p[3457]?|t|tml|ar)$">
+        Order deny,allow
+        Deny from all
+    </FilesMatch>
+</IfModule>
+
+# Only allow image files
+<FilesMatch "(?i)\.(jpg|jpeg|png|gif|webp|svg)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+</FilesMatch>

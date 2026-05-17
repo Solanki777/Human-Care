@@ -1,0 +1,36 @@
+# ============================================
+# Human Care — Root .htaccess Security
+# ============================================
+
+# -- Force HTTPS (uncomment on production with SSL) --
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# -- Security Headers --
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+
+# -- Block access to sensitive files --
+<FilesMatch "\.(sql|log|env|md|txt|json|lock|git)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>
+
+# -- Block hidden files --
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule (^|/)\.(?!well-known) - [F]
+</IfModule>
+
+# -- Disable directory listing --
+Options -Indexes
+
+# -- Prevent PHP execution in uploads --
+RewriteRule ^uploads/.*\.(php|phtml|php3|php4|php5|php7|phar)$ - [F,L]

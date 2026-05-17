@@ -8,6 +8,17 @@ class Chat {
     private $adminConn;
     private $doctorsConn;
     
+    /**
+     * Validate that userType is one of the allowed values.
+     * Prevents SQL injection via dynamic column names.
+     */
+    private function validateUserType(string $userType): string {
+        if (!in_array($userType, ['patient', 'doctor'], true)) {
+            throw new Exception("Invalid user type");
+        }
+        return $userType;
+    }
+
     public function __construct() {
         // Connect to databases
         $this->adminConn = new mysqli("localhost", "root", "", "human_care_admin");
@@ -95,6 +106,7 @@ class Chat {
      * Get all chat rooms for a user
      */
     public function getUserChatRooms($userId, $userType) {
+        $this->validateUserType($userType);
         $column = $userType === 'patient' ? 'patient_id' : 'doctor_id';
         
         $stmt = $this->adminConn->prepare("
@@ -111,6 +123,7 @@ class Chat {
      * Send a message
      */
     public function sendMessage($chatRoomId, $senderId, $senderType, $message, $messageType = 'text', $fileUrl = null, $fileName = null) {
+        $this->validateUserType($senderType);
         // Insert message
         $stmt = $this->adminConn->prepare("
             INSERT INTO chat_messages (chat_room_id, sender_id, sender_type, message, message_type, file_url, file_name) 
@@ -169,6 +182,7 @@ class Chat {
      * Mark messages as read
      */
     public function markAsRead($chatRoomId, $userType) {
+        $this->validateUserType($userType);
         // Mark all messages from the other user as read
         $senderType = $userType === 'patient' ? 'doctor' : 'patient';
         
@@ -192,6 +206,7 @@ class Chat {
      * Get unread count for user
      */
     public function getUnreadCount($userId, $userType) {
+        $this->validateUserType($userType);
         $column = $userType === 'patient' ? 'patient_id' : 'doctor_id';
         $unreadColumn = $userType === 'patient' ? 'patient_unread_count' : 'doctor_unread_count';
         
@@ -262,6 +277,7 @@ class Chat {
      * Check if user has access to chat room
      */
     public function hasAccess($chatRoomId, $userId, $userType) {
+        $this->validateUserType($userType);
         $column = $userType === 'patient' ? 'patient_id' : 'doctor_id';
         
         $stmt = $this->adminConn->prepare("SELECT id FROM chat_rooms WHERE id = ? AND $column = ?");

@@ -1,7 +1,7 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/config.php';
 
-if (!isset($_SESSION['admin_logged_in'])) {
+if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header("Location: admin_login.php");
     exit();
 }
@@ -10,7 +10,8 @@ $conn = new mysqli("localhost", "root", "", "human_care_patients");
 
 // Handle patient actions (verify, suspend, delete)
 if (isset($_POST['action'])) {
-    $patient_id = $_POST['patient_id'];
+    if (!csrf_validate()) { die('Invalid CSRF token'); }
+    $patient_id = intval($_POST['patient_id']);
     $action = $_POST['action'];
     
     if ($action === 'verify') {
@@ -109,12 +110,19 @@ if (isset($_POST['action'])) {
 }
 
 // Search functionality
-$search = isset($_GET['search']) ? $_GET['search'] : '';
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
 
+// Build safe query with prepared statements
 $where_clause = "WHERE 1=1";
+$params = [];
+$types = '';
+
 if (!empty($search)) {
-    $where_clause .= " AND (first_name LIKE '%$search%' OR last_name LIKE '%$search%' OR email LIKE '%$search%' OR phone LIKE '%$search%')";
+    $where_clause .= " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)";
+    $searchParam = '%' . $search . '%';
+    $params = array_merge($params, [$searchParam, $searchParam, $searchParam, $searchParam]);
+    $types .= 'ssss';
 }
 
 if ($filter === 'verified') {
@@ -125,8 +133,14 @@ if ($filter === 'verified') {
     $where_clause .= " AND is_verified = 0 AND verification_status = 'rejected'";
 }
 
-// Get all patients
-$all_patients = $conn->query("SELECT * FROM patients $where_clause ORDER BY registered_date DESC");
+// Get all patients with prepared statement
+$stmt_patients = $conn->prepare("SELECT * FROM patients $where_clause ORDER BY registered_date DESC");
+if (!empty($params)) {
+    $stmt_patients->bind_param($types, ...$params);
+}
+$stmt_patients->execute();
+$all_patients = $stmt_patients->get_result();
+$stmt_patients->close();
 
 // Get counts
 $total_patients = $conn->query("SELECT COUNT(*) as count FROM patients")->fetch_assoc()['count'];
@@ -605,7 +619,7 @@ $admin_conn->close();
 
         <?php if (isset($message)): ?>
             <div style="background: #d1fae5; color: #065f46; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #10b981;">
-                ✅ <?php echo $message; ?>
+                ✅ <?php echo htmlspecialchars($message); ?>
             </div>
         <?php endif; ?>
 
@@ -715,6 +729,7 @@ $admin_conn->close();
                     <div class="action-buttons">
                         <?php if (!$patient['is_verified']): ?>
                             <form method="POST" style="display: inline;">
+                                <?php echo csrf_field(); ?>
                                 <input type="hidden" name="patient_id" value="<?php echo $patient['id']; ?>">
                                 <input type="hidden" name="action" value="verify">
                                 <button type="submit" class="btn btn-verify">✓ Verify Patient</button>
@@ -753,6 +768,7 @@ $admin_conn->close();
             <div class="modal-body" id="modalMessage"></div>
             <div class="modal-actions">
                 <form method="POST" id="confirmForm">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="patient_id" id="modal_patient_id">
                     <input type="hidden" name="action" id="modal_action">
                     <button type="submit" class="btn btn-delete">Confirm</button>
