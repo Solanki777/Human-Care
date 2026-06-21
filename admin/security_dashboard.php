@@ -118,6 +118,28 @@ $gmailServiceExists = file_exists(__DIR__ . '/../../Nexora-Autonomous-AI-Cyberse
 $phishingDetectorExists = file_exists(__DIR__ . '/../../Nexora-Autonomous-AI-Cybersecurity-Agent-main/phishing_detector.py')
                         || file_exists('M:/Nexora-Autonomous-AI-Cybersecurity-Agent-main/phishing_detector.py');
 
+// ── Gmail Scanner (Streamlit) — live reachability check ───────────────
+// The scanner runs as its own standalone process (streamlit run
+// gmail_scanner_page.py). We don't shell out to PHP to start/stop it —
+// we just check if it's already reachable on its port so the dashboard
+// can show an accurate Online/Offline pill and a working "Open" link.
+$gmailScannerUrl = 'http://localhost:8501';
+$gmailScannerOnline = false;
+$sockFp = @fsockopen('127.0.0.1', 8501, $errno, $errstr, 1);
+if ($sockFp) {
+    $gmailScannerOnline = true;
+    fclose($sockFp);
+}
+
+// ── URL Phishing Checker (Streamlit) — live reachability check ────────
+$urlCheckerUrl = 'http://localhost:8502';
+$urlCheckerOnline = false;
+$sockFp2 = @fsockopen('127.0.0.1', 8502, $errno2, $errstr2, 1);
+if ($sockFp2) {
+    $urlCheckerOnline = true;
+    fclose($sockFp2);
+}
+
 $nexoraLogFile = __DIR__ . '/../security_logs/nexora_run.log';
 $lastNexoraRun = '';
 if (file_exists($nexoraLogFile)) {
@@ -125,7 +147,8 @@ if (file_exists($nexoraLogFile)) {
     if (!empty($lines)) {
         $lastLine = end($lines);
         // Extract timestamp from log line like "2026-06-21 22:17:40,123 [Nexora] INFO: ..."
-        if (preg_match('/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/', $lastLine, $m)) {
+        if (preg_match('
+        /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/', $lastLine, $m)) {
             $lastNexoraRun = $m[1];
         } else {
             $lastNexoraRun = 'Recently';
@@ -469,20 +492,28 @@ tr:hover td { background: rgba(255,255,255,0.025); }
         <div class="module-icon">📧</div>
         <div class="module-info">
             <div class="module-name">Gmail Scanner</div>
-            <div class="module-detail">Nexora AI Agent (Streamlit)</div>
+            <div class="module-detail">
+                <?= $gmailScannerOnline
+                    ? '<a href="' . htmlspecialchars($gmailScannerUrl) . '" target="_blank" style="color:var(--accent);text-decoration:none;">Open Scanner →</a>'
+                    : 'Not running on :8501' ?>
+            </div>
         </div>
-        <span class="pill <?= $gmailServiceExists ? 'pill-green' : 'pill-yellow' ?>">
-            <?= $gmailServiceExists ? 'Linked' : 'Standalone' ?>
+        <span class="pill <?= $gmailScannerOnline ? 'pill-green' : 'pill-red' ?>">
+            <?= $gmailScannerOnline ? '● Online' : '● Offline' ?>
         </span>
     </div>
     <div class="module-card">
         <div class="module-icon">🌐</div>
         <div class="module-info">
             <div class="module-name">URL Analyzer</div>
-            <div class="module-detail">phishing_detector.py</div>
+            <div class="module-detail">
+                <?= $urlCheckerOnline
+                    ? '<a href="' . htmlspecialchars($urlCheckerUrl) . '" target="_blank" style="color:var(--accent);text-decoration:none;">Open Checker →</a>'
+                    : 'Not running on :8502' ?>
+            </div>
         </div>
-        <span class="pill <?= $phishingDetectorExists ? 'pill-green' : 'pill-yellow' ?>">
-            <?= $phishingDetectorExists ? 'Linked' : 'Standalone' ?>
+        <span class="pill <?= $urlCheckerOnline ? 'pill-green' : 'pill-red' ?>">
+            <?= $urlCheckerOnline ? '● Online' : '● Offline' ?>
         </span>
     </div>
 </div>
@@ -490,6 +521,7 @@ tr:hover td { background: rgba(255,255,255,0.025); }
 <!-- ── Charts ───────────────────────────────────────────────────────── -->
 <div class="section-title">Security Analytics</div>
 <div class="charts">
+
     <div class="chart-card">
         <h3>Attack Type Distribution</h3>
         <div class="chart-wrap"><canvas id="chartAttack"></canvas></div>
@@ -811,12 +843,15 @@ function showToast(msg) {
 // ── Live refresh (every 8 seconds, full page reload) ─────────────────────
 let countdown = 8;
 const badge = document.getElementById('refreshBadge');
-setInterval(() => {
+const refreshTimer = setInterval(() => {
     countdown--;
-    badge.textContent = '⟳ Refreshing in ' + countdown + 's';
     if (countdown <= 0) {
+        clearInterval(refreshTimer);   // stop ticking, prevents going negative
+        badge.textContent = '⟳ Refreshing…';
         window.location.reload();
+        return;
     }
+    badge.textContent = '⟳ Refreshing in ' + countdown + 's';
 }, 1000);
 </script>
 </body>
