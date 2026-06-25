@@ -57,6 +57,7 @@ script being run.
 import sys
 import logging
 from datetime import datetime
+from email_alert import send_security_alert
 
 try:
     import mysql.connector
@@ -162,7 +163,16 @@ def block_ip(conn, ip: str, threat_type: str, label: str, reason: str) -> bool:
         cur.close()
 
         log_threat_event(conn, ip, None, threat_type, reason, "ip_blocked")
+
+        # Send email notification
+        send_security_alert(
+            ip=ip,
+            threat_type=label,
+            reason=reason
+        )
+
         log.warning(f"BLOCKED {ip} -> {label}: {reason}")
+        
         return True
     except MySQLError as e:
         log.error(f"block_ip failed for {ip}: {e}")
