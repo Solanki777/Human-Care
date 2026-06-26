@@ -1,4 +1,10 @@
-security/credentials.json
-security/token.json
-security/__pycache__/
+# Google OAuth
+credentials.json
+token.json
+
+# Python
+__pycache__/
 *.pyc
+
+# Environment
+.env
