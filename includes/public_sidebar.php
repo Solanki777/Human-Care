@@ -62,6 +62,12 @@ function sb_active(string $page, string $current): string
             </a>
         </li>
         <li>
+            <a href="ai_assistant.php" class="<?= sb_active('ai', $active_page) ?>">
+                <span class="nav-icon">🤖</span>
+                <span>MediMate AI Assistant</span>
+            </a>
+        </li>
+        <li>
             <a href="patient_prescriptions.php" class="<?= sb_active('prescriptions', $active_page) ?>">
                 <span class="nav-icon">💊</span>
                 <span>My Prescriptions</span>

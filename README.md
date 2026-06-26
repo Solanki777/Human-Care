@@ -93,3 +93,6 @@ All default test accounts use the same password: **`password123`**
 
 ## 📄 License
 &copy; 2025 Human Care. All rights reserved.
+
+
+
