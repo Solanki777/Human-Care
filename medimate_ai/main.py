@@ -4,7 +4,7 @@ MediMate AI — FastAPI backend powered by Google Gemini.
 
 Responsibilities:
   - Expose POST /chat endpoint
-  - Forward validated messages to Gemini
+  - Forward validated messages + user_id to the Coordinator
   - Return structured JSON replies to chat.php
 
 Run with:
@@ -14,6 +14,7 @@ Run with:
 import os
 import logging
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, status
@@ -23,7 +24,7 @@ from pydantic import BaseModel, field_validator
 import google.generativeai as genai
 
 # ---------------------------------------------------------------------------
-# Logging — structured, goes to stdout so the OS / PM2 can capture it
+# Logging
 # ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
@@ -32,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger("medimate_ai")
 
 # ---------------------------------------------------------------------------
-# Load environment variables from .env (must live next to this file)
+# Environment
 # ---------------------------------------------------------------------------
 from pathlib import Path
 
@@ -42,67 +43,37 @@ load_dotenv(BASE_DIR / ".env")
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
 if not GEMINI_API_KEY:
-    logger.critical(
-        "GEMINI_API_KEY is not set. "
-        "Add it to medimate_ai/.env before starting the server."
-    )
+    logger.critical("GEMINI_API_KEY is not set.")
     raise RuntimeError("GEMINI_API_KEY environment variable is missing.")
 
-# ---------------------------------------------------------------------------
-# Configure Gemini client (module-level, reused across requests)
-# ---------------------------------------------------------------------------
 genai.configure(api_key=GEMINI_API_KEY)
-
-# Model name — update here if Google releases a newer Flash variant
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-# System prompt — shapes the assistant's persona and scope
-SYSTEM_PROMPT = """
-You are MediMate AI, the official AI assistant of Human Care Hospital.
-
-Your responsibilities:
-
-- Answer general healthcare questions.
-- Explain symptoms in simple language.
-- Provide medicine information.
-- Help users understand hospital services.
-- Help patients book appointments.
-- Help patients find doctors.
-
-Rules:
-
-- Never diagnose diseases.
-- Never prescribe medicines.
-- Never replace a real doctor.
-- Always recommend consulting a healthcare professional for medical emergencies.
-- Keep answers concise, polite, and easy to understand.
-"""
+# ---------------------------------------------------------------------------
+# Import coordinator (after genai is configured)
+# ---------------------------------------------------------------------------
+import coordinator  # noqa: E402  (must come after genai.configure)
 
 # ---------------------------------------------------------------------------
-# Lifespan: initialise / tear-down resources around the app lifecycle
+# Lifespan
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown logic."""
     logger.info("MediMate AI starting — model: %s", GEMINI_MODEL)
     yield
     logger.info("MediMate AI shutting down.")
 
 
 # ---------------------------------------------------------------------------
-# FastAPI application instance
+# FastAPI app
 # ---------------------------------------------------------------------------
 app = FastAPI(
     title="MediMate AI",
     description="Gemini-powered AI assistant for Human Care Hospital Management System.",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
-# ---------------------------------------------------------------------------
-# CORS — allow requests from the PHP / Apache origin.
-# Replace "*" with your actual domain in production for tighter security.
-# ---------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],          # tighten in production
@@ -119,6 +90,7 @@ class ChatRequest(BaseModel):
     """Incoming request body from chat.php."""
 
     message: str
+    user_id: Optional[int] = None   # PHP sends $_SESSION['user_id']; None = guest
 
     @field_validator("message")
     @classmethod
@@ -136,7 +108,7 @@ class ChatResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Global exception handler — catches anything not handled below
+# Global exception handler
 # ---------------------------------------------------------------------------
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -148,11 +120,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # ---------------------------------------------------------------------------
-# Health check — useful for load balancers / monitoring
+# Health check
 # ---------------------------------------------------------------------------
 @app.get("/health", tags=["Utility"])
 async def health_check():
-    """Returns 200 OK when the service is running."""
     return {"status": "ok", "model": GEMINI_MODEL}
 
 
@@ -168,47 +139,45 @@ async def health_check():
 )
 async def chat(request: ChatRequest) -> ChatResponse:
     """
-    Accepts a user message, sends it to Gemini with a medical-assistant
-    system prompt, and returns the AI-generated reply.
+    Accepts a user message (and optional user_id), routes it through the
+    Coordinator, and returns the AI-generated reply.
 
     Request body:
-        { "message": "What are the symptoms of diabetes?" }
+        { "message": "Show my appointments.", "user_id": 4 }
 
     Response body:
-        { "reply": "Common symptoms include ..." }
+        { "reply": "Here are your upcoming appointments ..." }
+
+    If user_id is absent or None, patient-specific intents will return a
+    friendly prompt asking the user to log in.
     """
     user_message: str = request.message
-    logger.info("Received message (%d chars)", len(user_message))
+    user_id: Optional[int] = request.user_id
+    logger.info("Received message (%d chars) user_id=%s", len(user_message), user_id)
 
     try:
-        # Instantiate the model (lightweight — no network call yet)
-        model = genai.GenerativeModel(
-            model_name=GEMINI_MODEL,
-            system_instruction=SYSTEM_PROMPT,
+        # If user is not authenticated and tries a patient query, the
+        # coordinator will detect the intent and patient_tool will find
+        # no row for user_id=None → graceful empty response from Gemini.
+        reply_text = await coordinator.handle(
+            message=user_message,
+            user_id=user_id,
         )
 
-        # Send the message to Gemini (network call happens here)
-        response = await model.generate_content_async(user_message)
-
-        # Extract text from the response
-        reply_text: str = response.text.strip()
-
         if not reply_text:
-            logger.warning("Gemini returned an empty response.")
+            logger.warning("Coordinator returned an empty response.")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="The AI returned an empty response. Please try again.",
             )
 
-        logger.info("Gemini responded successfully (%d chars)", len(reply_text))
+        logger.info("Response ready (%d chars)", len(reply_text))
         return ChatResponse(reply=reply_text)
 
     except HTTPException:
-        # Re-raise FastAPI HTTP exceptions unchanged
         raise
 
     except genai.types.BlockedPromptException as exc:
-        # Gemini refused to answer — inform the user politely
         logger.warning("Gemini blocked the prompt: %s", exc)
         return ChatResponse(
             reply=(
@@ -224,8 +193,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         )
 
     except Exception as exc:
-        # Catch-all for Gemini API errors (network, quota, auth …)
-        logger.exception("Gemini API error: %s", exc)
+        logger.exception("Unexpected error in /chat: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The AI service is temporarily unavailable. Please try again later.",

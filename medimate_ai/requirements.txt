@@ -24,3 +24,7 @@ requests>=2.32.0
 
 # Async HTTP client (optional — useful if you add outbound async calls later)
 httpx>=0.27.0
+
+python-dotenv>=1.0.1
+google-generativeai>=0.7.0
+mysql-connector-python>=9.0.0
