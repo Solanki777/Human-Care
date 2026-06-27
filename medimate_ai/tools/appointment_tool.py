@@ -1,245 +1,180 @@
 """
 medimate_ai/tools/appointment_tool.py
 
-Appointment Tool for MediMate AI.
+Appointment Tool
 
-Responsibilities
-----------------
-- Show appointments for the logged-in patient.
-- (Future)
-    - Book appointments
-    - Cancel appointments
-    - Reschedule appointments
+This tool NEVER talks directly to MySQL.
 
-Security
---------
-- Every query is filtered using the authenticated patient's user_id.
-- Uses parameterized SQL queries.
-- Returns raw dictionaries.
+Instead it calls the PHP AppointmentService
+through the AI booking API.
+
+This guarantees the AI uses exactly the same
+booking workflow as the Human Care website.
 """
 
 import logging
-from database import fetch_one, fetch_all, execute
+import requests
 
 logger = logging.getLogger("medimate_ai.tools.appointment_tool")
 
 
-def show(user_id: int) -> list[dict]:
-    """
-    Return all appointments for the logged-in patient.
+# ----------------------------------------------------------
+# PHP Endpoint
+# ----------------------------------------------------------
 
-    Args:
-        user_id: Logged-in patient's ID.
+BOOKING_API = "http://127.0.0.1/vscode/api/ai_book_appointment.php"
 
-    Returns:
-        List of appointment dictionaries.
-    """
 
-    logger.info("show() called for user_id=%s", user_id)
-
-    query = """
-        SELECT
-            pa.id,
-            pa.appointment_date,
-            pa.status,
-            pa.reason,
-            pa.created_at,
-
-            CONCAT(d.first_name,' ',d.last_name) AS doctor_name,
-            d.specialization AS specialty
-
-        FROM human_care_patients.patient_appointments pa
-
-        LEFT JOIN human_care_doctors.doctors d
-               ON pa.doctor_id = d.id
-
-        WHERE pa.patient_id=%s
-
-        ORDER BY pa.appointment_date DESC
-    """
-
-    try:
-        appointments = fetch_all(query, (user_id,))
-
-    except Exception as e:
-
-        logger.warning(
-            "Doctor database unavailable. Returning appointments only. %s",
-            e
-        )
-
-        query = """
-            SELECT
-                id,
-                doctor_id,
-                appointment_date,
-                status,
-                reason,
-                created_at
-
-            FROM patient_appointments
-
-            WHERE patient_id=%s
-
-            ORDER BY appointment_date DESC
-        """
-
-        appointments = fetch_all(query, (user_id,))
-
-    if not appointments:
-
-        return [
-            {
-                "message": "No appointments found."
-            }
-        ]
-
-    return appointments
-
-def find_doctor_by_specialty(specialty: str) -> dict:
-    """
-    Find the first approved doctor for the requested specialty.
-
-    Args:
-        specialty: Example: "Cardiologist"
-
-    Returns:
-        Doctor information or an error message.
-    """
-
-    logger.info("Searching doctor with specialty=%s", specialty)
-
-    query = """
-        SELECT
-            id,
-            CONCAT(first_name, ' ', last_name) AS doctor_name,
-            specialty,
-            available_days,
-            available_time,
-            qualification,
-            experience_years
-
-        FROM human_care_doctors.doctors
-
-        WHERE
-            specialty LIKE %s
-            AND verification_status='approved'
-            AND is_deleted=0
-
-        LIMIT 1
-    """
-
-    doctor = fetch_one(query, ("%" + specialty + "%",))
-
-    if doctor is None:
-        return {
-            "success": False,
-            "message": f"No approved {specialty} found."
-        }
-
-    return {
-        "success": True,
-        "doctor": doctor
-    }
-
-# ============================================================
-# Future Functions
-# ============================================================
+# ----------------------------------------------------------
+# Book Appointment
+# ----------------------------------------------------------
 
 def book(
-    user_id: int,
+    patient_id: int,
     doctor_id: int,
     appointment_date: str,
-    reason: str
-) -> dict:
+    appointment_time: str,
+    consultation_type: str,
+    reason: str,
+    symptoms: str = ""
+):
     """
-    Book a new appointment.
+    Submit appointment request through PHP.
 
-    Args:
-        user_id:
-            Logged-in patient ID.
-
-        doctor_id:
-            Selected doctor's ID.
-
-        appointment_date:
-            MySQL DATETIME
-            Example:
-            2026-06-30 10:00:00
-
-        reason:
-            Reason for appointment.
-
-    Returns:
-        Dictionary indicating success or failure.
+    Parameters
+    ----------
+    patient_id : int
+    doctor_id : int
+    appointment_date : YYYY-MM-DD
+    appointment_time : HH:MM:SS
+    consultation_type : In-Person / Online
+    reason : str
+    symptoms : str
     """
+
+    payload = {
+
+        "patient_id": patient_id,
+
+        "doctor_id": doctor_id,
+
+        "appointment_date": appointment_date,
+
+        "appointment_time": appointment_time,
+
+        "consultation_type": consultation_type,
+
+        "reason": reason,
+
+        "symptoms": symptoms
+
+    }
 
     logger.info(
-        "Booking appointment for patient=%s doctor=%s",
-        user_id,
-        doctor_id
+        "Submitting appointment request..."
     )
-
-    query = """
-        INSERT INTO patient_appointments
-        (
-            patient_id,
-            doctor_id,
-            appointment_date,
-            status,
-            reason
-        )
-
-        VALUES
-        (
-            %s,
-            %s,
-            %s,
-            'scheduled',
-            %s
-        )
-    """
 
     try:
 
-        execute(
-            query,
-            (
-                user_id,
-                doctor_id,
-                appointment_date,
-                reason
-            )
+        response = requests.post(
+
+            BOOKING_API,
+
+            json=payload,
+
+            timeout=30
+
         )
 
-        return {
-            "success": True,
-            "message": "Appointment booked successfully."
-        }
-
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
 
         logger.exception(e)
 
         return {
+
             "success": False,
-            "message": "Unable to book appointment."
+
+            "message":
+                "Unable to connect to booking service."
+
         }
 
+    if response.status_code != 200:
 
-def cancel():
+        logger.error(response.text)
+
+        return {
+
+            "success": False,
+
+            "message":
+                "Booking service returned an error."
+
+        }
+
+    try:
+
+        result = response.json()
+
+    except Exception:
+
+        logger.error(response.text)
+
+        return {
+
+            "success": False,
+
+            "message":
+                "Invalid response from booking service."
+
+        }
+
+    logger.info(result)
+
+    return result
+
+
+# ----------------------------------------------------------
+# Cancel Appointment
+# ----------------------------------------------------------
+
+def cancel(
+    appointment_id: int
+):
     """
-    Phase 4.3
+    Placeholder.
 
-    Cancel an appointment.
+    Will be implemented later.
     """
-    raise NotImplementedError
+
+    return {
+
+        "success": False,
+
+        "message":
+            "Cancel appointment will be implemented later."
+
+    }
 
 
-def reschedule():
+# ----------------------------------------------------------
+# Reschedule Appointment
+# ----------------------------------------------------------
+
+def reschedule(
+    appointment_id: int
+):
     """
-    Phase 4.4
+    Placeholder.
 
-    Reschedule an appointment.
+    Will be implemented later.
     """
-    raise NotImplementedError
+
+    return {
+
+        "success": False,
+
+        "message":
+            "Reschedule appointment will be implemented later."
+
+    }
