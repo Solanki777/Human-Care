@@ -1,4 +1,7 @@
 <?php
+declare(strict_types=1);
+
+session_start();
 /* =====================================================================
    api/chat.php
    MediMate AI — PHP bridge between the JS frontend and the FastAPI
@@ -8,7 +11,6 @@
      Browser (JS fetch)  →  chat.php  →  FastAPI /chat  →  Gemini
    ===================================================================== */
 
-declare(strict_types=1);
 
 // -----------------------------------------------------------------
 // 1. Force JSON-only responses for every exit path
@@ -73,7 +75,15 @@ if ($message === '') {
 // -----------------------------------------------------------------
 const FASTAPI_URL = 'http://127.0.0.1:8000/chat';
 
-$outgoingPayload = json_encode(['message' => $message]);
+$userId = $_SESSION['user_id'] ?? null;
+
+
+$outgoingPayload = json_encode([
+    'message' => $message,
+    'user_id' => $userId
+]);
+
+error_log("SESSION USER ID = " . ($userId ?? "NULL"));
 
 $ch = curl_init(FASTAPI_URL);
 

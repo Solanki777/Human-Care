@@ -104,3 +104,34 @@ def fetch_one(
         row = cursor.fetchone()
         cursor.close()
         return row
+    
+def execute(
+    query: str,
+    params: tuple = (),
+    database: str | None = None,
+) -> int:
+    """
+    Execute an INSERT, UPDATE or DELETE query.
+
+    Args:
+        query: SQL query with %s placeholders.
+        params: Values for the placeholders.
+        database: Optional database name.
+
+    Returns:
+        Last inserted ID if available, otherwise 0.
+    """
+
+    with get_db(database) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(query, params)
+
+        # Save changes
+        conn.commit()
+
+        last_id = cursor.lastrowid
+
+        cursor.close()
+
+        return last_id

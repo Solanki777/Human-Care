@@ -478,7 +478,8 @@ $userId = $_SESSION['user_id'];
                     <div class="avatar ai-avatar">🤖</div>
                     <div class="bubble-group">
                         <div class="bubble">
-                            Hello! I'm MediMate AI. I can answer your healthcare questions and assist you with hospital services. How can I help you today?
+                            Hello! I'm MediMate AI. I can answer your healthcare questions and assist you with hospital
+                            services. How can I help you today?
                         </div>
                         <div class="msg-timestamp" id="initialTimestamp"></div>
                     </div>
@@ -488,12 +489,18 @@ $userId = $_SESSION['user_id'];
                 <div class="suggestions-wrap" id="suggestionsWrap">
                     <div class="suggestions-label">Try asking about:</div>
                     <div class="suggestions-grid">
-                        <button type="button" class="suggestion-card" data-text="I'd like to book an appointment">📅 Book an Appointment</button>
-                        <button type="button" class="suggestion-card" data-text="Can you help me find a doctor?">👨‍⚕️ Find a Doctor</button>
-                        <button type="button" class="suggestion-card" data-text="I need information about a medicine">💊 Medicine Information</button>
-                        <button type="button" class="suggestion-card" data-text="Can you help explain my symptoms?">🩺 Explain My Symptoms</button>
-                        <button type="button" class="suggestion-card" data-text="What hospital services do you offer?">📄 Hospital Services</button>
-                        <button type="button" class="suggestion-card" data-text="I need an emergency contact number">🏥 Emergency Contact</button>
+                        <button type="button" class="suggestion-card" data-text="I'd like to book an appointment">📅
+                            Book an Appointment</button>
+                        <button type="button" class="suggestion-card" data-text="Can you help me find a doctor?">👨‍⚕️
+                            Find a Doctor</button>
+                        <button type="button" class="suggestion-card" data-text="I need information about a medicine">💊
+                            Medicine Information</button>
+                        <button type="button" class="suggestion-card" data-text="Can you help explain my symptoms?">🩺
+                            Explain My Symptoms</button>
+                        <button type="button" class="suggestion-card"
+                            data-text="What hospital services do you offer?">📄 Hospital Services</button>
+                        <button type="button" class="suggestion-card" data-text="I need an emergency contact number">🏥
+                            Emergency Contact</button>
                     </div>
                 </div>
 
@@ -514,11 +521,7 @@ $userId = $_SESSION['user_id'];
                  INPUT AREA
             ============================================================ -->
             <div class="chat-input-area">
-                <textarea
-                    id="chatInput"
-                    class="chat-textarea"
-                    placeholder="Type your message..."
-                    rows="1"></textarea>
+                <textarea id="chatInput" class="chat-textarea" placeholder="Type your message..." rows="1"></textarea>
                 <button type="button" id="sendBtn" class="send-btn" aria-label="Send message">
                     ✈️
                 </button>
@@ -665,7 +668,12 @@ $userId = $_SESSION['user_id'];
                     });
 
                     if (!response.ok) {
-                        throw new Error('Non-OK response from server');
+
+                        const txt = await response.text();
+
+                        throw new Error(
+                            "HTTP " + response.status + "\n\n" + txt
+                        );
                     }
 
                     const data = await response.json();
@@ -678,8 +686,15 @@ $userId = $_SESSION['user_id'];
                         appendMessage('Sorry, the AI service is currently unavailable.', 'ai', true);
                     }
                 } catch (err) {
+                    console.error(err);
+
                     showTyping(false);
-                    appendMessage('Sorry, the AI service is currently unavailable.', 'ai', true);
+
+                    appendMessage(
+                        err.message,
+                        'ai',
+                        true
+                    );
                 } finally {
                     setSending(false);
                     chatInput.focus();

@@ -20,6 +20,7 @@ import re
 
 import google.generativeai as genai
 from tools import patient_tool
+from tools import appointment_tool
 
 logger = logging.getLogger("medimate_ai.coordinator")
 
@@ -35,6 +36,9 @@ SUPPORTED_INTENTS = {
     "patient_profile",
     "patient_appointments",
     "patient_medical_history",
+
+    "appointment_book",
+
     "general_health_question",
 }
 
@@ -48,16 +52,36 @@ The user has sent the following message:
 "{message}"
 
 Classify the intent into EXACTLY ONE of these options:
+
 - patient_profile
 - patient_appointments
 - patient_medical_history
+- appointment_book
 - general_health_question
 
 Rules:
-- patient_profile    → user asks about their own identity, name, details, or profile.
-- patient_appointments → user asks about their appointments, schedules, or visits.
-- patient_medical_history → user asks about their medical history, conditions, or diagnoses.
-- general_health_question → anything else: symptoms, diseases, medicines, health advice.
+
+- patient_profile
+  User asks about their own profile, personal details or identity.
+
+- patient_appointments
+  User asks to view, list or check appointments.
+
+- patient_medical_history
+  User asks about diagnoses, conditions or medical history.
+
+- appointment_book
+  User wants to create a new appointment.
+  Examples:
+  • Book an appointment
+  • Schedule an appointment
+  • I need to see a doctor
+  • Book appointment tomorrow
+  • Can you book an appointment for me?
+  • I want to consult a doctor
+
+- general_health_question
+  Symptoms, medicines, diseases, health advice or anything not matching the above.
 
 Respond with ONLY a valid JSON object. No explanation. No markdown. No extra text.
 Example: {{"intent": "patient_profile"}}
@@ -121,7 +145,22 @@ async def handle(message: str, user_id: int) -> str:
         data = patient_tool.get_profile(user_id)
 
     elif intent == "patient_appointments":
-        data = patient_tool.get_appointments(user_id)
+        data = appointment_tool.show(user_id)
+
+    elif intent == "appointment_book":
+
+        result = appointment_tool.book(
+            user_id=user_id,
+            doctor_id=1,
+            appointment_date="2026-06-30 10:00:00",
+            reason="Booked via MediMate AI"
+        )
+
+        return await _format_response(message, result)
+
+
+
+
 
     elif intent == "patient_medical_history":
         data = patient_tool.get_medical_history(user_id)
