@@ -295,67 +295,7 @@ $rejected_count = $admin_conn->query("SELECT COUNT(*) as c FROM educational_cont
 </head>
 
 <body>
-    <!-- Sidebar -->
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">🛡️</div>
-            ADMIN PANEL
-        </div>
-
-        <div class="user-profile">
-            <div class="user-avatar">👨‍💼</div>
-            <div class="user-info">
-                <h3><?php echo htmlspecialchars($_SESSION['admin_name']); ?></h3>
-                <span class="admin-badge">ADMINISTRATOR</span>
-            </div>
-        </div>
-
-        <nav>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_dashboard.php">
-                        <span class="nav-icon">🏠</span>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_doctors.php">
-                        <span class="nav-icon">👨‍⚕️</span>
-                        <span>Manage Doctors</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_patients.php">
-                        <span class="nav-icon">👥</span>
-                        <span>Manage Patients</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_appointments.php">
-                        <span class="nav-icon">📅</span>
-                        <span>Appointments</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav active" href="admin_manage_education.php">
-                        <span class="nav-icon">📚</span>
-                        <span>Approve Education</span>
-                        <?php if ($pending_count > 0): ?>
-                            <span class="pending-badge" style="background:#fee2e2;color:#991b1b;"><?php echo $pending_count; ?></span>
-                        <?php endif; ?>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-
-        <form method="post" action="admin_logout.php">
-            <button class="logout-btn" type="submit">🚪 Logout</button>
-        </form>
-    </aside>
-
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <?php include 'includes/admin_sidebar.php'; ?>
 
     <!-- Main Content -->
     <main class="main-content">

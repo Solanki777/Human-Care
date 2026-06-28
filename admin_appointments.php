@@ -825,38 +825,7 @@ foreach (['all', 'pending', 'approved', 'completed', 'rejected', 'cancelled'] as
 </head>
 
 <body>
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">🛡️</div>ADMIN PANEL
-        </div>
-        <div class="user-profile">
-            <div class="user-avatar">👨‍💼</div>
-            <div class="user-info">
-                <h3><?= htmlspecialchars($_SESSION['admin_name']) ?></h3>
-                <span style="font-size:11px;opacity:.8;">ADMINISTRATOR</span>
-            </div>
-        </div>
-        <nav>
-            <ul class="nav-menu">
-                <li><a class="nav-link" href="admin_dashboard.php"><span class="nav-icon">🏠</span>Dashboard</a></li>
-                <li><a class="nav-link" href="admin_doctors.php"><span class="nav-icon">👨‍⚕️</span>Manage Doctors</a>
-                </li>
-                <li><a class="nav-link" href="admin_patients.php"><span class="nav-icon">👥</span>Manage Patients</a>
-                </li>
-                <li><a class="nav-link active" href="admin_appointments.php"><span
-                            class="nav-icon">📅</span>Appointments</a></li>
-                <li><a class="nav-link" href="admin_manage_education.php"><span class="nav-icon">📚</span>Approve
-                        Education</a></li>
-            </ul>
-        </nav>
-        <form method="post" action="admin_logout.php">
-            <button class="logout-btn" type="submit">🚪 Logout</button>
-        </form>
-    </aside>
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <?php include 'includes/admin_sidebar.php'; ?>
 
     <main class="main-content">
         <?php if ($msg): ?>

@@ -15,7 +15,7 @@ $admin_conn->close();
 if (isset($_POST['action'])) {
     $doctor_id = $_POST['doctor_id'];
     $action = $_POST['action'];
-    
+
     if ($action === 'approve') {
         // Get doctor details for email
         $doctor_stmt = $conn->prepare("SELECT email, first_name, last_name FROM doctors WHERE id = ?");
@@ -23,17 +23,17 @@ if (isset($_POST['action'])) {
         $doctor_stmt->execute();
         $doctor_info = $doctor_stmt->get_result()->fetch_assoc();
         $doctor_stmt->close();
-        
+
         // Update doctor status
         $stmt = $conn->prepare("UPDATE doctors SET is_verified = 1, verification_status = 'approved', verified_by = ?, verified_at = NOW() WHERE id = ?");
         $stmt->bind_param("ii", $_SESSION['admin_id'], $doctor_id);
         $stmt->execute();
-        
+
         // Send approval email
         $to = $doctor_info['email'];
         $subject = "Account Approved - Human Care Hospital";
         $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
-        
+
         $email_message = "
         <!DOCTYPE html>
         <html>
@@ -91,39 +91,39 @@ if (isset($_POST['action'])) {
         </body>
         </html>
         ";
-        
+
         // Email headers
         $headers = "MIME-Version: 1.0" . "\r\n";
         $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
         $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
-        
+
         // Send email
         if (mail($to, $subject, $email_message, $headers)) {
             $message = "Doctor approved successfully! Email notification sent to " . $to;
         } else {
             $message = "Doctor approved successfully! (Email notification failed to send)";
         }
-        
+
     } elseif ($action === 'reject') {
         $reason = $_POST['reason'] ?? 'Not specified';
-        
+
         // Get doctor details for email
         $doctor_stmt = $conn->prepare("SELECT email, first_name, last_name FROM doctors WHERE id = ?");
         $doctor_stmt->bind_param("i", $doctor_id);
         $doctor_stmt->execute();
         $doctor_info = $doctor_stmt->get_result()->fetch_assoc();
         $doctor_stmt->close();
-        
+
         // Update doctor status
         $stmt = $conn->prepare("UPDATE doctors SET is_verified = 0, verification_status = 'rejected', rejection_reason = ?, verified_by = ?, verified_at = NOW() WHERE id = ?");
         $stmt->bind_param("sii", $reason, $_SESSION['admin_id'], $doctor_id);
         $stmt->execute();
-        
+
         // Send rejection email
         $to = $doctor_info['email'];
         $subject = "Account Verification Update - Human Care Hospital";
         $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
-        
+
         $email_message = "
         <!DOCTYPE html>
         <html>
@@ -174,14 +174,14 @@ if (isset($_POST['action'])) {
         </body>
         </html>
         ";
-        
+
         $headers = "MIME-Version: 1.0" . "\r\n";
         $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
         $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
-        
+
         mail($to, $subject, $email_message, $headers);
         $message = "Doctor rejected! Email notification sent.";
-        
+
     } elseif ($action === 'delete') {
         // Get doctor details before deletion
         $doctor_stmt = $conn->prepare("SELECT first_name, last_name, email, specialty FROM doctors WHERE id = ?");
@@ -189,22 +189,22 @@ if (isset($_POST['action'])) {
         $doctor_stmt->execute();
         $doctor_info = $doctor_stmt->get_result()->fetch_assoc();
         $doctor_stmt->close();
-        
+
         // Soft delete - mark as deleted instead of actually deleting
         $stmt = $conn->prepare("UPDATE doctors SET is_deleted = 1, deleted_by = ?, deleted_at = NOW(), is_verified = 0, verification_status = 'deleted' WHERE id = ?");
         $stmt->bind_param("ii", $_SESSION['admin_id'], $doctor_id);
         $stmt->execute();
-        
+
         // Cancel all pending appointments
         $cancel_stmt = $conn->prepare("UPDATE doctor_appointments SET status = 'cancelled', admin_notes = 'Doctor has left the hospital' WHERE doctor_id = ? AND status = 'pending'");
         $cancel_stmt->bind_param("i", $doctor_id);
         $cancel_stmt->execute();
-        
+
         // Send notification email to doctor
         $to = $doctor_info['email'];
         $subject = "Account Deactivated - Human Care Hospital";
         $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
-        
+
         $email_message = "
         <!DOCTYPE html>
         <html>
@@ -243,16 +243,16 @@ if (isset($_POST['action'])) {
         </body>
         </html>
         ";
-        
+
         $headers = "MIME-Version: 1.0" . "\r\n";
         $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
         $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
-        
+
         mail($to, $subject, $email_message, $headers);
-        
+
         $message = "Doctor account deleted successfully! Dr. " . $doctor_name . " (" . $doctor_info['specialty'] . ") has been removed from the system.";
     }
-    
+
     // Log activity
     $admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
     $log_stmt = $admin_conn->prepare("INSERT INTO activity_logs (admin_id, action, description) VALUES (?, ?, ?)");
@@ -273,6 +273,7 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -305,7 +306,7 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
             background: white;
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             margin-bottom: 20px;
         }
 
@@ -446,7 +447,7 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             z-index: 9999;
             align-items: center;
             justify-content: center;
@@ -480,76 +481,9 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
         }
     </style>
 </head>
+
 <body>
-     <!-- Sidebar -->
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">🛡️</div>
-            ADMIN PANEL
-        </div>
-
-        <!-- Admin Profile -->
-        <div class="user-profile">
-            <div class="user-avatar">👨‍💼</div>
-            <div class="user-info">
-                <h3><?php echo htmlspecialchars($_SESSION['admin_name']); ?></h3>
-                <span class="admin-badge">ADMINISTRATOR</span>
-            </div>
-        </div>
-
-        <!-- Navigation Menu -->
-        <nav>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a class="nav-link active admin-nav" onclick="showSection('dashboard')">
-                        <span class="nav-icon">🏠</span>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_doctors.php">
-                        <span class="nav-icon">👨‍⚕️</span>
-                        <span>Manage Doctors</span>
-                        
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_patients.php">
-                        <span class="nav-icon">👥</span>
-                        <span>Manage Patients</span>
-                        
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_appointments.php">
-                        <span class="nav-icon">📅</span>
-                        <span>Appointments</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_manage_education.php">
-                        <span class="nav-icon">📚 </span>
-                        <span>Approve Education</span>
-                        <?php if ($pending_education > 0): ?>
-                            <span class="pending-badge" style="background: #fee2e2; color: #991b1b;"><?php echo $pending_education; ?></span>
-                        <?php endif; ?>
-                    </a>
-                </li>
-
-            </ul>
-        </nav>
-
-        <!-- Logout Button -->
-        <form method="post" action="admin_logout.php">
-            <button class="logout-btn" type="submit">🚪 Logout</button>
-        </form>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <?php include 'includes/admin_sidebar.php'; ?>
 
 
 
@@ -588,7 +522,8 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                     <div class="doctor-card">
                         <div class="doctor-header">
                             <div class="doctor-info">
-                                <div class="doctor-name">Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
+                                <div class="doctor-name">Dr.
+                                    <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
                                 <div class="doctor-specialty"><?php echo htmlspecialchars($doctor['specialty']); ?></div>
                                 <span class="status-badge status-pending">⏳ Pending Verification</span>
                             </div>
@@ -625,8 +560,10 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                                 <input type="hidden" name="action" value="approve">
                                 <button type="submit" class="btn btn-approve">✓ Approve & Send Email</button>
                             </form>
-                            <button class="btn btn-reject" onclick="showRejectModal(<?php echo $doctor['id']; ?>)">✗ Reject</button>
-                            <a href="admin_edit_doctor.php?id=<?php echo $doctor['id']; ?>" class="btn btn-view">✏️ Edit Details</a>
+                            <button class="btn btn-reject" onclick="showRejectModal(<?php echo $doctor['id']; ?>)">✗
+                                Reject</button>
+                            <a href="admin_edit_doctor.php?id=<?php echo $doctor['id']; ?>" class="btn btn-view">✏️ Edit
+                                Details</a>
                         </div>
                     </div>
                 <?php endwhile; ?>
@@ -643,7 +580,8 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                     <div class="doctor-card">
                         <div class="doctor-header">
                             <div class="doctor-info">
-                                <div class="doctor-name">Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
+                                <div class="doctor-name">Dr.
+                                    <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
                                 <div class="doctor-specialty"><?php echo htmlspecialchars($doctor['specialty']); ?></div>
                                 <span class="status-badge status-approved">✓ Approved</span>
                             </div>
@@ -663,12 +601,15 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">✓ Verified:</span>
-                                <span class="detail-value"><?php echo date('M d, Y', strtotime($doctor['verified_at'])); ?></span>
+                                <span
+                                    class="detail-value"><?php echo date('M d, Y', strtotime($doctor['verified_at'])); ?></span>
                             </div>
                         </div>
                         <div style="margin-top: 15px; display: flex; gap: 10px;">
-                            <a href="admin_edit_doctor.php?id=<?php echo $doctor['id']; ?>" class="btn btn-view">✏️ Edit Details</a>
-                            <button class="btn btn-delete" onclick="confirmDelete(<?php echo $doctor['id']; ?>, '<?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?>')">
+                            <a href="admin_edit_doctor.php?id=<?php echo $doctor['id']; ?>" class="btn btn-view">✏️ Edit
+                                Details</a>
+                            <button class="btn btn-delete"
+                                onclick="confirmDelete(<?php echo $doctor['id']; ?>, '<?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?>')">
                                 🗑️ Delete Doctor
                             </button>
                         </div>
@@ -687,13 +628,15 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                     <div class="doctor-card">
                         <div class="doctor-header">
                             <div class="doctor-info">
-                                <div class="doctor-name">Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
+                                <div class="doctor-name">Dr.
+                                    <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
                                 <div class="doctor-specialty"><?php echo htmlspecialchars($doctor['specialty']); ?></div>
                                 <span class="status-badge status-rejected">✗ Rejected</span>
                             </div>
                         </div>
                         <?php if ($doctor['rejection_reason']): ?>
-                            <p style="color: #991b1b; margin: 10px 0;"><strong>Reason:</strong> <?php echo htmlspecialchars($doctor['rejection_reason']); ?></p>
+                            <p style="color: #991b1b; margin: 10px 0;"><strong>Reason:</strong>
+                                <?php echo htmlspecialchars($doctor['rejection_reason']); ?></p>
                         <?php endif; ?>
                     </div>
                 <?php endwhile; ?>
@@ -710,7 +653,8 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                     <div class="doctor-card">
                         <div class="doctor-header">
                             <div class="doctor-info">
-                                <div class="doctor-name">Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
+                                <div class="doctor-name">Dr.
+                                    <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
                                 <div class="doctor-specialty"><?php echo htmlspecialchars($doctor['specialty']); ?></div>
                                 <span class="status-badge status-<?php echo $doctor['verification_status']; ?>">
                                     <?php echo ucfirst($doctor['verification_status']); ?>
@@ -729,7 +673,8 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                     <div class="doctor-card" style="opacity: 0.7; border-left: 4px solid #999;">
                         <div class="doctor-header">
                             <div class="doctor-info">
-                                <div class="doctor-name">Dr. <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
+                                <div class="doctor-name">Dr.
+                                    <?php echo htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']); ?></div>
                                 <div class="doctor-specialty"><?php echo htmlspecialchars($doctor['specialty']); ?></div>
                                 <span class="status-badge" style="background: #f3f4f6; color: #666;">🗑️ Deleted</span>
                             </div>
@@ -741,7 +686,8 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">🗑️ Deleted On:</span>
-                                <span class="detail-value"><?php echo date('M d, Y h:i A', strtotime($doctor['deleted_at'])); ?></span>
+                                <span
+                                    class="detail-value"><?php echo date('M d, Y h:i A', strtotime($doctor['deleted_at'])); ?></span>
                             </div>
                         </div>
                         <p style="color: #666; margin-top: 10px; font-size: 13px;">
@@ -781,7 +727,7 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
         function showTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
+
             event.target.classList.add('active');
             document.getElementById(tabName).classList.add('active');
         }
@@ -797,7 +743,7 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
 
         function confirmDelete(doctorId, doctorName) {
             document.getElementById('delete_doctor_id').value = doctorId;
-            document.getElementById('deleteMessage').innerHTML = 
+            document.getElementById('deleteMessage').innerHTML =
                 `Are you sure you want to delete <strong>Dr. ${doctorName}</strong>?`;
             document.getElementById('deleteModal').classList.add('active');
         }
@@ -807,5 +753,6 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
         }
     </script>
 </body>
+
 </html>
 <?php $conn->close(); ?>
