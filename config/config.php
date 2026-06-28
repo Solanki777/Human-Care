@@ -98,3 +98,7 @@ function csrf_validate(): bool {
 function h(string $str): string {
     return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
 }
+/* =========================
+   API KEYS
+========================= */
+define('GROQ_API_KEY', 'add grok api key');

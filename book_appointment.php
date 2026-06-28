@@ -3,7 +3,7 @@ require_once 'config/config.php';
 require_once 'classes/Auth.php';
 require_once 'classes/Database.php';
 require_once 'classes/Validator.php';
-require_once 'classes/EmailTemplate.php';
+require_once 'classes/AppointmentService.php';
 
 Auth::require('patient');
 
@@ -11,7 +11,9 @@ $success = "";
 $error = "";
 $doctors = [];
 
-// Get patient info
+// ------------------------------------------------------------------ //
+// Load patient info (display only — read once for the form)
+// ------------------------------------------------------------------ //
 $patient_id = Auth::id();
 $patients_conn = Database::getConnection('patients');
 $stmt = $patients_conn->prepare("SELECT * FROM patients WHERE id = ?");
@@ -20,11 +22,13 @@ $stmt->execute();
 $patient = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-// Get all approved doctors
+// ------------------------------------------------------------------ //
+// Load approved doctors for the dropdown
+// ------------------------------------------------------------------ //
 $doctors_conn = Database::getConnection('doctors');
 $doctors_result = $doctors_conn->query("
-    SELECT id, first_name, last_name, specialty, consultation_fee, available_days, available_time 
-    FROM doctors 
+    SELECT id, first_name, last_name, specialty, consultation_fee, available_days, available_time
+    FROM doctors
     WHERE is_verified = 1 AND verification_status = 'approved' AND is_deleted = 0
     ORDER BY specialty, last_name
 ");
@@ -33,23 +37,26 @@ if ($doctors_result) {
     $doctors = $doctors_result->fetch_all(MYSQLI_ASSOC);
 }
 
+// ------------------------------------------------------------------ //
 // Handle form submission
+// ------------------------------------------------------------------ //
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // Validate input
+    // Validate form fields
     $validator = new Validator();
     $valid = $validator->validate($_POST, [
         'doctor_id' => 'required|numeric',
         'appointment_date' => 'required|date|futureDate',
         'appointment_time' => 'required',
         'reason' => 'required|min:10|max:500',
-        'consultation_type' => 'required'
+        'consultation_type' => 'required',
     ]);
 
     if (!$valid) {
         $error = $validator->firstError();
     } else {
 
+        // Sanitize inputs
         $doctor_id = intval($_POST['doctor_id']);
         $appointment_date = Validator::sanitize($_POST['appointment_date']);
         $appointment_time = Validator::sanitize($_POST['appointment_time']);
@@ -57,102 +64,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reason = Validator::sanitize($_POST['reason']);
         $symptoms = Validator::sanitize($_POST['symptoms'] ?? '');
 
-        // Get doctor details
-        $stmt = $doctors_conn->prepare("SELECT first_name, last_name, specialty FROM doctors WHERE id = ? AND is_verified = 1");
-        $stmt->bind_param("i", $doctor_id);
-        $stmt->execute();
-        $doctor = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
+        // Delegate all booking logic to the service
+        $result = AppointmentService::createAppointment(
+            $patient_id,
+            $doctor_id,
+            $appointment_date,
+            $appointment_time,
+            $consultation_type,
+            $reason,
+            $symptoms
+        );
 
-        if (!$doctor) {
-            $error = "Selected doctor is not available";
+        if ($result['success']) {
+            $success = $result['message'];
+            $_POST = []; // Clear form on success
         } else {
-
-            $doctor_name = $doctor['first_name'] . ' ' . $doctor['last_name'];
-
-            // Insert appointment into admin database
-            $admin_conn = Database::getConnection('admin');
-            $stmt = $admin_conn->prepare("
-                INSERT INTO appointments (
-                    patient_id, patient_name, patient_email, patient_phone, patient_age,
-                    doctor_id, doctor_name, doctor_specialty,
-                    appointment_date, appointment_time, consultation_type,
-                    reason_for_visit, symptoms, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-            ");
-
-            $patient_age = (new DateTime($patient['dob']))->diff(new DateTime())->y;
-            $patient_name = $patient['first_name'] . ' ' . $patient['last_name'];
-
-            $stmt->bind_param(
-                "issssisssssss",
-                $patient_id,
-                $patient_name,
-                $patient['email'],
-                $patient['phone'],
-                $patient_age,
-                $doctor_id,
-                $doctor_name,
-                $doctor['specialty'],
-                $appointment_date,
-                $appointment_time,
-                $consultation_type,
-                $reason,
-                $symptoms
-            );
-
-            if ($stmt->execute()) {
-                $appointment_id = $stmt->insert_id;
-
-                // Log appointment creation
-                $history_stmt = $admin_conn->prepare("
-                    INSERT INTO appointment_history (appointment_id, action, performed_by, performed_by_type, new_status, notes)
-                    VALUES (?, 'created', ?, 'patient', 'pending', 'Appointment booked by patient')
-                ");
-                $history_stmt->bind_param("ii", $appointment_id, $patient_id);
-                $history_stmt->execute();
-
-                // Send confirmation email to patient
-                $emailData = [
-                    'patient_name' => $patient_name,
-                    'doctor_name' => $doctor_name,
-                    'doctor_specialty' => $doctor['specialty'],
-                    'appointment_date' => date('F d, Y', strtotime($appointment_date)),
-                    'appointment_time' => date('h:i A', strtotime($appointment_time)),
-                    'reason' => $reason
-                ];
-
-                $emailContent = EmailTemplate::appointmentPending($emailData);
-                EmailTemplate::send($patient['email'], 'Appointment Request Received', $emailContent);
-
-                // Send notification email to admin
-                $emailData['patient_phone'] = $patient['phone'];
-                $emailData['patient_email'] = $patient['email'];
-                $emailData['created_at'] = date('F d, Y h:i A');
-
-                $adminEmailContent = EmailTemplate::newAppointmentAdmin($emailData);
-                EmailTemplate::send(ADMIN_EMAIL, 'New Appointment Request', $adminEmailContent);
-
-                // Create notification for admin
-                $notif_stmt = $admin_conn->prepare("
-                    INSERT INTO appointment_notifications (appointment_id, recipient_type, recipient_id, notification_type, message)
-                    VALUES (?, 'admin', 1, 'new', ?)
-                ");
-                $notif_message = "New appointment request from $patient_name for Dr. $doctor_name";
-                $notif_stmt->bind_param("is", $appointment_id, $notif_message);
-                $notif_stmt->execute();
-
-                $success = "Appointment request submitted successfully! You will receive a confirmation email once approved by admin.";
-
-                // Clear form
-                $_POST = [];
-
-            } else {
-                $error = "Failed to book appointment. Please try again.";
-                error_log("Appointment insert failed: " . $stmt->error);
-            }
-
-            $stmt->close();
+            $error = $result['message'];
         }
     }
 }
@@ -426,7 +353,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 echo '<optgroup label="' . htmlspecialchars($doctor['specialty']) . '">';
                                 $specialties[] = $doctor['specialty'];
                             }
-                            echo '<option value="' . $doctor['id'] . '" data-specialty="' . htmlspecialchars($doctor['specialty']) . '" data-fee="' . $doctor['consultation_fee'] . '" data-days="' . htmlspecialchars($doctor['available_days']) . '" data-time="' . htmlspecialchars($doctor['available_time']) . '">';
+                            echo '<option value="' . $doctor['id'] . '"'
+                                . ' data-specialty="' . htmlspecialchars($doctor['specialty']) . '"'
+                                . ' data-fee="' . $doctor['consultation_fee'] . '"'
+                                . ' data-days="' . htmlspecialchars($doctor['available_days']) . '"'
+                                . ' data-time="' . htmlspecialchars($doctor['available_time']) . '">';
                             echo 'Dr. ' . htmlspecialchars($doctor['first_name'] . ' ' . $doctor['last_name']);
                             if ($doctor['consultation_fee']) {
                                 echo ' - ₹' . number_format($doctor['consultation_fee']);
@@ -446,7 +377,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <!-- Appointment Details -->
             <div class="form-section">
                 <div class="section-title">
-                    📅 Appointment Date & Time
+                    📅 Appointment Date &amp; Time
                 </div>
 
                 <div class="form-row">
@@ -455,7 +386,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="date" name="appointment_date" required
                             min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>"
                             max="<?php echo date('Y-m-d', strtotime('+30 days')); ?>"
-                            value="<?php echo $_POST['appointment_date'] ?? ''; ?>">
+                            value="<?php echo htmlspecialchars($_POST['appointment_date'] ?? ''); ?>">
                         <div class="form-hint">Select a date within the next 30 days</div>
                     </div>
 
@@ -519,14 +450,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <label>Chief Complaint <span class="required">*</span></label>
                     <textarea name="reason" required placeholder="Please describe your main health concern..."
-                        maxlength="500"><?php echo $_POST['reason'] ?? ''; ?></textarea>
+                        maxlength="500"><?php echo htmlspecialchars($_POST['reason'] ?? ''); ?></textarea>
                     <div class="form-hint">Minimum 10 characters, maximum 500 characters</div>
                 </div>
 
                 <div class="form-group">
                     <label>Additional Symptoms (Optional)</label>
                     <textarea name="symptoms" placeholder="Any other symptoms or information you'd like to share..."
-                        maxlength="1000"><?php echo $_POST['symptoms'] ?? ''; ?></textarea>
+                        maxlength="1000"><?php echo htmlspecialchars($_POST['symptoms'] ?? ''); ?></textarea>
                     <div class="form-hint">This helps the doctor prepare for your consultation</div>
                 </div>
             </div>
@@ -547,34 +478,214 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
     </div>
 
+    <!-- ================================================================
+     UPDATED JAVASCRIPT — Replace the existing <script> block in
+     ai_assistant.php with this one.
 
+     Changes vs original:
+       - Maintains a `conversationHistory` array so Claude has
+         multi-turn context (needed for booking flows).
+       - Passes { message, history } to api/chat.php.
+       - Renders Markdown-style bold (**text**) from the AI reply.
+       - Action result notices (✅ / ❌) are rendered in a styled box.
+================================================================ -->
     <script>
-        function showDoctorInfo(doctorId) {
-            const select = document.getElementById('doctorSelect');
-            const infoDiv = document.getElementById('doctorInfo');
+        (function () {
+            'use strict';
 
-            if (!doctorId) {
-                infoDiv.classList.remove('active');
-                return;
+            const chatWindow = document.getElementById('chatWindow');
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const typingRow = document.getElementById('typingRow');
+            const suggestionsWrap = document.getElementById('suggestionsWrap');
+
+            const CHAT_API_URL = 'api/medimate_chat.php';
+
+            // In-memory conversation history for multi-turn context
+            const conversationHistory = [];
+
+            /* ---------- Helpers ---------- */
+
+            function formatTimestamp(date) {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             }
 
-            const option = select.options[select.selectedIndex];
-            const specialty = option.getAttribute('data-specialty');
-            const fee = option.getAttribute('data-fee');
-            const days = option.getAttribute('data-days');
-            const time = option.getAttribute('data-time');
+            function scrollToBottom() {
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
 
-            infoDiv.innerHTML = `
-                <strong>Doctor Information:</strong><br>
-                <div style="margin-top: 10px;">
-                    <div style="margin-bottom: 5px;">🏥 <strong>Specialty:</strong> ${specialty}</div>
-                    <div style="margin-bottom: 5px;">💰 <strong>Consultation Fee:</strong> ₹${parseFloat(fee).toLocaleString()}</div>
-                    <div style="margin-bottom: 5px;">📅 <strong>Available Days:</strong> ${days || 'Contact for schedule'}</div>
-                    <div>⏰ <strong>Available Time:</strong> ${time || 'Contact for schedule'}</div>
-                </div>
-            `;
-            infoDiv.classList.add('active');
-        }
+            /**
+             * Minimal Markdown renderer for AI replies.
+             * Supports: **bold**, *italic*, line-breaks, ✅/❌ notice blocks.
+             */
+            function renderMarkdown(text) {
+                // Escape HTML first
+                const div = document.createElement('div');
+                div.textContent = text;
+                let escaped = div.innerHTML;
+
+                // Action result notice lines (lines starting with ✅ or ❌)
+                escaped = escaped.replace(
+                    /(✅|❌)[^\n]*/g,
+                    (match) => {
+                        const isSuccess = match.startsWith('✅');
+                        const color = isSuccess ? '#065f46' : '#991b1b';
+                        const bg = isSuccess ? '#d1fae5' : '#fee2e2';
+                        const border = isSuccess ? '#10b981' : '#ef4444';
+                        return `<div style="margin-top:10px;padding:10px 14px;border-radius:8px;background:${bg};color:${color};border-left:3px solid ${border};font-size:13.5px;">${match}</div>`;
+                    }
+                );
+
+                // **bold**
+                escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                // *italic*
+                escaped = escaped.replace(/\*(.+?)\*/g, '<em>$1</em>');
+                // newlines → <br>
+                escaped = escaped.replace(/\n/g, '<br>');
+
+                return escaped;
+            }
+
+            // Set timestamp on the initial greeting
+            document.getElementById('initialTimestamp').textContent = formatTimestamp(new Date());
+
+            /* ---------- Message rendering ---------- */
+
+            function appendMessage(text, sender, isError) {
+                const row = document.createElement('div');
+                row.className = 'message-row ' + sender;
+
+                const avatar = document.createElement('div');
+                avatar.className = 'avatar ' + (sender === 'user' ? 'user-avatar' : 'ai-avatar');
+                avatar.textContent = sender === 'user' ? '🙂' : '🤖';
+
+                const group = document.createElement('div');
+                group.className = 'bubble-group';
+
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble' + (isError ? ' error-bubble' : '');
+
+                if (sender === 'ai' && !isError) {
+                    bubble.innerHTML = renderMarkdown(text);
+                } else {
+                    bubble.textContent = text;
+                }
+
+                const time = document.createElement('div');
+                time.className = 'msg-timestamp';
+                time.textContent = formatTimestamp(new Date());
+
+                group.appendChild(bubble);
+                group.appendChild(time);
+                row.appendChild(avatar);
+                row.appendChild(group);
+
+                chatWindow.insertBefore(row, typingRow);
+                scrollToBottom();
+            }
+
+            function showTyping(show) {
+                typingRow.style.display = show ? 'flex' : 'none';
+                if (show) scrollToBottom();
+            }
+
+            function setSending(isSending) {
+                sendBtn.disabled = isSending;
+                chatInput.disabled = isSending;
+            }
+
+            /* ---------- Suggestion cards ---------- */
+
+            suggestionsWrap.addEventListener('click', function (e) {
+                const card = e.target.closest('.suggestion-card');
+                if (!card) return;
+                chatInput.value = card.dataset.text || card.textContent.trim();
+                chatInput.focus();
+                autoResizeTextarea();
+            });
+
+            /* ---------- Textarea auto-resize ---------- */
+
+            function autoResizeTextarea() {
+                chatInput.style.height = 'auto';
+                chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+            }
+
+            chatInput.addEventListener('input', autoResizeTextarea);
+
+            /* ---------- Enter / Shift+Enter ---------- */
+
+            chatInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            sendBtn.addEventListener('click', sendMessage);
+
+            /* ---------- Send + fetch ---------- */
+
+            async function sendMessage() {
+                const text = chatInput.value.trim();
+                if (!text) return;
+
+                appendMessage(text, 'user');
+                chatInput.value = '';
+                autoResizeTextarea();
+
+                // Add to history BEFORE the API call
+                conversationHistory.push({ role: 'user', content: text });
+
+                // Keep history to last 20 turns to avoid huge payloads
+                if (conversationHistory.length > 20) conversationHistory.splice(0, 2);
+
+                setSending(true);
+                showTyping(true);
+
+                try {
+                    const response = await fetch(CHAT_API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: text,
+                            history: conversationHistory.slice(0, -1) // all but current
+                        })
+                    });
+
+                    showTyping(false);
+
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        throw new Error('HTTP ' + response.status + ' — ' + errText);
+                    }
+
+                    const data = await response.json();
+
+                    if (data && typeof data.reply === 'string' && data.reply.length > 0) {
+                        appendMessage(data.reply, 'ai');
+                        // Add assistant reply to history
+                        conversationHistory.push({ role: 'assistant', content: data.reply });
+                    } else {
+                        appendMessage('Sorry, the AI service is currently unavailable.', 'ai', true);
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    showTyping(false);
+                    appendMessage('Sorry, something went wrong: ' + err.message, 'ai', true);
+                    // Remove the failed user turn from history
+                    conversationHistory.pop();
+                } finally {
+                    setSending(false);
+                    chatInput.focus();
+                }
+            }
+
+            /* ---------- Initial scroll ---------- */
+            scrollToBottom();
+
+        })();
     </script>
 </body>
 

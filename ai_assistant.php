@@ -554,7 +554,10 @@ $userId = $_SESSION['user_id'];
             const typingRow = document.getElementById('typingRow');
             const suggestionsWrap = document.getElementById('suggestionsWrap');
 
-            const CHAT_API_URL = 'api/chat.php';
+            const CHAT_API_URL = 'api/medimate_chat.php';
+
+            // Stores full conversation: { role: 'user'|'assistant', content: '...' }
+            const conversationHistory = [];
 
             /* ---------- Helpers ---------- */
 
@@ -566,16 +569,32 @@ $userId = $_SESSION['user_id'];
                 chatWindow.scrollTop = chatWindow.scrollHeight;
             }
 
-            function escapeHtml(str) {
+            function renderMarkdown(text) {
                 const div = document.createElement('div');
-                div.textContent = str;
-                return div.innerHTML;
+                div.textContent = text;
+                let escaped = div.innerHTML;
+
+                // ✅ / ❌ notice boxes
+                escaped = escaped.replace(/(✅|❌)[^\n]*/g, function (match) {
+                    const isSuccess = match.startsWith('✅');
+                    const color = isSuccess ? '#065f46' : '#991b1b';
+                    const bg = isSuccess ? '#d1fae5' : '#fee2e2';
+                    const border = isSuccess ? '#10b981' : '#ef4444';
+                    return '<div style="margin-top:10px;padding:10px 14px;border-radius:8px;background:' + bg + ';color:' + color + ';border-left:3px solid ' + border + ';font-size:13.5px;">' + match + '</div>';
+                });
+
+                escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                escaped = escaped.replace(/\*(.+?)\*/g, '<em>$1</em>');
+                escaped = escaped.replace(/\n/g, '<br>');
+
+                return escaped;
             }
 
-            // Set timestamp on the initial greeting message
-            document.getElementById('initialTimestamp').textContent = formatTimestamp(new Date());
+            // Set timestamp on initial greeting
+            const initialTs = document.getElementById('initialTimestamp');
+            if (initialTs) initialTs.textContent = formatTimestamp(new Date());
 
-            /* ---------- Message rendering ---------- */
+            /* ---------- Render a message bubble ---------- */
 
             function appendMessage(text, sender, isError) {
                 const row = document.createElement('div');
@@ -590,7 +609,12 @@ $userId = $_SESSION['user_id'];
 
                 const bubble = document.createElement('div');
                 bubble.className = 'bubble' + (isError ? ' error-bubble' : '');
-                bubble.textContent = text;
+
+                if (sender === 'ai' && !isError) {
+                    bubble.innerHTML = renderMarkdown(text);
+                } else {
+                    bubble.textContent = text;
+                }
 
                 const time = document.createElement('div');
                 time.className = 'msg-timestamp';
@@ -601,7 +625,6 @@ $userId = $_SESSION['user_id'];
                 row.appendChild(avatar);
                 row.appendChild(group);
 
-                // Insert before the typing indicator so typing row stays last
                 chatWindow.insertBefore(row, typingRow);
                 scrollToBottom();
             }
@@ -635,66 +658,83 @@ $userId = $_SESSION['user_id'];
 
             chatInput.addEventListener('input', autoResizeTextarea);
 
-            /* ---------- Enter / Shift+Enter handling ---------- */
+            /* ---------- Enter / Shift+Enter ---------- */
 
             chatInput.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
                 }
-                // Shift+Enter falls through naturally and inserts a newline
             });
 
             sendBtn.addEventListener('click', sendMessage);
 
-            /* ---------- Send + fetch logic ---------- */
+            /* ---------- Send message ---------- */
 
             async function sendMessage() {
                 const text = chatInput.value.trim();
                 if (!text) return;
 
+                // Show user bubble
                 appendMessage(text, 'user');
                 chatInput.value = '';
                 autoResizeTextarea();
+
+                // Add to history as 'user'
+                conversationHistory.push({ role: 'user', content: text });
+
+                // Keep last 20 turns max
+                if (conversationHistory.length > 20) {
+                    conversationHistory.splice(0, 2);
+                }
 
                 setSending(true);
                 showTyping(true);
 
                 try {
+                    // Build history to send (exclude current message, already in 'message' field)
+                    // Convert any legacy 'ai' role to 'assistant' for the backend
+                    const historyToSend = conversationHistory.slice(0, -1).map(function (turn) {
+                        return {
+                            role: turn.role === 'ai' ? 'assistant' : turn.role,
+                            content: turn.content
+                        };
+                    });
+
                     const response = await fetch(CHAT_API_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: text })
+                        body: JSON.stringify({
+                            message: text,
+                            history: historyToSend
+                        })
                     });
 
+                    showTyping(false);
+
                     if (!response.ok) {
-
-                        const txt = await response.text();
-
-                        throw new Error(
-                            "HTTP " + response.status + "\n\n" + txt
-                        );
+                        const errText = await response.text();
+                        throw new Error('HTTP ' + response.status + ' — ' + errText);
                     }
 
                     const data = await response.json();
 
-                    showTyping(false);
-
                     if (data && typeof data.reply === 'string' && data.reply.length > 0) {
                         appendMessage(data.reply, 'ai');
+                        // Store as 'assistant' so backend understands it
+                        conversationHistory.push({ role: 'assistant', content: data.reply });
                     } else {
                         appendMessage('Sorry, the AI service is currently unavailable.', 'ai', true);
+                        // Remove failed user turn
+                        conversationHistory.pop();
                     }
+
                 } catch (err) {
-                    console.error(err);
-
+                    console.error('MediMate error:', err);
                     showTyping(false);
-
-                    appendMessage(
-                        err.message,
-                        'ai',
-                        true
-                    );
+                    appendMessage('Sorry, something went wrong: ' + err.message, 'ai', true);
+                    // Remove failed user turn from history
+                    conversationHistory.pop();
                 } finally {
                     setSending(false);
                     chatInput.focus();
