@@ -68,7 +68,8 @@ $doctor_specialty = $doctor['specialty'] ?? 'General Medicine';
     <nav>
         <ul class="nav-menu">
             <li class="nav-item">
-                <a class="nav-link <?php echo ($active_page === 'dashboard') ? 'active' : ''; ?>" href="doctor_dashboard.php">
+                <a class="nav-link <?php echo ($active_page === 'dashboard') ? 'active' : ''; ?>"
+                    href="doctor_dashboard.php">
                     <span class="nav-icon">🏠</span>
                     <span>Dashboard</span>
                 </a>
@@ -83,13 +84,22 @@ $doctor_specialty = $doctor['specialty'] ?? 'General Medicine';
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo ($active_page === 'prescriptions') ? 'active' : ''; ?>" href="doctor_prescriptions_list.php">
+                <a class="nav-link <?php echo ($active_page === 'prescriptions') ? 'active' : ''; ?>"
+                    href="doctor_prescriptions_list.php">
                     <span class="nav-icon">💊</span>
                     <span>Prescriptions</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo ($active_page === 'education') ? 'active' : ''; ?>" href="doctor_add_education.php">
+                <a class="nav-link <?php echo ($active_page === 'ai') ? 'active' : ''; ?>"
+                    href="doctor_ai_assistant.php">
+                    <span class="nav-icon">🤖</span>
+                    <span>AI Assistant</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo ($active_page === 'education') ? 'active' : ''; ?>"
+                    href="doctor_add_education.php">
                     <span class="nav-icon">📚</span>
                     <span>Edit Learning Page</span>
                 </a>
