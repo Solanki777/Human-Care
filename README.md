@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/Python-3.x-yellow)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688)
 ![MySQL](https://img.shields.io/badge/MySQL-Database-blue)
-![Gemini AI](https://img.shields.io/badge/Google-Gemini_AI-orange)
+![Groq AI](https://img.shields.io/badge/Google-Groq_AI-orange)
 ![License](https://img.shields.io/badge/License-Educational-green)
 
 > AI-powered Smart Hospital Management System with autonomous multi-role AI agents and intelligent cybersecurity. Built for **Agentic Arena 2026 – Build the Future with AI Agents**.
@@ -13,13 +13,13 @@
 
 ## 📖 Overview
 
-**Human Care** integrates traditional hospital management with autonomous AI agents and intelligent cybersecurity. Built using **PHP, MySQL, Python, FastAPI, Streamlit, and Google Gemini AI**, the platform enables secure, intelligent, and automated healthcare services for patients, doctors, and hospital administrators.
+**Human Care** integrates traditional hospital management with autonomous AI agents and intelligent cybersecurity. Built using **PHP, MySQL, Python, FastAPI, Streamlit, and Google Groqi AI**, the platform enables secure, intelligent, and automated healthcare services for patients, doctors, and hospital administrators.
 
 | Feature | Description |
 |---|---|
 | 🤖 Role-based AI Agents | Specialized agents for patients, doctors, and admins |
 | 🛡️ Nexora Security | Autonomous AI cybersecurity with real-time threat detection |
-| 💬 MediMate AI | Intelligent healthcare assistant powered by Gemini AI |
+| 💬 MediMate AI | Intelligent healthcare assistant powered by Groq AI |
 | 📊 Hospital Analytics | Real-time dashboards and operational insights |
 | 🔒 Role-Based Access | Secure, scoped data access per user role |
 | ⚡ Real-Time DB Ops | Live appointment management and record updates |
@@ -171,7 +171,7 @@ MediMate AI  Hospital DB  Nexora Security
 `PHP 8.x` · `Python 3.x` · `FastAPI` · `Streamlit`
 
 ### AI & Machine Learning
-`Google Gemini AI` · `Prompt Engineering` · `Tool-Based AI Architecture` · `Role-Based AI Agents`
+`Google Groqi AI` · `Prompt Engineering` · `Tool-Based AI Architecture` · `Role-Based AI Agents`
 
 ### Database
 `MySQL`
@@ -269,7 +269,7 @@ Update `config/database.php` with your MySQL credentials.
 
 ### 6. Configure AI
 
-Add your **Google Gemini API Key** to the AI configuration file or environment variables.
+Add your **Google Groqi API Key** to the AI configuration file or environment variables.
 
 ### 7. Run the FastAPI backend
 
