@@ -329,10 +329,6 @@ http://localhost/Human-Care
 
 Responsibilities: Overall project architecture · MediMate AI development · Nexora security architecture · AI agent development · Login threat detection · Gmail phishing scanner · URL risk analyzer · AI decision engine · FastAPI backend · Documentation
 
-### Chudasama Parth Maheshbhai — Full Stack Developer
-
-Responsibilities: Human Care development · PHP backend · MySQL database · Frontend development · Security integration · Testing · Documentation
-
 ---
 
 ## 🎯 Project Objectives
