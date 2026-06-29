@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/Python-3.x-yellow)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688)
 ![MySQL](https://img.shields.io/badge/MySQL-Database-blue)
-![Groq AI](https://img.shields.io/badge/Google-Groq_AI-orange)
+![Groq AI](https://img.shields.io/badge/Groq_AI-orange)
 ![License](https://img.shields.io/badge/License-Educational-green)
 
 > AI-powered Smart Hospital Management System with autonomous multi-role AI agents and intelligent cybersecurity. Built for **Agentic Arena 2026 – Build the Future with AI Agents**.
