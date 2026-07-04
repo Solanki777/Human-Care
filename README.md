@@ -11,9 +11,43 @@
 
 ---
 
+## 🏆 Recognition & Showcase
+
+### 🤖 Agentic Arena 2026
+
+**Human Care with MediMate AI** was developed and submitted for **Agentic Arena 2026 – Build the Future with AI Agents**, organized by **TechVerse Solutions**.
+
+🏅 **Recognized among the Top 61 Unique Participants** out of **800+ participants**.
+
+🥇 **Achieved Rank 54 among 800+ participants.**
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/8eeb847c-1738-47aa-8292-b2e7ea4ed043" width="500">
+</p>
+
+---
+
+### 🛡️ STEMSpire 2026
+
+The project was further enhanced with **Nexora – Autonomous AI Cybersecurity Agent** and submitted for **STEMSpire 2026 – STEM Innovation & Prototype Showcase**, organized by **Gujarat Technological University (GTU)**.
+
+This version combines **AI-powered healthcare assistance** with **autonomous cybersecurity**, providing intelligent protection against modern cyber threats.
+
+### ✨ Key Highlights
+
+- 🛡️ **Nexora** – Autonomous AI Cybersecurity Agent
+- 🤖 **MediMate AI** – Intelligent Healthcare Assistant
+- 🔐 AI-Based Login Threat Detection
+- 🎯 Credential Stuffing Detection
+- 🚨 Password Spraying Detection
+- 📧 AI-Powered Gmail Phishing Detection
+- 🌐 AI-Based URL Risk Analysis
+- ⚡ Autonomous Decision Engine
+- 🚫 Automatic IP Blocking & Admin Email Alerts
+
 ## 📖 Overview
 
-**Human Care** integrates traditional hospital management with autonomous AI agents and intelligent cybersecurity. Built using **PHP, MySQL, Python, FastAPI, Streamlit, and Google Groqi AI**, the platform enables secure, intelligent, and automated healthcare services for patients, doctors, and hospital administrators.
+**Human Care** integrates traditional hospital management with autonomous AI agents and intelligent cybersecurity. Built using **PHP, MySQL, Python, FastAPI, Streamlit, and Groqi AI**, the platform enables secure, intelligent, and automated healthcare services for patients, doctors, and hospital administrators.
 
 | Feature | Description |
 |---|---|
@@ -171,7 +205,7 @@ MediMate AI  Hospital DB  Nexora Security
 `PHP 8.x` · `Python 3.x` · `FastAPI` · `Streamlit`
 
 ### AI & Machine Learning
-`Google Groqi AI` · `Prompt Engineering` · `Tool-Based AI Architecture` · `Role-Based AI Agents`
+`Groqi AI` · `Prompt Engineering` · `Tool-Based AI Architecture` · `Role-Based AI Agents`
 
 ### Database
 `MySQL`
@@ -269,7 +303,7 @@ Update `config/database.php` with your MySQL credentials.
 
 ### 6. Configure AI
 
-Add your **Google Groqi API Key** to the AI configuration file or environment variables.
+Add your **Groqi API Key** to the AI configuration file or environment variables.
 
 ### 7. Run the FastAPI backend
 
