@@ -101,4 +101,4 @@ function h(string $str): string {
 /* =========================
    API KEYS
 ========================= */
-define('GROQ_API_KEY', 'api key');
+define('GROQ_API_KEY', 'Grok_api_key');

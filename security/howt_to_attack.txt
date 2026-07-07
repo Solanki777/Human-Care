@@ -1,0 +1,356 @@
+==============================================================
+NEXORA ATTACK DEMONSTRATION GUIDE
+==============================================================
+
+1. BRUTE FORCE ATTACK
+==============================================================
+
+Description
+-----------
+An attacker repeatedly attempts to log into the SAME account using
+multiple incorrect passwords until the correct one is found.
+
+Demo
+----
+Target Account:
+john@example.com
+
+Attempts:
+Wrong Password 15 times
+
+Time:
+Within 1 minute
+
+Example
+
+10:00:01
+john@example.com
+abc123
+
+10:00:04
+john@example.com
+pass123
+
+10:00:08
+john@example.com
+hello123
+
+...
+
+Repeat until 15 failed attempts.
+
+Detection
+---------
+• Same IP
+• Same Account
+• High number of failed logins
+
+Nexora Response
+---------------
+✓ Detects Brute Force
+✓ Calculates High Risk
+✓ Blocks IP
+✓ Logs Attack
+✓ Sends Email Alert
+
+Impact
+------
+• Account compromise
+• Unauthorized access
+• Service disruption
+• Password guessing attack
+
+==============================================================
+
+2. SQL INJECTION ATTACK
+==============================================================
+
+Description
+-----------
+An attacker submits malicious input instead of normal login credentials
+to try to manipulate database queries.
+
+Demo
+----
+Enter SQL-like strings into the login form. Your PHP validation is
+designed to recognize suspicious patterns and reject them.
+
+Detection
+---------
+• SQL keyword patterns
+• Injection syntax
+• Malicious login input
+
+Nexora Response
+---------------
+✓ Detects SQL Injection Attempt
+✓ Blocks IP (if configured)
+✓ Logs Security Event
+✓ Sends Alert
+
+Impact
+------
+• Database compromise
+• Unauthorized data access
+• Data manipulation
+• Authentication bypass attempts
+
+==============================================================
+
+3. SUSPICIOUS LOGIN ACTIVITY
+==============================================================
+
+Description
+-----------
+A very high number of login requests are received from the same IP
+within a short period.
+
+Demo
+----
+Attempts:
+10 Login Requests
+
+Time:
+20 Seconds
+
+Detection
+---------
+• High login rate
+• Same IP
+• Short time interval
+
+Nexora Response
+---------------
+✓ Detects Suspicious Activity
+✓ Logs Threat
+✓ Blocks IP (if threshold reached)
+
+Impact
+------
+• Server overload
+• Possible automated attack
+• Increased authentication load
+
+==============================================================
+
+4. CREDENTIAL STUFFING
+==============================================================
+
+Description
+-----------
+An attacker uses leaked username/password pairs from another breach to
+try multiple accounts on this application.
+
+Demo
+----
+Use ONE IP.
+
+Attempt logins for:
+
+john@example.com
+
+↓
+
+jane@example.com
+
+↓
+
+doctor@example.com
+
+↓
+
+admin@example.com
+
+↓
+
+manager@example.com
+
+Time:
+Within 15 Minutes
+
+Detection
+---------
+• Same IP
+• Multiple different accounts
+• Cross-account login pattern
+
+Nexora Response
+---------------
+✓ Detects Credential Stuffing
+✓ Risk Score Generated
+✓ IP Blocked
+✓ Threat Logged
+✓ Email Notification
+
+Impact
+------
+• Multiple account compromise
+• Identity theft
+• Unauthorized access
+• Data leakage
+
+==============================================================
+
+5. PASSWORD SPRAYING
+==============================================================
+
+Description
+-----------
+An attacker tries one commonly used password across many different
+accounts to avoid triggering account-specific lockouts.
+
+Demo
+----
+Use ONE password such as:
+
+Password123
+
+Try it on:
+
+john@example.com
+
+↓
+
+doctor@example.com
+
+↓
+
+manager@example.com
+
+↓
+
+admin@example.com
+
+↓
+
+user@example.com
+
+Maximum:
+3 attempts per account
+
+Time:
+Within 15 Minutes
+
+Detection
+---------
+• Same IP
+• Many accounts
+• Low attempts per account
+
+Nexora Response
+---------------
+✓ Detects Password Spraying
+✓ Calculates Risk
+✓ Blocks IP
+✓ Logs Threat
+✓ Sends Email Alert
+
+Impact
+------
+• Weak password compromise
+• Large-scale account takeover
+• Organizational security risk
+
+==============================================================
+
+6. EMAIL PHISHING
+==============================================================
+
+Description
+-----------
+A phishing email attempts to trick users into revealing sensitive
+information.
+
+Demo
+----
+Send yourself a TEST email with a phishing-style subject such as:
+
+"URGENT: Verify Your Bank Account"
+
+or
+
+"Security Alert: Update Password"
+
+Run Gmail Scanner.
+
+Detection
+---------
+• AI analyzes the email subject
+• Phishing keyword detection
+• Risk score calculation
+
+Nexora Response
+---------------
+✓ High Risk Detection
+✓ Moves Email to Spam
+✓ Adds Nexora Label
+✓ Logs Scan Result
+
+Impact
+------
+• Credential theft
+• Malware infection
+• Financial fraud
+• Identity theft
+
+==============================================================
+
+7. MALICIOUS URL
+==============================================================
+
+Description
+-----------
+A fake website is designed to imitate a trusted service and steal user
+credentials.
+
+Demo
+----
+Enter a TEST URL into your URL scanner that resembles a phishing site,
+for example one using suspicious wording or formatting.
+
+Detection
+---------
+• Missing HTTPS
+• Long URL
+• Multiple dots
+• Hyphens
+• Suspicious keywords
+
+Nexora Response
+---------------
+✓ Risk Score
+✓ Threat Classification
+✓ Decision Engine
+✓ Monitor / Alert / Block
+
+Impact
+------
+• Credential theft
+• Malware delivery
+• Fake login pages
+• Financial loss
+
+==============================================================
+
+OVERALL NEXORA RESPONSE
+==============================================================
+
+Attack
+   │
+   ▼
+Detection Engine
+   │
+   ▼
+Risk Scoring
+   │
+   ▼
+Decision Engine
+   │
+   ▼
+Monitor / Alert / Block
+   │
+   ▼
+Threat Logging
+   │
+   ▼
+Administrator Notification
