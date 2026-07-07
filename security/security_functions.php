@@ -44,6 +44,31 @@ if (!defined('NEXORA_PASSWORD_SPRAY_MAX_ATTEMPTS_PER_ACCOUNT')) {
 }
 
 // ---------------------------------------------------------------------
+// Per-request password fingerprint cache
+// Lets existing login.php flows keep calling log_security_event() without
+// changing login behavior, as long as check_login_threat() ran first.
+// ---------------------------------------------------------------------
+function _security_password_fingerprint_key(string $ip, ?string $email): string {
+    return $ip . '|' . strtolower(trim((string)$email));
+}
+
+function _security_remember_password_fingerprint(string $ip, ?string $email, string $password): void {
+    if (!isset($GLOBALS['_security_password_fingerprints']) || !is_array($GLOBALS['_security_password_fingerprints'])) {
+        $GLOBALS['_security_password_fingerprints'] = [];
+    }
+    $GLOBALS['_security_password_fingerprints'][_security_password_fingerprint_key($ip, $email)] = hash('sha256', $password);
+}
+
+function _security_get_password_fingerprint(string $ip, ?string $email, ?string $password = null): ?string {
+    if ($password !== null) {
+        return hash('sha256', $password);
+    }
+
+    $key = _security_password_fingerprint_key($ip, $email);
+    return $GLOBALS['_security_password_fingerprints'][$key] ?? null;
+}
+
+// ---------------------------------------------------------------------
 // Connection (isolated, lazy, fail-safe)
 // ---------------------------------------------------------------------
 function _security_db_connect() {
@@ -165,7 +190,9 @@ function block_ip(string $ip, string $threatType, string $reason, string $blocke
         $ok = $stmt->execute();
         $stmt->close();
 
-        log_threat_event($ip, null, $threatType, $reason, $blockedBy, 'ip_blocked');
+        if (!has_recent_threat_detection($ip, $threatType)) {
+            log_threat_event($ip, null, $threatType, $reason, $blockedBy, 'ip_blocked');
+        }
 
         return $ok;
     } catch (\Throwable $e) {
@@ -180,6 +207,8 @@ function block_ip(string $ip, string $threatType, string $reason, string $blocke
 // ---------------------------------------------------------------------
 function check_login_threat(string $ip, string $email, string $password): ?array {
     try {
+        _security_remember_password_fingerprint($ip, $email, $password);
+
         if (is_ip_blocked($ip)) {
             return [
                 'type'   => 'blocked_ip_reuse',
@@ -213,30 +242,6 @@ function check_login_threat(string $ip, string $email, string $password): ?array
             return null;
         }
 
-        $bruteForceWindow    = 1;
-        $bruteForceThreshold = 15;
-
-        $stmt = $conn->prepare(
-            "SELECT COUNT(*) AS cnt FROM login_attempts
-             WHERE ip_address = ? AND status = 'failed'
-               AND attempted_at >= (NOW() - INTERVAL ? MINUTE)"
-        );
-        if ($stmt) {
-            $stmt->bind_param('si', $ip, $bruteForceWindow);
-            $stmt->execute();
-            $res = $stmt->get_result();
-            $row = $res->fetch_assoc();
-            $stmt->close();
-
-            if ($row && (int)$row['cnt'] >= $bruteForceThreshold) {
-                return [
-                    'type'   => 'brute_force',
-                    'label'  => 'Brute Force Attack',
-                    'reason' => "IP $ip made {$row['cnt']} failed login attempts in the last {$bruteForceWindow} minutes.",
-                ];
-            }
-        }
-
         $rateWindowSeconds = 20;
         $rateThreshold     = 10;
 
@@ -261,6 +266,30 @@ function check_login_threat(string $ip, string $email, string $password): ?array
             }
         }
 
+        $bruteForceWindow    = 1;
+        $bruteForceThreshold = 15;
+
+        $stmt = $conn->prepare(
+            "SELECT COUNT(*) AS cnt FROM login_attempts
+             WHERE ip_address = ? AND status = 'failed'
+               AND attempted_at >= (NOW() - INTERVAL ? MINUTE)"
+        );
+        if ($stmt) {
+            $stmt->bind_param('si', $ip, $bruteForceWindow);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $row = $res->fetch_assoc();
+            $stmt->close();
+
+            if ($row && (int)$row['cnt'] >= $bruteForceThreshold) {
+                return [
+                    'type'   => 'brute_force',
+                    'label'  => 'Brute Force Attack',
+                    'reason' => "IP $ip made {$row['cnt']} failed login attempts in the last {$bruteForceWindow} minutes.",
+                ];
+            }
+        }
+
         return null;
     } catch (\Throwable $e) {
         error_log('[security_functions] check_login_threat error: ' . $e->getMessage());
@@ -273,21 +302,23 @@ function check_login_threat(string $ip, string $email, string $password): ?array
 // Logs every login attempt, then immediately runs cross-account PHP
 // detectors so credential stuffing and password spraying are real-time.
 // ---------------------------------------------------------------------
-function log_security_event(string $ip, ?string $email, string $status, ?string $userType = null, ?string $threatType = null): void {
+function log_security_event(string $ip, ?string $email, string $status, ?string $userType = null, ?string $threatType = null, ?string $password = null): void {
     try {
         $conn = _security_db_connect();
         if (!$conn) {
             return;
         }
 
+        $passwordFingerprint = _security_get_password_fingerprint($ip, $email, $password);
+
         $stmt = $conn->prepare(
-            "INSERT INTO login_attempts (ip_address, email, user_type, status, threat_detected, attempted_at)
-             VALUES (?, ?, ?, ?, ?, NOW())"
+            "INSERT INTO login_attempts (ip_address, email, user_type, status, threat_detected, password_fingerprint, attempted_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW())"
         );
         if (!$stmt) {
             return;
         }
-        $stmt->bind_param('sssss', $ip, $email, $userType, $status, $threatType);
+        $stmt->bind_param('ssssss', $ip, $email, $userType, $status, $threatType, $passwordFingerprint);
         $stmt->execute();
         $stmt->close();
 
@@ -303,8 +334,8 @@ function log_security_event(string $ip, ?string $email, string $status, ?string 
 // ---------------------------------------------------------------------
 function run_realtime_login_threat_detection(string $ip): void {
     try {
-        detect_credential_stuffing($ip);
         detect_password_spraying($ip);
+        detect_credential_stuffing($ip);
     } catch (\Throwable $e) {
         error_log('[security_functions] realtime detector error: ' . $e->getMessage());
     }
@@ -320,6 +351,9 @@ function detect_credential_stuffing(string $ip): void {
         if (is_ip_blocked($ip)) {
             return;
         }
+        if (has_recent_threat_detection($ip, 'credential_stuffing')) {
+            return;
+        }
 
         $conn = _security_db_connect();
         if (!$conn) {
@@ -330,11 +364,14 @@ function detect_credential_stuffing(string $ip): void {
         $threshold = (int)NEXORA_CRED_STUFFING_DISTINCT_EMAIL_THRESHOLD;
 
         $stmt = $conn->prepare(
-            "SELECT COUNT(DISTINCT email) AS distinct_emails
+            "SELECT
+                COUNT(DISTINCT email) AS accounts,
+                COUNT(DISTINCT password_fingerprint) AS passwords
              FROM login_attempts
              WHERE ip_address = ?
                AND attempted_at >= (NOW() - INTERVAL ? MINUTE)
-               AND email IS NOT NULL AND email != ''"
+               AND email IS NOT NULL AND email != ''
+               AND password_fingerprint IS NOT NULL AND password_fingerprint != ''"
         );
         if (!$stmt) {
             return;
@@ -345,13 +382,14 @@ function detect_credential_stuffing(string $ip): void {
         $row = $res->fetch_assoc();
         $stmt->close();
 
-        $distinctEmails = $row ? (int)$row['distinct_emails'] : 0;
-        if ($distinctEmails < $threshold) {
+        $accounts = $row ? (int)$row['accounts'] : 0;
+        $passwords = $row ? (int)$row['passwords'] : 0;
+        if ($accounts < $threshold || $passwords < $threshold) {
             return;
         }
 
-        $reason = "IP $ip attempted logins with $distinctEmails different email accounts within $window minutes.";
-        $riskScore = calculate_attack_risk_score('credential_stuffing', $distinctEmails, $threshold);
+        $reason = "IP $ip attempted logins with $accounts different email accounts and $passwords different password fingerprints within $window minutes.";
+        $riskScore = calculate_attack_risk_score('credential_stuffing', min($accounts, $passwords), $threshold);
 
         block_ip($ip, 'credential_stuffing', $reason, 'php');
         send_attack_security_alert($ip, 'Credential Stuffing Attack', $reason, $riskScore);
@@ -370,6 +408,9 @@ function detect_password_spraying(string $ip): void {
         if (is_ip_blocked($ip)) {
             return;
         }
+        if (has_recent_threat_detection($ip, 'password_spraying')) {
+            return;
+        }
 
         $conn = _security_db_connect();
         if (!$conn) {
@@ -381,13 +422,15 @@ function detect_password_spraying(string $ip): void {
         $maxAttempts = (int)NEXORA_PASSWORD_SPRAY_MAX_ATTEMPTS_PER_ACCOUNT;
 
         $stmt = $conn->prepare(
-            "SELECT email, COUNT(*) AS attempts
+            "SELECT
+                COUNT(DISTINCT email) AS accounts,
+                COUNT(DISTINCT password_fingerprint) AS passwords
              FROM login_attempts
              WHERE ip_address = ?
                AND attempted_at >= (NOW() - INTERVAL ? MINUTE)
                AND email IS NOT NULL AND email != ''
-               AND status = 'failed'
-             GROUP BY email"
+               AND password_fingerprint IS NOT NULL AND password_fingerprint != ''
+               AND status = 'failed'"
         );
         if (!$stmt) {
             return;
@@ -395,23 +438,40 @@ function detect_password_spraying(string $ip): void {
         $stmt->bind_param('si', $ip, $window);
         $stmt->execute();
         $res = $stmt->get_result();
-
-        $distinctAccounts = 0;
-        $lowAndSlow = true;
-        while ($row = $res->fetch_assoc()) {
-            $distinctAccounts++;
-            if ((int)$row['attempts'] > $maxAttempts) {
-                $lowAndSlow = false;
-            }
-        }
+        $row = $res->fetch_assoc();
         $stmt->close();
 
-        if ($distinctAccounts < $minAccounts || !$lowAndSlow) {
+        $accounts = $row ? (int)$row['accounts'] : 0;
+        $passwords = $row ? (int)$row['passwords'] : 0;
+        if ($accounts < $minAccounts || $passwords !== 1) {
             return;
         }
 
-        $reason = "IP $ip attempted logins against $distinctAccounts different accounts (<= $maxAttempts attempts each) within $window minutes -- pattern consistent with password spraying.";
-        $riskScore = calculate_attack_risk_score('password_spraying', $distinctAccounts, $minAccounts);
+        $stmt = $conn->prepare(
+            "SELECT email, COUNT(*) AS failures
+             FROM login_attempts
+             WHERE ip_address = ?
+               AND attempted_at >= (NOW() - INTERVAL ? MINUTE)
+               AND email IS NOT NULL AND email != ''
+               AND status = 'failed'
+             GROUP BY email
+             HAVING failures > ?"
+        );
+        if (!$stmt) {
+            return;
+        }
+        $stmt->bind_param('sii', $ip, $window, $maxAttempts);
+        $stmt->execute();
+        $stmt->store_result();
+        $hasOverLimitAccount = $stmt->num_rows > 0;
+        $stmt->close();
+
+        if ($hasOverLimitAccount) {
+            return;
+        }
+
+        $reason = "IP $ip attempted failed logins against $accounts different accounts using one password fingerprint, with no account above $maxAttempts failures, within $window minutes -- pattern consistent with password spraying.";
+        $riskScore = calculate_attack_risk_score('password_spraying', $accounts, $minAccounts);
 
         block_ip($ip, 'password_spraying', $reason, 'php');
         send_attack_security_alert($ip, 'Password Spraying Attack', $reason, $riskScore);
@@ -453,6 +513,43 @@ function send_attack_security_alert(string $ip, string $label, string $reason, i
         send_security_alert($ip, $label, $reason, $riskScore);
     } catch (\Throwable $e) {
         error_log('[security_functions] send_attack_security_alert error: ' . $e->getMessage());
+    }
+}
+
+// ---------------------------------------------------------------------
+// has_recent_threat_detection($ip, $threatType): bool
+// Prevents duplicate logging/block notifications for the same attack type
+// during the active analysis window.
+// ---------------------------------------------------------------------
+function has_recent_threat_detection(string $ip, string $threatType): bool {
+    try {
+        $conn = _security_db_connect();
+        if (!$conn) {
+            return false;
+        }
+
+        $window = (int)NEXORA_ANALYSIS_WINDOW_MINUTES;
+        $stmt = $conn->prepare(
+            "SELECT id
+             FROM threat_events
+             WHERE ip_address = ?
+               AND threat_type = ?
+               AND detected_at >= (NOW() - INTERVAL ? MINUTE)
+             LIMIT 1"
+        );
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param('ssi', $ip, $threatType, $window);
+        $stmt->execute();
+        $stmt->store_result();
+        $exists = $stmt->num_rows > 0;
+        $stmt->close();
+
+        return $exists;
+    } catch (\Throwable $e) {
+        error_log('[security_functions] has_recent_threat_detection error: ' . $e->getMessage());
+        return false;
     }
 }
 
