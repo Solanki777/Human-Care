@@ -75,19 +75,7 @@ http://localhost:8502
 
 ---
 
-## Step 6: Login Threat Detection
 
-The Login Threat Detection engine runs automatically after every login attempt.
-
-For testing:
-
-```bash
-cd security
-
-python login_threat_detector.py
-```
-
----
 
 ## Access URLs
 
