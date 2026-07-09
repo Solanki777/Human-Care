@@ -1,4 +1,6 @@
+
 <?php
+require_once __DIR__ . '/email_alert.php';
 /**
  * =====================================================================
  * Human Care - Security Functions Layer
@@ -42,6 +44,33 @@ if (!defined('NEXORA_PASSWORD_SPRAY_MIN_ACCOUNTS')) {
 if (!defined('NEXORA_PASSWORD_SPRAY_MAX_ATTEMPTS_PER_ACCOUNT')) {
     define('NEXORA_PASSWORD_SPRAY_MAX_ATTEMPTS_PER_ACCOUNT', 3);
 }
+function mark_login_attempts_as_threat(string $ip, string $threatType): void
+{
+    $conn = _security_db_connect();
+    if (!$conn) return;
+
+    $stmt = $conn->prepare("
+        UPDATE login_attempts
+        SET threat_detected = ?
+        WHERE id = (
+            SELECT id FROM (
+                SELECT id
+                FROM login_attempts
+                WHERE ip_address = ?
+                ORDER BY attempted_at DESC
+                LIMIT 1
+            ) x
+        )
+    ");
+
+    if ($stmt) {
+        $stmt->bind_param("ss", $threatType, $ip);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+
 
 // ---------------------------------------------------------------------
 // Per-request password fingerprint cache
@@ -190,8 +219,24 @@ function block_ip(string $ip, string $threatType, string $reason, string $blocke
         $ok = $stmt->execute();
         $stmt->close();
 
+        
         if (!has_recent_threat_detection($ip, $threatType)) {
-            log_threat_event($ip, null, $threatType, $reason, $blockedBy, 'ip_blocked');
+
+                log_threat_event(
+                    $ip,
+                    null,
+                    $threatType,
+                    $reason,
+                    $blockedBy,
+                    'ip_blocked'
+                );
+
+                send_security_alert(
+                    $ip,
+                    ucwords(str_replace('_',' ', $threatType)),
+                    $reason,
+                    100
+                );
         }
 
         return $ok;
@@ -392,6 +437,7 @@ function detect_credential_stuffing(string $ip): void {
         $riskScore = calculate_attack_risk_score('credential_stuffing', min($accounts, $passwords), $threshold);
 
         block_ip($ip, 'credential_stuffing', $reason, 'php');
+        mark_login_attempts_as_threat($ip, 'credential_stuffing');
         send_attack_security_alert($ip, 'Credential Stuffing Attack', $reason, $riskScore);
     } catch (\Throwable $e) {
         error_log('[security_functions] detect_credential_stuffing error: ' . $e->getMessage());
@@ -474,6 +520,7 @@ function detect_password_spraying(string $ip): void {
         $riskScore = calculate_attack_risk_score('password_spraying', $accounts, $minAccounts);
 
         block_ip($ip, 'password_spraying', $reason, 'php');
+        mark_login_attempts_as_threat($ip, 'password_spraying');
         send_attack_security_alert($ip, 'Password Spraying Attack', $reason, $riskScore);
     } catch (\Throwable $e) {
         error_log('[security_functions] detect_password_spraying error: ' . $e->getMessage());

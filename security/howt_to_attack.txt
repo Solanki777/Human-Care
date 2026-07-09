@@ -111,16 +111,24 @@ Use one IP address and attempt logins against many different email addresses ins
 Example:
 - IP: 127.0.0.1
 - Attempt these emails with guessed or test passwords:
-  - user1@example.com
-  - user2@example.com
-  - user3@example.com
-  - user4@example.com
-  - user5@example.com
-  - user6@example.com
-  - user7@example.com
-  - user8@example.com
-  - user9@example.com
-  - user10@example.com
+
+
+
+Attempt	Email	Password
+1	user1@example.com	Pass1@123
+2	user2@example.com	Pass2@123
+3	user3@example.com	Pass3@123
+4	user4@example.com	Pass4@123
+5	user5@example.com	Pass5@123
+6	user6@example.com	Pass6@123
+7	user7@example.com	Pass7@123
+8	user8@example.com	Pass8@123
+9	user9@example.com	Pass9@123
+10	user10@example.com	Pass10@123
+10	user11@example.com	Pass11@123
+
+
+
 
 Expected Detection Pattern:
 The same IP attempts logins with 10 distinct email addresses inside 15 minutes.
@@ -157,16 +165,21 @@ Example:
 - IP: 127.0.0.1
 - Common password: Welcome123
 - Try it against:
-  - user1@example.com
-  - user2@example.com
-  - user3@example.com
-  - user4@example.com
-  - user5@example.com
-  - user6@example.com
-  - user7@example.com
-  - user8@example.com
-  - user9@example.com
-  - user10@example.com
+
+
+Attempt	Email	Password
+1	user1@example.com	TestPassword123
+2	user2@example.com	TestPassword123
+3	user3@example.com	TestPassword123
+4	user4@example.com	TestPassword123
+...	...	TestPassword123
+10	user10@example.com	TestPassword123
+11	user11@example.com	TestPassword123
+
+
+
+
+
 
 Expected Detection Pattern:
 The same IP targets 10 different accounts inside 15 minutes,
