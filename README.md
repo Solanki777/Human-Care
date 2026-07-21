@@ -1,5 +1,7 @@
 # 🏥 Human Care – AI-Powered Smart Hospital Management System
 
+deployed link : http://humancare.fwh.is/
+
 ![PHP](https://img.shields.io/badge/PHP-8.x-blue)
 ![Python](https://img.shields.io/badge/Python-3.x-yellow)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688)
