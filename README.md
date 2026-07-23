@@ -340,25 +340,6 @@ http://localhost/Human-Care
 
 ---
 
-## 🚀 Future Enhancements
-
-- 🎤 Voice-based AI assistant
-- 🌍 Multilingual conversations
-- 🩺 AI symptom triage
-- 📄 Medical report analysis
-- 🧠 RAG-based medical knowledge
-- 📈 Predictive health analytics
-- 💊 Medicine reminder system
-- 📹 Telemedicine integration
-- 🚨 Emergency detection agent
-- 📑 AI discharge summary generator
-- ⌚ Wearable device integration
-- ☁️ Cloud deployment
-- 📱 Mobile application
-- 🏥 Multi-hospital support
-
----
-
 ## 👥 Team
 
 ### Solanki Mahesh Bharatbhai — Team Lead · AI Security & Agent Developer
