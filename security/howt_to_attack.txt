@@ -1,0 +1,238 @@
+Nexora Attack Reference
+=======================
+
+This file explains all five attack types detected by the Nexora PHP security system.
+Use these examples only in your own local test environment with permission.
+
+
+1. Brute Force Attack
+---------------------
+Attack Name:
+Brute Force Attack
+
+Impact:
+An attacker repeatedly tries many passwords against the login system until one works.
+This can cause account takeover, server load, user lockouts, and many failed login records.
+
+Time Limit / Threshold:
+10 failed login attempts from the same IP address within 5 minutes.
+
+How to Make/Test the Attack:
+Use one IP address and submit many failed login attempts quickly.
+
+Example:
+- IP: 127.0.0.1
+- Email: victim@example.com
+- Try 10 wrong passwords within 5 minutes:
+  - password123
+  - 123456
+  - qwerty
+  - admin123
+  - welcome
+  - test123
+  - letmein
+  - pass@123
+  - user123
+  - wrongpass
+
+Expected Detection Pattern:
+The same IP creates 10 failed login attempts inside 5 minutes.
+
+
+2. SQL Injection Attempt
+------------------------
+Attack Name:
+SQL Injection Attempt
+
+Impact:
+An attacker places SQL code inside login fields to try to bypass login, read private data,
+modify records, or damage the database.
+
+Time Limit / Threshold:
+Detected immediately on 1 login request if SQL-like input is found.
+
+How to Make/Test the Attack:
+Enter SQL-like payloads into the email or password field.
+
+Example:
+- Email: ' OR '1'='1
+- Password: anything
+
+Other Example Inputs:
+- admin@example.com' --
+- ' OR 1=1 --
+- '; DROP TABLE users; --
+- UNION SELECT username,password FROM users
+
+Expected Detection Pattern:
+One request contains SQL keywords, SQL comments, boolean bypass patterns, or destructive SQL syntax.
+
+
+3. Suspicious Login Activity
+----------------------------
+Attack Name:
+Suspicious Login Activity
+
+Impact:
+An attacker or bot sends login requests too quickly.
+This can indicate automation, credential testing, scraping, or an attempt to overload the login page.
+
+Time Limit / Threshold:
+10 login attempts from the same IP address within 20 seconds.
+
+How to Make/Test the Attack:
+Send many login requests from the same IP within a few seconds.
+
+Example:
+- IP: 127.0.0.1
+- Submit 10 login attempts within 20 seconds.
+- Emails can be the same or different.
+- Passwords can be valid or invalid.
+
+Expected Detection Pattern:
+The same IP creates too many login attempts inside the short suspicious-rate time window.
+
+
+4. Credential Stuffing Attack
+-----------------------------
+Attack Name:
+Credential Stuffing Attack
+
+Impact:
+An attacker uses stolen email/password pairs from another website and tries them on your login page.
+If users reused passwords, this can cause account takeover across many accounts.
+
+Time Limit / Threshold:
+10 different email addresses from the same IP address within 15 minutes.
+
+How to Make/Test the Attack:
+Use one IP address and attempt logins against many different email addresses inside 15 minutes.
+
+Example:
+- IP: 127.0.0.1
+- Attempt these emails with guessed or test passwords:
+
+
+
+Attempt	Email	Password
+1	user1@example.com	Pass1@123
+2	user2@example.com	Pass2@123
+3	user3@example.com	Pass3@123
+4	user4@example.com	Pass4@123
+5	user5@example.com	Pass5@123
+6	user6@example.com	Pass6@123
+7	user7@example.com	Pass7@123
+8	user8@example.com	Pass8@123
+9	user9@example.com	Pass9@123
+10	user10@example.com	Pass10@123
+10	user11@example.com	Pass11@123
+
+
+
+
+Expected Detection Pattern:
+The same IP attempts logins with 10 distinct email addresses inside 15 minutes.
+
+Nexora Logic:
+- Count DISTINCT email addresses for the same IP.
+- Detect within the configured analysis window.
+- When the threshold is reached:
+  - Calculate risk score.
+  - Block IP.
+  - Log threat event.
+  - Send security alert.
+
+
+5. Password Spraying Attack
+---------------------------
+Attack Name:
+Password Spraying Attack
+
+Impact:
+An attacker tries one or a few common passwords across many accounts.
+This avoids normal per-account brute-force limits because each account receives only a small number of failed attempts.
+It can cause account takeover when users have weak common passwords.
+
+Time Limit / Threshold:
+10 different accounts from the same IP address within 15 minutes,
+with no more than 3 failed attempts per account.
+
+How to Make/Test the Attack:
+Use one IP address and try the same common password against many different accounts.
+Each account should only receive a few failed attempts.
+
+Example:
+- IP: 127.0.0.1
+- Common password: Welcome123
+- Try it against:
+
+
+Attempt	Email	Password
+1	user1@example.com	TestPassword123
+2	user2@example.com	TestPassword123
+3	user3@example.com	TestPassword123
+4	user4@example.com	TestPassword123
+...	...	TestPassword123
+10	user10@example.com	TestPassword123
+11	user11@example.com	TestPassword123
+
+
+
+
+
+
+Expected Detection Pattern:
+The same IP targets 10 different accounts inside 15 minutes,
+and each account has 3 or fewer failed attempts.
+
+Nexora Logic:
+- Group failed attempts by IP and email.
+- Count how many distinct accounts were targeted.
+- Confirm each account has no more than the configured max failed attempts.
+- When the threshold is reached:
+  - Calculate risk score.
+  - Block IP.
+  - Log threat event.
+  - Send security alert.
+
+
+Dashboard Attack Types
+======================
+
+The dashboard should show these threat_event threat_type values dynamically:
+
+- brute_force
+- sql_injection
+- suspicious_rate
+- credential_stuffing
+- password_spraying
+
+Recommended Display Labels:
+
+- brute_force -> Brute Force Attack
+- sql_injection -> SQL Injection Attempt
+- suspicious_rate -> Suspicious Login Activity
+- credential_stuffing -> Credential Stuffing Attack
+- password_spraying -> Password Spraying Attack
+
+
+Quick Threshold Summary
+=======================
+
+- Brute Force Attack: 10 failed attempts from the same IP within 5 minutes.
+- SQL Injection Attempt: 1 SQL-like login input, detected immediately.
+- Suspicious Login Activity: 10 login attempts from the same IP within 20 seconds.
+- Credential Stuffing Attack: 10 different emails from the same IP within 15 minutes.
+- Password Spraying Attack: 10 different accounts from the same IP within 15 minutes, max 3 failed attempts per account.
+
+
+Testing Notes
+=============
+
+1. Test only on your own local Nexora project.
+2. Use fake test accounts, not real user accounts.
+3. After testing, clear or deactivate test rows in blocked_ips if your IP becomes blocked.
+4. Confirm that login_attempts receives the attempts.
+5. Confirm that threat_events receives the detected attack.
+6. Confirm that blocked_ips receives the blocked IP.
+7. Confirm that the dashboard shows the new attack type automatically.

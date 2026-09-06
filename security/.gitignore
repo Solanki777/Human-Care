@@ -1,0 +1,13 @@
+# Google OAuth
+credentials.json
+token.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+vendor
+email_alert.php
