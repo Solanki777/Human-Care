@@ -1,174 +1,397 @@
 <?php
-$servername = "localhost";
-$username   = "root";
-$password   = "";
+session_start();
+
+// ============================================================
+// SECURITY: CSRF Protection
+// ============================================================
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+$servername = "sql205.infinityfree.com";
+$username = "if0_42370337";
+$password = "6yFxYkbKGy";
 
 $success       = "";
 $emailError    = "";
 $passwordError = "";
 $fileError     = "";
+$generalError  = "";
+
+$old = [
+    'firstName' => '', 'lastName' => '', 'email' => '', 'phone' => '',
+    'dob' => '', 'gender' => '', 'bloodGroup' => '', 'userType' => 'patient',
+    'licenseNumber' => '', 'specialization' => ''
+];
+
+/**
+ * Generates a strong OTP containing uppercase, lowercase, number and special
+ * character, then cryptographically shuffles the characters.
+ */
+function generateStrongOtp(int $length = 10): string
+{
+    if ($length < 4) {
+        $length = 4;
+    }
+
+    $upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    $lower   = 'abcdefghijkmnopqrstuvwxyz';
+    $numbers = '23456789';
+    $special = '@#$%&*!?';
+
+    $otp = [
+        $upper[random_int(0, strlen($upper) - 1)],
+        $lower[random_int(0, strlen($lower) - 1)],
+        $numbers[random_int(0, strlen($numbers) - 1)],
+        $special[random_int(0, strlen($special) - 1)]
+    ];
+
+    $all = $upper . $lower . $numbers . $special;
+
+    while (count($otp) < $length) {
+        $otp[] = $all[random_int(0, strlen($all) - 1)];
+    }
+
+    // Fisher-Yates shuffle using random_int.
+    for ($i = count($otp) - 1; $i > 0; $i--) {
+        $j = random_int(0, $i);
+        [$otp[$i], $otp[$j]] = [$otp[$j], $otp[$i]];
+    }
+
+    return implode('', $otp);
+}
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $firstName       = $_POST["firstName"];
-    $lastName        = $_POST["lastName"];
-    $email           = $_POST["email"];
-    $phone           = $_POST["phone"];
-    $dob             = $_POST["dob"];
-    $gender          = $_POST["gender"];
-    $bloodGroup      = $_POST["bloodGroup"];
-    $passwordInput   = $_POST["password"];
-    $confirmPassword = $_POST["confirmPassword"];
-    $userType        = $_POST["userType"]; // patient / doctor
+    if (!isset($_POST['csrf_token']) ||
+        !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
 
-    $licenseNumber   = $_POST["licenseNumber"] ?? null;
-    $specialization  = $_POST["specialization"] ?? null;
-    $verificationPhoto = null;
+        $generalError = "Security validation failed. Please refresh the page and try again.";
 
-    // ===============================
-    // PASSWORD CHECK
-    // ===============================
-    if ($passwordInput !== $confirmPassword) {
-        $passwordError = "Passwords do not match!";
     } else {
 
-        /* =====================================================
-           PATIENT REGISTRATION
-        ===================================================== */
-        if ($userType === "patient") {
+        $firstName = trim($_POST["firstName"] ?? '');
+        $lastName  = trim($_POST["lastName"] ?? '');
+        $email     = trim($_POST["email"] ?? '');
+        $phone     = trim($_POST["phone"] ?? '');
+        $dob       = trim($_POST["dob"] ?? '');
+        $gender    = trim($_POST["gender"] ?? '');
+        $bloodGroup = trim($_POST["bloodGroup"] ?? '');
+        $passwordInput   = $_POST["password"] ?? '';
+        $confirmPassword = $_POST["confirmPassword"] ?? '';
+        $userType  = trim($_POST["userType"] ?? '');
 
-            $conn = new mysqli($servername, $username, $password, "human_care_patients");
+        $licenseNumber  = trim($_POST["licenseNumber"] ?? '');
+        $specialization = trim($_POST["specialization"] ?? '');
 
-            $check = $conn->prepare(
-                "SELECT id FROM patients WHERE email = ?"
-            );
-            $check->bind_param("s", $email);
-            $check->execute();
-            $check->store_result();
+        $old = compact(
+            'firstName', 'lastName', 'email', 'phone', 'dob',
+            'gender', 'bloodGroup', 'userType',
+            'licenseNumber', 'specialization'
+        );
 
-            if ($check->num_rows > 0) {
-                $emailError = "Email already registered!";
-            } else {
+        $allowedUserTypes = ['patient', 'doctor'];
+        $allowedGenders = ['male', 'female', 'other'];
+        $allowedBloodGroups = ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+        $allowedSpecializations = [
+            '', 'general', 'cardiology', 'dermatology', 'neurology',
+            'orthopedics', 'pediatrics', 'psychiatry', 'surgery', 'other'
+        ];
 
-                $hashedPassword = password_hash($passwordInput, PASSWORD_DEFAULT);
+        $validationErrors = [];
 
-                $stmt = $conn->prepare(
-                    "INSERT INTO patients
-                    (first_name, last_name, email, phone, dob, gender, blood_group, password)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-                );
+        if (!in_array($userType, $allowedUserTypes, true)) {
+            $validationErrors[] = "Invalid account type selected.";
+        }
 
-                $stmt->bind_param(
-                    "ssssssss",
-                    $firstName,
-                    $lastName,
-                    $email,
-                    $phone,
-                    $dob,
-                    $gender,
-                    $bloodGroup,
-                    $hashedPassword
-                );
+        if (!preg_match("/^[a-zA-Z\s\-']{1,50}$/", $firstName)) {
+            $validationErrors[] = "First name contains invalid characters or is too long.";
+        }
 
-                $stmt->execute();
+        if (!preg_match("/^[a-zA-Z\s\-']{1,50}$/", $lastName)) {
+            $validationErrors[] = "Last name contains invalid characters or is too long.";
+        }
 
-                $success = "Patient registration successful! Redirecting to login...";
-                echo "<script>
-                        setTimeout(() => window.location.href='login.php', 2500);
-                      </script>";
+        $email = filter_var($email, FILTER_SANITIZE_EMAIL);
+        $old['email'] = $email;
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 100) {
+            $validationErrors[] = "Please enter a valid email address.";
+        }
+
+        // Mobile number validation:
+        // Human Care uses Indian mobile numbers: exactly 10 digits,
+        // starting with 6, 7, 8, or 9. Spaces, +91, brackets and hyphens
+        // are intentionally rejected so the stored value is consistent.
+        if (!preg_match("/^[6-9][0-9]{9}$/", $phone)) {
+            $validationErrors[] = "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.";
+        }
+
+        // Age validation:
+        // Registration is allowed only for users who are 18 years or older.
+        $dobTimestamp = strtotime($dob);
+
+        if ($dob === '' || $dobTimestamp === false) {
+
+            $validationErrors[] = "Please provide a valid date of birth.";
+
+        } else {
+
+            try {
+                $dobDate = new DateTime($dob);
+                $today = new DateTime('today');
+
+                if ($dobDate > $today) {
+
+                    $validationErrors[] = "Date of birth cannot be in the future.";
+
+                } else {
+
+                    $age = $dobDate->diff($today)->y;
+
+                    if ($age < 18) {
+                        $validationErrors[] = "You must be 18 years or older to register.";
+                    } elseif ($age > 120) {
+                        $validationErrors[] = "Please provide a valid date of birth.";
+                    }
+                }
+
+            } catch (Exception $e) {
+                $validationErrors[] = "Please provide a valid date of birth.";
             }
         }
 
-        /* =====================================================
-           DOCTOR REGISTRATION
-        ===================================================== */
-        if ($userType === "doctor") {
+        if (!in_array($gender, $allowedGenders, true)) {
+            $validationErrors[] = "Please select a valid gender.";
+        }
 
-            $conn = new mysqli($servername, $username, $password, "human_care_doctors");
+        if (!in_array($bloodGroup, $allowedBloodGroups, true)) {
+            $validationErrors[] = "Please select a valid blood group.";
+        }
 
-            // ✅ CHECK EMAIL OR LICENSE DUPLICATE
-            $check = $conn->prepare(
-                "SELECT id, email, license_number
-                 FROM doctors
-                 WHERE email = ? OR license_number = ?"
-            );
-            $check->bind_param("ss", $email, $licenseNumber);
-            $check->execute();
-            $check->store_result();
+        if (strlen($passwordInput) < 8 ||
+            !preg_match('/[A-Z]/', $passwordInput) ||
+            !preg_match('/[a-z]/', $passwordInput) ||
+            !preg_match('/[0-9]/', $passwordInput)) {
 
-            if ($check->num_rows > 0) {
+            $passwordError = "Password must be at least 8 characters and include uppercase, lowercase, and a number.";
 
-                $checkDetail = $conn->prepare(
-                    "SELECT email, license_number
-                     FROM doctors
-                     WHERE email = ? OR license_number = ?
-                     LIMIT 1"
-                );
-                $checkDetail->bind_param("ss", $email, $licenseNumber);
-                $checkDetail->execute();
-                $resultDetail = $checkDetail->get_result()->fetch_assoc();
+        } elseif ($passwordInput !== $confirmPassword) {
+            $passwordError = "Passwords do not match!";
+        }
 
-                if ($resultDetail["email"] === $email) {
-                    $emailError = "This email is already registered!";
-                } else {
-                    $emailError = "This medical license number is already registered!";
-                }
+        if ($userType === 'doctor') {
+
+            if (!preg_match("/^[a-zA-Z0-9\-\/]{3,50}$/", $licenseNumber)) {
+                $validationErrors[] = "Please enter a valid medical license number.";
+            }
+
+            if (!in_array($specialization, $allowedSpecializations, true) ||
+                $specialization === '') {
+
+                $validationErrors[] = "Please select a valid specialization.";
+            }
+        }
+
+        if (!empty($validationErrors)) {
+            $generalError = implode(' ', $validationErrors);
+        }
+
+        // ========================================================
+        // IMPORTANT:
+        // Do NOT INSERT INTO patients/doctors here.
+        // We only check duplicates and save registration data
+        // temporarily in the PHP session.
+        // ========================================================
+        if (empty($generalError) && empty($passwordError)) {
+
+            $dbName = ($userType === 'doctor')
+                ? "if0_42370337_human_care_doctors"
+                : "if0_42370337_human_care_patients";
+
+            $conn = new mysqli($servername, $username, $password, $dbName);
+
+            if ($conn->connect_error) {
+
+                $generalError = "Unable to connect. Please try again later.";
 
             } else {
 
-                // ===============================
-                // UPLOAD VERIFICATION IMAGE
-                // ===============================
-                if (!empty($_FILES["verificationPhoto"]["name"])) {
+                $conn->set_charset("utf8mb4");
 
-                    $uploadDir = "uploads/doctor_verification/";
-                    if (!is_dir($uploadDir)) {
-                        mkdir($uploadDir, 0777, true);
+                // ------------------------------------------------
+                // Check duplicate email BEFORE temporary storage.
+                // This does not create/update an account.
+                // ------------------------------------------------
+                if ($userType === 'patient') {
+
+                    $check = $conn->prepare(
+                        "SELECT id FROM patients WHERE email = ? LIMIT 1"
+                    );
+                    $check->bind_param("s", $email);
+                    $check->execute();
+                    $check->store_result();
+
+                    if ($check->num_rows > 0) {
+                        $emailError = "Email already registered!";
                     }
 
-                    $fileName   = uniqid() . "_" . basename($_FILES["verificationPhoto"]["name"]);
-                    $uploadPath = $uploadDir . $fileName;
+                    $check->close();
 
-                    move_uploaded_file(
-                        $_FILES["verificationPhoto"]["tmp_name"],
-                        $uploadPath
+                } else {
+
+                    $check = $conn->prepare(
+                        "SELECT email, license_number
+                         FROM doctors
+                         WHERE email = ? OR license_number = ?
+                         LIMIT 1"
                     );
 
-                    $verificationPhoto = $uploadPath;
+                    $check->bind_param("ss", $email, $licenseNumber);
+                    $check->execute();
+
+                    $result = $check->get_result();
+                    $existing = $result->fetch_assoc();
+
+                    if ($existing) {
+                        if ($existing['email'] === $email) {
+                            $emailError = "This email is already registered!";
+                        } else {
+                            $emailError = "This medical license number is already registered!";
+                        }
+                    }
+
+                    $check->close();
                 }
 
-                $hashedPassword = password_hash($passwordInput, PASSWORD_DEFAULT);
+                // ------------------------------------------------
+                // Doctor photo is validated and stored as a file,
+                // but NO doctor database row is created yet.
+                // ------------------------------------------------
+                $verificationPhoto = null;
 
-                $stmt = $conn->prepare(
-                    "INSERT INTO doctors
-                    (first_name, last_name, email, phone, dob, gender, password, specialty, license_number)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                );
+                if (empty($emailError) && $userType === 'doctor') {
 
-                $stmt->bind_param(
-                    "sssssssss",
-                    $firstName,
-                    $lastName,
-                    $email,
-                    $phone,
-                    $dob,
-                    $gender,
-                    $hashedPassword,
-                    $specialization,
-                    $licenseNumber
-                );
+                    if (!empty($_FILES["verificationPhoto"]["name"])) {
 
-                $stmt->execute();
+                        $file = $_FILES["verificationPhoto"];
 
-                $success = "Doctor registration successful! Redirecting to login...";
-                echo "<script>
-                        setTimeout(() => window.location.href='login.php', 3000);
-                      </script>";
+                        if ($file["error"] !== UPLOAD_ERR_OK) {
+
+                            $fileError = "File upload failed. Please try again.";
+
+                        } elseif ($file["size"] > 5 * 1024 * 1024) {
+
+                            $fileError = "File is too large. Maximum size is 5MB.";
+
+                        } else {
+
+                            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                            $realMime = finfo_file($finfo, $file["tmp_name"]);
+                            finfo_close($finfo);
+
+                            $allowedMimes = [
+                                'image/jpeg',
+                                'image/png',
+                                'image/webp'
+                            ];
+
+                            $mimeToExt = [
+                                'image/jpeg' => 'jpg',
+                                'image/png'  => 'png',
+                                'image/webp' => 'webp'
+                            ];
+
+                            if (!in_array($realMime, $allowedMimes, true)) {
+
+                                $fileError = "Only JPG, PNG, or WEBP images are allowed.";
+
+                            } else {
+
+                                $uploadDir = "uploads/doctor_verification/";
+
+                                if (!is_dir($uploadDir)) {
+                                    if (!mkdir($uploadDir, 0755, true)) {
+                                        $fileError = "Unable to prepare upload directory.";
+                                    }
+                                }
+
+                                if (empty($fileError)) {
+
+                                    $safeExt = $mimeToExt[$realMime];
+                                    $fileName = bin2hex(random_bytes(16)) . '.' . $safeExt;
+                                    $uploadPath = $uploadDir . $fileName;
+
+                                    if (move_uploaded_file($file["tmp_name"], $uploadPath)) {
+                                        $verificationPhoto = $uploadPath;
+                                    } else {
+                                        $fileError = "Failed to save uploaded file. Please try again.";
+                                    }
+                                }
+                            }
+                        }
+
+                    } else {
+                        $fileError = "Please upload a verification photo.";
+                    }
+                }
+
+                // ------------------------------------------------
+                // Only after validation succeeds:
+                // SAVE EVERYTHING TEMPORARILY IN SESSION.
+                // No DB INSERT happens here.
+                // ------------------------------------------------
+                if (empty($emailError) && empty($fileError)) {
+
+                    // Generate strong 10-character OTPs.
+                    // Each OTP contains at least:
+                    // - uppercase letter
+                    // - lowercase letter
+                    // - number
+                    // - special character
+                    $emailOtp = generateStrongOtp(10);
+                    $phoneOtp = generateStrongOtp(10);
+
+                    // OTPs are stored hashed in the session.
+                    // The raw OTPs are kept only long enough for verify.php
+                    // to send them, then removed.
+                    $otpExpiresAt = time() + 600;
+
+                    $_SESSION['pending_verification'] = [
+                        'user_type'          => $userType,
+                        'email'              => $email,
+                        'phone'              => $phone,
+                        'first_name'         => $firstName,
+                        'last_name'          => $lastName,
+                        'dob'                => $dob,
+                        'gender'             => $gender,
+                        'blood_group'        => $bloodGroup,
+                        'password_hash'      => password_hash($passwordInput, PASSWORD_DEFAULT),
+                        'license_number'     => $userType === 'doctor' ? $licenseNumber : '',
+                        'specialization'     => $userType === 'doctor' ? $specialization : '',
+                        'verification_photo' => $verificationPhoto,
+                        'email_otp_hash'     => password_hash($emailOtp, PASSWORD_DEFAULT),
+                        'phone_otp_hash'     => password_hash($phoneOtp, PASSWORD_DEFAULT),
+                        'email_otp'          => $emailOtp,
+                        'phone_otp'          => $phoneOtp,
+                        'otp_expires_at'     => $otpExpiresAt,
+                        'created_at'         => time()
+                    ];
+
+                    // Prevent the registration form from being replayed.
+                    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+                    header("Location: verify.php");
+                    exit;
+                }
+
+                $conn->close();
             }
         }
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -178,94 +401,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Human Care - Register</title>
     <link rel="stylesheet" href="styles/register.css">
-    <style>
-        .user-type-selector {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .user-type-option {
-            flex: 1;
-            padding: 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .user-type-option:hover {
-            border-color: #4CAF50;
-            background-color: #f9f9f9;
-        }
-
-        .user-type-option.active {
-            border-color: #4CAF50;
-            background-color: #e8f5e9;
-        }
-
-        .user-type-option input[type="radio"] {
-            display: none;
-        }
-
-        .user-type-icon {
-            font-size: 40px;
-            margin-bottom: 10px;
-        }
-
-        .user-type-title {
-            font-weight: 600;
-            font-size: 18px;
-            margin-bottom: 5px;
-        }
-
-        .user-type-desc {
-            font-size: 13px;
-            color: #666;
-        }
-
-        .doctor-fields {
-            display: none;
-        }
-
-        .doctor-fields.show {
-            display: block;
-        }
-
-        .file-upload-wrapper {
-            position: relative;
-            display: inline-block;
-            width: 100%;
-        }
-
-        .file-upload-label {
-            display: block;
-            padding: 12px;
-            background-color: #f5f5f5;
-            border: 2px dashed #ccc;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .file-upload-label:hover {
-            background-color: #e8f5e9;
-            border-color: #4CAF50;
-        }
-
-        .file-upload-input {
-            position: absolute;
-            left: -9999px;
-        }
-
-        .file-name {
-            margin-top: 8px;
-            font-size: 13px;
-            color: #4CAF50;
-        }
-    </style>
+    <script src="scripts/register.js" defer></script>
 </head>
 
 <body>
@@ -280,7 +416,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <li>Easy appointment booking</li>
                 <li>24/7 online consultation</li>
                 <li>Access medical records anytime</li>
-                <!-- <li>Find doctors & specialists</li> -->
                 <li>Prescription management</li>
                 <li>Health tracking & reminders</li>
                 <li>Free health education resources</li>
@@ -297,24 +432,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <p>Start your healthcare journey with us</p>
             </div>
 
+            <?php if ($generalError): ?>
+                <div class="general-error"><?php echo htmlspecialchars($generalError); ?></div>
+            <?php endif; ?>
+
             <?php if ($success): ?>
-                <div class="success-message" style="display:block;"><?php echo $success; ?></div>
+                <div class="success-message" style="display:block;"><?php echo htmlspecialchars($success); ?></div>
             <?php else: ?>
                 <div class="success-message" id="successMessage">Registration successful! Redirecting to login...</div>
             <?php endif; ?>
 
-            <form id="registerForm" method="POST" action="" enctype="multipart/form-data">
+            <form id="registerForm" method="POST" action="" enctype="multipart/form-data" autocomplete="off">
+                <!-- SECURITY: CSRF token -->
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+
                 <!-- User Type Selection -->
                 <div class="user-type-selector">
-                    <label class="user-type-option active" id="patientOption">
-                        <input type="radio" name="userType" value="patient" checked>
+                    <label class="user-type-option <?php echo $old['userType'] !== 'doctor' ? 'active' : ''; ?>" id="patientOption">
+                        <input type="radio" name="userType" value="patient" <?php echo $old['userType'] !== 'doctor' ? 'checked' : ''; ?>>
                         <div class="user-type-icon">🧑‍⚕️</div>
                         <div class="user-type-title">Patient</div>
                         <div class="user-type-desc">Book appointments & consult doctors</div>
                     </label>
 
-                    <label class="user-type-option" id="doctorOption">
-                        <input type="radio" name="userType" value="doctor">
+                    <label class="user-type-option <?php echo $old['userType'] === 'doctor' ? 'active' : ''; ?>" id="doctorOption">
+                        <input type="radio" name="userType" value="doctor" <?php echo $old['userType'] === 'doctor' ? 'checked' : ''; ?>>
                         <div class="user-type-icon">👨‍⚕️</div>
                         <div class="user-type-title">Doctor</div>
                         <div class="user-type-desc">Provide medical services & consultations</div>
@@ -325,14 +467,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <div class="form-group">
                         <label for="firstName">First Name <span class="required">*</span></label>
                         <div class="input-wrapper">
-                            <input type="text" id="firstName" name="firstName" placeholder="John" required>
+                            <input type="text" id="firstName" name="firstName" placeholder="John"
+                                value="<?php echo htmlspecialchars($old['firstName']); ?>"
+                                pattern="[a-zA-Z\s\-']{1,50}" maxlength="50" required>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="lastName">Last Name <span class="required">*</span></label>
                         <div class="input-wrapper">
-                            <input type="text" id="lastName" name="lastName" placeholder="Doe" required>
+                            <input type="text" id="lastName" name="lastName" placeholder="Doe"
+                                value="<?php echo htmlspecialchars($old['lastName']); ?>"
+                                pattern="[a-zA-Z\s\-']{1,50}" maxlength="50" required>
                         </div>
                     </div>
                 </div>
@@ -340,27 +486,65 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <div class="form-group">
                     <label for="email">Email Address <span class="required">*</span></label>
                     <div class="input-wrapper">
-                        <input type="email" id="email" name="email" placeholder="john.doe@example.com" required>
+                        <input type="email" id="email" name="email" placeholder="john.doe@example.com"
+                            value="<?php echo htmlspecialchars($old['email']); ?>"
+                            maxlength="100" required>
                     </div>
                     <?php if ($emailError): ?>
-                        <div class="error-message" style="display:block;"><?php echo $emailError; ?></div>
+                        <div class="error-message" style="display:block;"><?php echo htmlspecialchars($emailError); ?></div>
                     <?php endif; ?>
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group">
-                        <label for="phone">Phone Number <span class="required">*</span></label>
-                        <div class="input-wrapper">
-                            <input type="tel" id="phone" name="phone" placeholder="+91 1234567890" required>
-                        </div>
-                    </div>
 
                     <div class="form-group">
-                        <label for="dob">Date of Birth <span class="required">*</span></label>
+                        <label for="phone">
+                            Phone Number <span class="required">*</span>
+                        </label>
+
                         <div class="input-wrapper">
-                            <input type="date" id="dob" name="dob" required>
+                            <input
+                                type="tel"
+                                id="phone"
+                                name="phone"
+                                placeholder="9876543210"
+                                value="<?php echo htmlspecialchars($old['phone']); ?>"
+                                inputmode="numeric"
+                                pattern="[6-9][0-9]{9}"
+                                maxlength="10"
+                                minlength="10"
+                                autocomplete="tel"
+                                required
+                            >
                         </div>
+
+                        <small class="field-hint">
+                            Enter a valid 10-digit Indian mobile number.
+                        </small>
                     </div>
+
+
+                    <div class="form-group">
+                        <label for="dob">
+                            Date of Birth <span class="required">*</span>
+                        </label>
+
+                        <div class="input-wrapper">
+                            <input
+                                type="date"
+                                id="dob"
+                                name="dob"
+                                value="<?php echo htmlspecialchars($old['dob']); ?>"
+                                max="<?php echo date('Y-m-d', strtotime('-18 years')); ?>"
+                                required
+                            >
+                        </div>
+
+                        <small class="field-hint">
+                            You must be 18 years or older to register.
+                        </small>
+                    </div>
+
                 </div>
 
                 <div class="form-row">
@@ -369,9 +553,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <div class="input-wrapper">
                             <select id="gender" name="gender" required>
                                 <option value="">Select Gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
+                                <option value="male" <?php echo $old['gender'] === 'male' ? 'selected' : ''; ?>>Male</option>
+                                <option value="female" <?php echo $old['gender'] === 'female' ? 'selected' : ''; ?>>Female</option>
+                                <option value="other" <?php echo $old['gender'] === 'other' ? 'selected' : ''; ?>>Other</option>
                             </select>
                         </div>
                     </div>
@@ -381,14 +565,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <div class="input-wrapper">
                             <select id="bloodGroup" name="bloodGroup">
                                 <option value="">Select Blood Group</option>
-                                <option value="A+">A+</option>
-                                <option value="A-">A-</option>
-                                <option value="B+">B+</option>
-                                <option value="B-">B-</option>
-                                <option value="AB+">AB+</option>
-                                <option value="AB-">AB-</option>
-                                <option value="O+">O+</option>
-                                <option value="O-">O-</option>
+                                <?php foreach (['A+','A-','B+','B-','AB+','AB-','O+','O-'] as $bg): ?>
+                                    <option value="<?php echo $bg; ?>" <?php echo $old['bloodGroup'] === $bg ? 'selected' : ''; ?>><?php echo $bg; ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
@@ -400,7 +579,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <label for="licenseNumber">Medical License Number <span class="required">*</span></label>
                         <div class="input-wrapper">
                             <input type="text" id="licenseNumber" name="licenseNumber"
-                                placeholder="Enter your medical license number">
+                                placeholder="Enter your medical license number"
+                                value="<?php echo htmlspecialchars($old['licenseNumber']); ?>"
+                                pattern="[a-zA-Z0-9\-\/]{3,50}" maxlength="50">
                         </div>
                     </div>
 
@@ -409,15 +590,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <div class="input-wrapper">
                             <select id="specialization" name="specialization">
                                 <option value="">Select Specialization</option>
-                                <option value="general">General Physician</option>
-                                <option value="cardiology">Cardiology</option>
-                                <option value="dermatology">Dermatology</option>
-                                <option value="neurology">Neurology</option>
-                                <option value="orthopedics">Orthopedics</option>
-                                <option value="pediatrics">Pediatrics</option>
-                                <option value="psychiatry">Psychiatry</option>
-                                <option value="surgery">Surgery</option>
-                                <option value="other">Other</option>
+                                <?php
+                                $specOptions = [
+                                    'general' => 'General Physician', 'cardiology' => 'Cardiology',
+                                    'dermatology' => 'Dermatology', 'neurology' => 'Neurology',
+                                    'orthopedics' => 'Orthopedics', 'pediatrics' => 'Pediatrics',
+                                    'psychiatry' => 'Psychiatry', 'surgery' => 'Surgery', 'other' => 'Other'
+                                ];
+                                foreach ($specOptions as $val => $label):
+                                ?>
+                                    <option value="<?php echo $val; ?>" <?php echo $old['specialization'] === $val ? 'selected' : ''; ?>><?php echo $label; ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
@@ -431,12 +614,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 <div class="file-name" id="fileName"></div>
                             </label>
                             <input type="file" id="verificationPhoto" name="verificationPhoto" class="file-upload-input"
-                                accept="image/*">
+                                accept="image/jpeg,image/png,image/webp">
                         </div>
                         <small style="color: #666; font-size: 12px;">Upload a clear photo of your medical license (JPG,
-                            PNG - Max 5MB)</small>
+                            PNG, WEBP - Max 5MB)</small>
                         <?php if ($fileError): ?>
-                            <div class="error-message" style="display:block; margin-top: 8px;"><?php echo $fileError; ?>
+                            <div class="error-message" style="display:block; margin-top: 8px;"><?php echo htmlspecialchars($fileError); ?>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -446,23 +629,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <label for="password">Password <span class="required">*</span></label>
                     <div class="input-wrapper">
                         <input type="password" id="password" name="password" placeholder="Create a strong password"
-                            required>
+                            minlength="8" autocomplete="new-password" required>
                     </div>
+                    <small style="color: #666; font-size: 12px;">Min 8 characters, with uppercase, lowercase, and a number</small>
                 </div>
 
                 <div class="form-group">
                     <label for="confirmPassword">Confirm Password <span class="required">*</span></label>
                     <div class="input-wrapper">
                         <input type="password" id="confirmPassword" name="confirmPassword"
-                            placeholder="Re-enter your password" required>
+                            placeholder="Re-enter your password" minlength="8" autocomplete="new-password" required>
                     </div>
                     <?php if ($passwordError): ?>
-                        <div class="error-message" style="display:block;"><?php echo $passwordError; ?></div>
+                        <div class="error-message" style="display:block;"><?php echo htmlspecialchars($passwordError); ?></div>
                     <?php endif; ?>
                 </div>
 
                 <div class="terms-check">
-                    <input type="checkbox" id="terms" required>
+                    <input type="checkbox" id="terms" name="terms" value="1" required>
                     <label for="terms">
                         I agree to the <a href="#">Terms & Conditions</a> and <a href="#">Privacy Policy</a>
                     </label>
@@ -479,43 +663,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         </div>
     </div>
 
-    <script>
-        // User type selection
-        const patientOption = document.getElementById('patientOption');
-        const doctorOption = document.getElementById('doctorOption');
-        const doctorFields = document.getElementById('doctorFields');
-        const licenseInput = document.getElementById('licenseNumber');
-        const specializationInput = document.getElementById('specialization');
-        const photoInput = document.getElementById('verificationPhoto');
-
-        patientOption.addEventListener('click', function () {
-            patientOption.classList.add('active');
-            doctorOption.classList.remove('active');
-            doctorFields.classList.remove('show');
-
-            // Remove required attribute from doctor fields
-            licenseInput.removeAttribute('required');
-            specializationInput.removeAttribute('required');
-            photoInput.removeAttribute('required');
-        });
-
-        doctorOption.addEventListener('click', function () {
-            doctorOption.classList.add('active');
-            patientOption.classList.remove('active');
-            doctorFields.classList.add('show');
-
-            // Add required attribute to doctor fields
-            licenseInput.setAttribute('required', 'required');
-            specializationInput.setAttribute('required', 'required');
-            photoInput.setAttribute('required', 'required');
-        });
-
-        // File upload display
-        photoInput.addEventListener('change', function (e) {
-            const fileName = e.target.files[0]?.name;
-            document.getElementById('fileName').textContent = fileName ? `Selected: ${fileName}` : '';
-        });
-    </script>
+    
 </body>
 
 </html>

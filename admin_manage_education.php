@@ -8,7 +8,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 }
 
 // Connect to admin database
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
 if ($admin_conn->connect_error) {
     die("Connection failed: " . $admin_conn->connect_error);
 }
@@ -420,17 +420,28 @@ $rejected_count = $admin_conn->query("SELECT COUNT(*) as c FROM educational_cont
         </div>
     </div>
 
-    <script>
+        <script>
         // Collect all content into JS for modal use
-        const contentData = <?php
+       const contentData = <?php
             $all_contents->data_seek(0);
             $arr = [];
-            while ($row = $all_contents->fetch_assoc()) { $arr[] = $row; }
-            echo json_encode($arr);
+            while ($row = $all_contents->fetch_assoc()) {
+                // Force-clean every string field to valid UTF-8
+                foreach ($row as $key => $val) {
+                    if (is_string($val)) {
+                        $row[$key] = mb_convert_encoding($val, 'UTF-8', 'UTF-8');
+                    }
+                }
+                $arr[] = $row;
+            }
+            $json = json_encode(
+                $arr,
+                JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE
+            );
+            echo $json !== false ? $json : '[]';
         ?>;
 
         function confirmAction(action, title) {
-            const verb = action === 'approve' ? 'APPROVE' : 'REJECT';
             const msg = action === 'approve'
                 ? `✅ Approve "${title}"?\n\nThis will make the content VISIBLE to all logged-in users and patients.`
                 : `❌ Reject "${title}"?\n\nThis will HIDE the content from all users.`;
@@ -493,15 +504,17 @@ $rejected_count = $admin_conn->query("SELECT COUNT(*) as c FROM educational_cont
             if (c.status !== 'approved') {
                 actionHtml += `
                     <form method="POST" style="display:inline;"
-                        onsubmit="return confirmAction('approve', ${JSON.stringify(c.title).replace(/"/g, '&quot;')})">
+                        onsubmit="return confirmAction('approve', '${String(c.title).replace(/'/g, "\\'")}')">
                         <input type="hidden" name="content_id" value="${c.id}">
-                        <button type="submit" name="action" value="approve" class="action-btn btn-approve">✓ Approve — Make Visible to Users</button>
+                        <button type="submit" name="action" value="approve" class="action-btn btn-approve">
+                            ✓ Approve — Make Visible to Users
+                        </button>
                     </form>`;
             }
             if (c.status !== 'rejected') {
                 actionHtml += `
                     <form method="POST" style="display:inline;"
-                        onsubmit="return confirmAction('reject', ${JSON.stringify(c.title).replace(/"/g, '&quot;')})">
+                        onsubmit="return confirmAction('reject', '${String(c.title).replace(/'/g, "\\'")}')">
                         <input type="hidden" name="content_id" value="${c.id}">
                         <button type="submit" name="action" value="reject" class="action-btn btn-reject">✗ Reject — Hide from Users</button>
                     </form>`;

@@ -6,7 +6,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     exit();
 }
 
-$conn = new mysqli("localhost", "root", "", "human_care_patients");
+$conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_patients");
 
 // Handle patient actions (verify, suspend, delete)
 if (isset($_POST['action'])) {
@@ -100,7 +100,7 @@ if (isset($_POST['action'])) {
     }
     
     // Log activity
-    $admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+    $admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
     $log_stmt = $admin_conn->prepare("INSERT INTO activity_logs (admin_id, action, description) VALUES (?, ?, ?)");
     $log_action = "patient_$action";
     $log_desc = "Patient ID $patient_id - action: $action";
@@ -149,11 +149,11 @@ $pending_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE v
 $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE is_verified = 0 AND verification_status = 'rejected'")->fetch_assoc()['count'];
 
 // Get doctor pending count for sidebar badge
-$doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 $pending_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors WHERE verification_status = 'pending'")->fetch_assoc()['count'];
 $doctors_conn->close();
 
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
 $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
 $admin_conn->close();
 ?>

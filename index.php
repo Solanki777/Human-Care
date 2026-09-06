@@ -112,16 +112,15 @@ require_once 'config/config.php';
                     <h4>Quick Links</h4>
                     <ul>
                         <li><a href="index.php">Home</a></li>
-                        <li><a href="hospitals.php">Hospitals</a></li>
                         <li><a href="doctors.php">Doctors</a></li>
                         <li><a href="education.php">Education</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">
                     <h4>Contact</h4>
-                    <p>📞 +91 1234-567890</p>
-                    <p>📧 info@humancare.com</p>
-                    <p>📍 Rajkot, Gujarat, India</p>
+                    <p>📞 +91 9725219106</p>
+                    <p>📧 solankimaheshkhash7@gmail.com</p>
+                    <p>📍 Fake , Fake , Fake</p>
                 </div>
             </div>
             <div class="footer-bottom">

@@ -497,6 +497,7 @@ Responsibilities: Overall project architecture · MediMate AI development · Nex
 
 ## 📜 License
 
+
 This project was developed for **educational, research, and innovation purposes** as part of **Agentic Arena 2026 – Build the Future with AI Agents**.
 
 © 2026 **Human Care | MediMate AI | Nexora AI Security** · All Rights Reserved.

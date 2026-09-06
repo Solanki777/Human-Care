@@ -49,6 +49,19 @@ from gmail_service import (
 from phishing_detector import predict_phishing
 
 # -----------------------------------------------------------------------
+# Streamlit Cloud bootstrap: materialize credentials.json / token.json
+# from Streamlit secrets (Settings -> Secrets) so gmail_service.py's
+# local-file-based auth works unchanged. No-op if the files already
+# exist locally (e.g. when running on your own machine).
+# -----------------------------------------------------------------------
+if "gcp_credentials_json" in st.secrets and not os.path.exists("credentials.json"):
+    with open("credentials.json", "w") as f:
+        f.write(st.secrets["gcp_credentials_json"])
+if "gcp_token_json" in st.secrets and not os.path.exists("token.json"):
+    with open("token.json", "w") as f:
+        f.write(st.secrets["gcp_token_json"])
+
+# -----------------------------------------------------------------------
 # Page setup
 # -----------------------------------------------------------------------
 st.set_page_config(page_title="Nexora Gmail Scanner", layout="wide")

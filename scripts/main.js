@@ -1,220 +1,438 @@
-// ===============================
-// Main JavaScript – SAFE VERSION
-// Works for Public + Admin Pages
-// ===============================
 
-const isAdminPage = document.body.classList.contains('admin-page');
-
-/* ===============================
-   SIDEBAR TOGGLE (FIXED – WORKS EVERYWHERE)
-=============================== */
+// ============================================
+// HUMAN CARE - MAIN JAVASCRIPT
+// ============================================
 
 document.addEventListener('DOMContentLoaded', function () {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    const menuToggle = document.getElementById('menuToggle');
 
-    if (!sidebar || !overlay || !menuToggle) return;
+    // ========================================
+    // PAGE TYPE
+    // ========================================
 
-    function openSidebar() {
-        sidebar.classList.add('active');
-        overlay.classList.add('active');
-    }
+    const isAdminPage =
+        document.body.classList.contains('admin-page');
 
-    function closeSidebar() {
-        sidebar.classList.remove('active');
-        overlay.classList.remove('active');
-    }
 
-    function toggleSidebar() {
-        sidebar.classList.toggle('active');
-        overlay.classList.toggle('active');
-    }
+    // ========================================
+    // SMOOTH SCROLL
+    // PUBLIC PAGES ONLY
+    // ========================================
 
-    /* Menu toggle */
-    menuToggle.addEventListener('click', function (e) {
-        e.stopPropagation();
-        toggleSidebar();
-    });
-
-    /* Overlay click */
-    overlay.addEventListener('click', closeSidebar);
-
-    /* Prevent sidebar clicks from closing */
-    sidebar.addEventListener('click', e => e.stopPropagation());
-
-    /* Close on outside click (PUBLIC ONLY) */
     if (!isAdminPage) {
-        document.addEventListener('click', function (event) {
-            if (
-                sidebar.classList.contains('active') &&
-                !sidebar.contains(event.target) &&
-                !menuToggle.contains(event.target)
-            ) {
-                closeSidebar();
-            }
-        });
-    }
-});
 
-/* ===============================
-   SMOOTH SCROLL (PUBLIC ONLY)
-=============================== */
-if (!isAdminPage) {
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            const target = document.querySelector(this.getAttribute('href'));
-            if (target) {
-                e.preventDefault();
-                target.scrollIntoView({ behavior: 'smooth' });
-                if (window.innerWidth <= 768) closeSidebar();
-            }
-        });
-    });
-}
+        const anchors =
+            document.querySelectorAll('a[href^="#"]');
 
-/* ===============================
-   CATEGORY FILTER (PUBLIC ONLY)
-=============================== */
-if (!isAdminPage) {
-    const categoryButtons = document.querySelectorAll('.category-btn');
-    const learningCards = document.querySelectorAll('.learning-card');
+        anchors.forEach(function (anchor) {
 
-    categoryButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            categoryButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            anchor.addEventListener('click', function (e) {
 
-            const category = btn.dataset.category;
-            learningCards.forEach(card => {
-                card.style.display =
-                    category === 'all' || card.dataset.category === category
-                        ? 'block'
-                        : 'none';
+                const href =
+                    this.getAttribute('href');
+
+                if (!href || href === '#') {
+                    return;
+                }
+
+                const target =
+                    document.querySelector(href);
+
+                if (target) {
+
+                    e.preventDefault();
+
+                    target.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+
+                }
+
             });
+
         });
-    });
-}
 
-/* ===============================
-   SEARCH (PUBLIC ONLY)
-=============================== */
-if (!isAdminPage) {
-    const searchInputs = document.querySelectorAll('.search-input, #searchInput');
+    }
 
-    searchInputs.forEach(input => {
-        input.addEventListener('input', function () {
-            const term = this.value.toLowerCase();
-            document
-                .querySelectorAll('.doctor-card, .hospital-card, .learning-card')
-                .forEach(card => {
-                    card.style.display = card.textContent.toLowerCase().includes(term)
-                        ? 'block'
-                        : 'none';
+
+    // ========================================
+    // CATEGORY FILTER
+    // PUBLIC PAGES ONLY
+    // ========================================
+
+    if (!isAdminPage) {
+
+        const categoryButtons =
+            document.querySelectorAll('.category-btn');
+
+        const learningCards =
+            document.querySelectorAll('.learning-card');
+
+        categoryButtons.forEach(function (button) {
+
+            button.addEventListener('click', function () {
+
+                categoryButtons.forEach(function (btn) {
+                    btn.classList.remove('active');
                 });
+
+                button.classList.add('active');
+
+                const category =
+                    button.getAttribute('data-category');
+
+                learningCards.forEach(function (card) {
+
+                    const cardCategory =
+                        card.getAttribute('data-category');
+
+                    if (
+                        category === 'all' ||
+                        cardCategory === category
+                    ) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+
+                });
+
+            });
+
         });
-    });
-}
 
-/* ===============================
-   FAQ TOGGLE
-=============================== */
-function toggleFaq(element) {
-    const faqItem = element.closest('.faq-item');
-    if (!faqItem) return;
-
-    document.querySelectorAll('.faq-item').forEach(item => {
-        item.querySelector('.faq-answer')?.style.display = 'none';
-        item.querySelector('.faq-icon') &&
-            (item.querySelector('.faq-icon').textContent = '+');
-    });
-
-    const answer = faqItem.querySelector('.faq-answer');
-    const icon = faqItem.querySelector('.faq-icon');
-
-    if (answer && icon) {
-        const isOpen = answer.style.display === 'block';
-        answer.style.display = isOpen ? 'none' : 'block';
-        icon.textContent = isOpen ? '+' : '-';
     }
-}
 
-/* ===============================
-   CONTACT FORM (PUBLIC ONLY)
-=============================== */
-if (document.body.classList.contains('contact-page')) {
-    const contactForm = document.querySelector('.contact-form');
-    if (contactForm) {
-        contactForm.addEventListener('submit', e => {
-            e.preventDefault();
-            alert('Thank you! We will contact you soon.');
-            contactForm.reset();
+
+    // ========================================
+    // SEARCH
+    // PUBLIC PAGES ONLY
+    // ========================================
+
+    if (!isAdminPage) {
+
+        const searchInputs =
+            document.querySelectorAll(
+                '.search-input, #searchInput'
+            );
+
+        searchInputs.forEach(function (input) {
+
+            input.addEventListener('input', function () {
+
+                const term =
+                    input.value.toLowerCase().trim();
+
+                const cards =
+                    document.querySelectorAll(
+                        '.doctor-card, .hospital-card, .learning-card'
+                    );
+
+                cards.forEach(function (card) {
+
+                    const text =
+                        card.textContent.toLowerCase();
+
+                    if (text.includes(term)) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+
+                });
+
+            });
+
         });
+
     }
-}
 
-/* ===============================
-   ANIMATION ON SCROLL
-=============================== */
-function animateOnScroll() {
-    const elements = document.querySelectorAll(
-        '.service-card, .doctor-card, .hospital-card, .learning-card'
-    );
 
-    if (elements.length === 0) return;
+    // ========================================
+    // CONTACT FORM
+    // PUBLIC PAGES ONLY
+    // ========================================
 
-    const observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.animation = 'fadeInUp 0.6s ease forwards';
-            }
-        });
-    }, { threshold: 0.1 });
+    if (
+        document.body.classList.contains('contact-page')
+    ) {
 
-    elements.forEach(el => observer.observe(el));
-}
+        const contactForm =
+            document.querySelector('.contact-form');
 
-document.addEventListener('DOMContentLoaded', () => {
+        if (contactForm) {
+
+            contactForm.addEventListener(
+                'submit',
+                function (e) {
+
+                    e.preventDefault();
+
+                    alert(
+                        'Thank you! We will contact you soon.'
+                    );
+
+                    contactForm.reset();
+
+                }
+            );
+
+        }
+
+    }
+
+
+    // ========================================
+    // ANIMATION ON SCROLL
+    // ========================================
+
+    function animateOnScroll() {
+
+        const elements =
+            document.querySelectorAll(
+                '.service-card, .doctor-card, .hospital-card, .learning-card'
+            );
+
+        if (elements.length === 0) {
+            return;
+        }
+
+        if (
+            'IntersectionObserver' in window
+        ) {
+
+            const observer =
+                new IntersectionObserver(
+                    function (entries) {
+
+                        entries.forEach(function (entry) {
+
+                            if (entry.isIntersecting) {
+
+                                entry.target.style.animation =
+                                    'fadeInUp 0.6s ease forwards';
+
+                                observer.unobserve(
+                                    entry.target
+                                );
+
+                            }
+
+                        });
+
+                    },
+                    {
+                        threshold: 0.1
+                    }
+                );
+
+            elements.forEach(function (element) {
+                observer.observe(element);
+            });
+
+        } else {
+
+            elements.forEach(function (element) {
+
+                element.style.animation =
+                    'fadeInUp 0.6s ease forwards';
+
+            });
+
+        }
+
+    }
+
     animateOnScroll();
 
-    /* Sidebar active link */
-    const currentPage = location.pathname.split('/').pop();
-    document.querySelectorAll('.nav-link').forEach(link => {
-        if (link.getAttribute('href') === currentPage) {
-            link.classList.add('active');
+
+    // ========================================
+    // ACTIVE NAVIGATION LINK
+    // ========================================
+
+    const currentPage =
+        window.location.pathname
+            .split('/')
+            .pop();
+
+    document
+        .querySelectorAll('.nav-link')
+        .forEach(function (link) {
+
+            const href =
+                link.getAttribute('href');
+
+            if (href === currentPage) {
+                link.classList.add('active');
+            }
+
+        });
+
+
+    // ========================================
+    // PHONE BUTTONS
+    // ========================================
+
+    document
+        .querySelectorAll('[data-phone]')
+        .forEach(function (button) {
+
+            button.addEventListener(
+                'click',
+                function () {
+
+                    const phone =
+                        button.getAttribute('data-phone');
+
+                    if (phone) {
+                        window.location.href =
+                            'tel:' + phone;
+                    }
+
+                }
+            );
+
+        });
+
+
+    // ========================================
+    // DIRECTIONS BUTTONS
+    // ========================================
+
+    document
+        .querySelectorAll('.get-directions')
+        .forEach(function (button) {
+
+            button.addEventListener(
+                'click',
+                function () {
+
+                    const address =
+                        button.getAttribute('data-address');
+
+                    if (address) {
+
+                        alert(
+                            'Getting directions to: ' +
+                            address
+                        );
+
+                    }
+
+                }
+            );
+
+        });
+
+
+    // ========================================
+    // BACK TO TOP
+    // ========================================
+
+    window.addEventListener(
+        'scroll',
+        function () {
+
+            const button =
+                document.querySelector('.back-to-top');
+
+            if (!button) {
+                return;
+            }
+
+            if (window.scrollY > 300) {
+
+                button.style.display = 'block';
+
+            } else {
+
+                button.style.display = 'none';
+
+            }
+
         }
+    );
+
+
+    // ========================================
+    // CONSOLE MESSAGE
+    // ========================================
+
+    console.log(
+        '%cWelcome to Human Care 🏥',
+        'color:#667eea;font-size:18px;font-weight:bold'
+    );
+
+});
+
+
+// ============================================
+// FAQ TOGGLE
+// GLOBAL FUNCTION
+// ============================================
+
+function toggleFaq(element) {
+
+    const faqItem =
+        element.closest('.faq-item');
+
+    if (!faqItem) {
+        return;
+    }
+
+
+    // Close all FAQ items
+    const faqItems =
+        document.querySelectorAll('.faq-item');
+
+    faqItems.forEach(function (item) {
+
+        const answer =
+            item.querySelector('.faq-answer');
+
+        const icon =
+            item.querySelector('.faq-icon');
+
+        if (item !== faqItem) {
+
+            if (answer) {
+                answer.style.display = 'none';
+            }
+
+            if (icon) {
+                icon.textContent = '+';
+            }
+
+        }
+
     });
-});
 
-/* ===============================
-   PHONE & MAP BUTTONS
-=============================== */
-document.querySelectorAll('[data-phone]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        location.href = `tel:${btn.dataset.phone}`;
-    });
-});
 
-document.querySelectorAll('.get-directions').forEach(btn => {
-    btn.addEventListener('click', () => {
-        alert(`Getting directions to: ${btn.dataset.address}`);
-    });
-});
+    // Selected FAQ
+    const answer =
+        faqItem.querySelector('.faq-answer');
 
-/* ===============================
-   BACK TO TOP
-=============================== */
-window.addEventListener('scroll', () => {
-    const btn = document.querySelector('.back-to-top');
-    if (!btn) return;
-    btn.style.display = window.scrollY > 300 ? 'block' : 'none';
-});
+    const icon =
+        faqItem.querySelector('.faq-icon');
 
-function scrollToTop() {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!answer || !icon) {
+        return;
+    }
+
+
+    // Toggle selected FAQ
+    const isOpen =
+        answer.style.display === 'block';
+
+    if (isOpen) {
+
+        answer.style.display = 'none';
+        icon.textContent = '+';
+
+    } else {
+
+        answer.style.display = 'block';
+        icon.textContent = '-';
+
+    }
+
 }
-
-/* ===============================
-   CONSOLE
-=============================== */
-console.log('%cWelcome to Human Care 🏥', 'color:#667eea;font-size:18px;font-weight:bold');

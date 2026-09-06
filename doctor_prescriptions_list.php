@@ -16,8 +16,8 @@ $active_page = 'prescriptions';
 $doctor_id = $_SESSION['user_id'];
 
 // ── DB connections ────────────────────────────────────────
-$doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
 if ($doctors_conn->connect_error || $admin_conn->connect_error) {
     die("Connection failed");
 }
@@ -765,6 +765,7 @@ if ($existing_rx) {
 
                 <!-- Prescription Form -->
                 <form method="POST" id="rxForm">
+                    <?= csrf_field() ?>
                     <!-- STEP 1: Pick medicines from DB -->
                     <div class="rx-card">
                         <div class="rx-section-title">🔍 Step 1 — Search & Select Medicines</div>

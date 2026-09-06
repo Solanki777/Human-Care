@@ -2,7 +2,7 @@
 require_once 'config/config.php';
 require_once 'config/database.php';
 require_once 'includes/session.php';
-require_once 'classes/Chat.php';
+require_once 'classes/msg.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -381,16 +381,17 @@ $unreadCount = $chat->getUnreadCount($userId, 'patient');
                     </div>
 
                     <?php if ($row['status'] === 'approved'): ?>
+                    
                         <div class="appointment-actions">
-                            <a href="patient_chat.php?room_id=<?= $row['chat_room_id'] ?>" class="chat-btn">
+                            <button onclick="openChatForAppointment(<?= $row['id'] ?>)" class="chat-btn" style="border:none; cursor:pointer;">
                                 <span class="chat-btn-icon">💬</span>
                                 <span>Chat with Doctor</span>
                                 <?php if ($row['patient_unread_count'] > 0): ?>
                                     <span class="unread-badge"><?= $row['patient_unread_count'] ?></span>
                                 <?php endif; ?>
-                            </a>
+                            </button>
                         </div>
-                        
+
                         <div class="cancellation-alert" style="background: #d1fae5; border-left-color: #10b981;">
                             <strong style="color: #065f46;">✅ Appointment Confirmed</strong>
                             <p style="color: #065f46;">Your appointment has been confirmed! You can now chat with your doctor using the button above. Please arrive 10 minutes early and bring your ID and any previous medical records.</p>
@@ -423,10 +424,10 @@ $unreadCount = $chat->getUnreadCount($userId, 'patient');
                     <?php if ($row['status'] === 'completed'): ?>
                         <?php if ($row['chat_room_id']): ?>
                             <div class="appointment-actions">
-                                <a href="patient_chat.php?room_id=<?= $row['chat_room_id'] ?>" class="chat-btn" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                                <button onclick="openChatForAppointment(<?= $row['id'] ?>)" class="chat-btn" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border:none; cursor:pointer;">
                                     <span class="chat-btn-icon">💬</span>
                                     <span>View Chat History</span>
-                                </a>
+                                </button>
                             </div>
                         <?php endif; ?>
                         
@@ -439,8 +440,33 @@ $unreadCount = $chat->getUnreadCount($userId, 'patient');
             <?php endwhile; ?>
         <?php endif; ?>
     </div>
+    <script>
+        function openChatForAppointment(appointmentId) {
+            const formData = new FormData();
+            formData.append('action', 'get_or_create_room');
+            formData.append('appointment_id', appointmentId);
+
+            fetch('msg_api.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.chatRoom) {
+                    window.location.href = `patient_msg.php?room_id=${data.chatRoom.id}`;
+                } else {
+                    alert(data.error || 'Unable to open chat. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error opening chat:', error);
+                alert('Error opening chat. Please try again.');
+            });
+        }
+        </script>
 
     
 </body>
+    
 
 </html>

@@ -68,3 +68,6 @@ function trigger_nexora_analysis(): void {
         // Swallow — never affect login
     }
 }
+
+
+?>

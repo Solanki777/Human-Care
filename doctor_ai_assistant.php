@@ -509,7 +509,7 @@ $stmt->close();
             const sendBtn = document.getElementById('sendBtn');
             const typingRow = document.getElementById('typingRow');
 
-            const CHAT_API_URL = 'api/doctor_ai_chat.php';
+            const CHAT_API_URL = 'api/doctor_ai_msg.php';
             const conversationHistory = [];
 
             /* --- Helpers --- */

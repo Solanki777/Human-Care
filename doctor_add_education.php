@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
 $active_page = 'education';
 
 // Get doctor info from doctors database
-$doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 if ($doctors_conn->connect_error) {
     die("Connection failed: " . $doctors_conn->connect_error);
 }
@@ -30,7 +30,8 @@ if (!$doctor) {
 $doctor_name = $doctor['first_name'] . ' ' . $doctor['last_name'];
 
 // Connect to admin database (where educational_content lives)
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+
 if ($admin_conn->connect_error) {
     die("Connection failed: " . $admin_conn->connect_error);
 }

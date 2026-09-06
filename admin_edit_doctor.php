@@ -6,7 +6,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit();
 }
 
-$conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 
 $doctor_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $message = "";
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($stmt->execute()) {
             // Log activity
-            $admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+            $admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
             $log_stmt = $admin_conn->prepare("INSERT INTO activity_logs (admin_id, action, description) VALUES (?, ?, ?)");
             $log_action = "doctor_update";
             $log_desc = "Updated doctor ID $doctor_id: Dr. $first_name $last_name";

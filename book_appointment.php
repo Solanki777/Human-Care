@@ -485,7 +485,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
      Changes vs original:
        - Maintains a `conversationHistory` array so Claude has
          multi-turn context (needed for booking flows).
-       - Passes { message, history } to api/chat.php.
+       - Passes { message, history } to api/.php.
        - Renders Markdown-style bold (**text**) from the AI reply.
        - Action result notices (✅ / ❌) are rendered in a styled box.
 ================================================================ -->
@@ -499,7 +499,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const typingRow = document.getElementById('typingRow');
             const suggestionsWrap = document.getElementById('suggestionsWrap');
 
-            const CHAT_API_URL = 'api/medimate_chat.php';
+            const CHAT_API_URL = 'api/medimate_msg.php';
 
             // In-memory conversation history for multi-turn context
             const conversationHistory = [];

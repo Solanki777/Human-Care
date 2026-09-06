@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-$conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 
 $status_message = "";
 $doctor_info = null;

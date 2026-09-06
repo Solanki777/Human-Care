@@ -19,7 +19,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
 
 // Get doctor information if not already loaded
 if (!isset($doctor)) {
-    $doctors_conn_sidebar = new mysqli("localhost", "root", "", "human_care_doctors");
+    $doctors_conn_sidebar = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
     if (!$doctors_conn_sidebar->connect_error) {
         $stmt = $doctors_conn_sidebar->prepare("SELECT first_name, last_name, specialty FROM doctors WHERE id = ?");
         $stmt->bind_param("i", $doctor_id);
@@ -33,7 +33,7 @@ if (!isset($doctor)) {
 // Get unread count if not already loaded
 if (!isset($unreadCount)) {
     try {
-        require_once 'classes/Chat.php';
+        require_once 'classes/msg.php';
         $chat_sidebar = new Chat();
         $unreadCount = $chat_sidebar->getUnreadCount($doctor_id, 'doctor');
     } catch (Exception $e) {
@@ -75,7 +75,7 @@ $doctor_specialty = $doctor['specialty'] ?? 'General Medicine';
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo ($active_page === 'chat') ? 'active' : ''; ?>" href="doctor_chat.php">
+                <a class="nav-link <?php echo ($active_page === 'chat') ? 'active' : ''; ?>" href="doctor_msg.php">
                     <span class="nav-icon">💬</span>
                     <span>Patient Chats</span>
                     <?php if ($unreadCount > 0): ?>

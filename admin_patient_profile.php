@@ -15,7 +15,7 @@ if ($patient_id === 0) {
 }
 
 // Connect to patients database
-$patients_conn = new mysqli("localhost", "root", "", "human_care_patients");
+$patients_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_patients");
 
 if ($patients_conn->connect_error) {
     die("Connection failed: " . $patients_conn->connect_error);
@@ -36,7 +36,7 @@ $patient = $result->fetch_assoc();
 $stmt->close();
 
 // Connect to admin database for appointments
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
 
 // Get all appointments for this patient (ordered by appointment time in ascending order)
 $appointments_stmt = $admin_conn->prepare("
@@ -75,7 +75,7 @@ $pending_appointments = $counts['pending'];
 $rejected_appointments = $counts['rejected'];
 
 // Get doctor pending count for sidebar
-$doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 $pending_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors WHERE verification_status = 'pending'")->fetch_assoc()['count'];
 $doctors_conn->close();
 

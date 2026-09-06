@@ -29,7 +29,7 @@ $dbOk = false;
 $conn = null;
 $dbError = '';
 try {
-    $conn = @new mysqli('localhost', 'root', '', 'security_logs_db');
+    $conn = @new mysqli('sql205.infinityfree.com', 'if0_42370337', '6yFxYkbKGy', 'if0_42370337_security_logs_db');
     if ($conn->connect_error) {
         $dbError = $conn->connect_error;
     } else {
@@ -123,25 +123,20 @@ $phishingDetectorExists = file_exists(__DIR__ . '/../../Nexora-Autonomous-AI-Cyb
 // gmail_scanner_page.py). We don't shell out to PHP to start/stop it —
 // we just check if it's already reachable on its port so the dashboard
 // can show an accurate Online/Offline pill and a working "Open" link.
-$gmailScannerUrl = 'http://localhost:8501';
-$gmailScannerOnline = false;
-$sockFp = @fsockopen('127.0.0.1', 8501, $errno, $errstr, 1);
-if ($sockFp) {
-    $gmailScannerOnline = true;
-    fclose($sockFp);
-}
+$gmailScannerUrl = 'https://nexora-gmail-scanner-mahesh.streamlit.app/';
+// Hosted on Streamlit Cloud (separate service) — free shared hosting
+// typically blocks outbound sockets, so we can't reliably probe it.
+// Treat as always available; the Open button just deep-links out.
+$gmailScannerOnline = !empty($gmailScannerUrl) && $gmailScannerUrl !== '';
+$gmailScannerOnline = true;
 
 // ── URL Phishing Checker (Streamlit) — live reachability check ────────
-$urlCheckerUrl = 'http://localhost:8502';
-$urlCheckerOnline = false;
-$sockFp2 = @fsockopen('127.0.0.1', 8502, $errno2, $errstr2, 1);
-if ($sockFp2) {
-    $urlCheckerOnline = true;
-    fclose($sockFp2);
-}
+$urlCheckerUrl = 'https://nexora-url-scanner-mahesh.streamlit.app/';
+// Same reasoning as the Gmail scanner above.
+$urlCheckerOnline = true;
 
 $nexoraLogFile = __DIR__ . '/../security_logs/nexora_run.log';
-$lastNexoraRun = '';
+$lastNexoraRun = 'https://nexora-url-scanner-mahesh.streamlit.app/';
 if (file_exists($nexoraLogFile)) {
     $lines = array_filter(array_map('trim', file($nexoraLogFile)));
     if (!empty($lines)) {
@@ -549,7 +544,6 @@ tr:hover td { background: rgba(255,255,255,0.025); }
                 <tr>
                     <th>IP Address</th>
                     <th>Email</th>
-                    <th>User Type</th>
                     <th>Status</th>
                     <th>Threat Detected</th>
                     <th>Time</th>
@@ -562,7 +556,6 @@ tr:hover td { background: rgba(255,255,255,0.025); }
                     <tr>
                         <td><code style="font-size:12px"><?= htmlspecialchars($row['ip_address']) ?></code></td>
                         <td><?= htmlspecialchars($row['email'] ?? '—') ?></td>
-                        <td><?= htmlspecialchars($row['user_type'] ?? '—') ?></td>
                         <td>
                             <?php if ($row['status'] === 'success'): ?>
                                 <span class="badge b-green">✓ Success</span>

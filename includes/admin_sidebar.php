@@ -15,15 +15,15 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 }
 
 // Fetch pending counts for badges
-$_sb_doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$_sb_doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 $_sb_pending_doctors   = $_sb_doctors_conn->query("SELECT COUNT(*) as c FROM doctors WHERE verification_status='pending'")->fetch_assoc()['c'];
 $_sb_doctors_conn->close();
 
-$_sb_patients_conn = new mysqli("localhost", "root", "", "human_care_patients");
+$_sb_patients_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_patients");
 $_sb_pending_patients  = $_sb_patients_conn->query("SELECT COUNT(*) as c FROM patients WHERE verification_status='pending'")->fetch_assoc()['c'];
 $_sb_patients_conn->close();
 
-$_sb_admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$_sb_admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
 $_sb_pending_appts   = $_sb_admin_conn->query("SELECT COUNT(*) as c FROM appointments WHERE status='pending'")->fetch_assoc()['c'];
 $_sb_pending_edu     = $_sb_admin_conn->query("SELECT COUNT(*) as c FROM educational_content WHERE status='pending'")->fetch_assoc()['c'];
 $_sb_admin_conn->close();
@@ -83,6 +83,7 @@ $_sb_admin_role = htmlspecialchars($_SESSION['admin_role'] ?? 'admin');
                 ['page'=>'appointments','icon'=>'📅', 'label'=>'Appointments',      'href'=>'admin_appointments.php',      'badge'=>(int)$_sb_pending_appts],
                 ['page'=>'education',   'icon'=>'📚', 'label'=>'Approve Education', 'href'=>'admin_manage_education.php',  'badge'=>(int)$_sb_pending_edu],
                 ['page'=>'ai',          'icon'=>'🤖', 'label'=>'AI Assistant',      'href'=>'admin_ai_assistant.php',      'badge'=>0],
+                ['page'=>'nexora',      'icon'=>'🛡️', 'label'=>'Nexora',            'href'=>'admin/security_dashboard.php'], 
             ];
             foreach ($nav_items as $item):
                 $is_active = (($active_page ?? '') === $item['page']);
@@ -100,12 +101,12 @@ $_sb_admin_role = htmlspecialchars($_SESSION['admin_role'] ?? 'admin');
                 onmouseout="this.style.background='<?php echo $is_active ? 'rgba(255,255,255,0.25)' : 'transparent'; ?>'">
                     <span style="font-size:18px;width:24px;text-align:center;"><?php echo $item['icon']; ?></span>
                     <span style="flex:1;"><?php echo $item['label']; ?></span>
-                    <?php if ($item['badge'] > 0): ?>
+                   <?php if (isset($item['badge']) && $item['badge'] > 0): ?>
                         <span style="background:#ef4444;color:white;padding:2px 8px;
                             border-radius:12px;font-size:11px;font-weight:700;">
                             <?php echo $item['badge']; ?>
                         </span>
-                    <?php endif; ?>
+                   <?php endif; ?>
                 </a>
             </li>
             <?php endforeach; ?>

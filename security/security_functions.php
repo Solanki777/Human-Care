@@ -1,5 +1,8 @@
 
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 require_once __DIR__ . '/email_alert.php';
 /**
  * =====================================================================
@@ -113,7 +116,7 @@ function _security_db_connect() {
     $attempted = true;
 
     try {
-        $c = @new mysqli('localhost', 'root', '', 'security_logs_db');
+        $c = @new mysqli('sql205.infinityfree.com', 'if0_42370337', '6yFxYkbKGy', 'if0_42370337_security_logs_db');
         if ($c->connect_error) {
             error_log('[security_functions] DB connect failed: ' . $c->connect_error);
             return null;
@@ -624,3 +627,4 @@ function log_threat_event(string $ip, ?string $email, string $threatType, string
         error_log('[security_functions] log_threat_event error: ' . $e->getMessage());
     }
 }
+?>

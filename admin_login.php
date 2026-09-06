@@ -11,10 +11,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (empty($username) || empty($password)) {
         $error = "Please fill in all fields.";
     } else {
-        $servername = "localhost";
-        $db_username = "root";
-        $db_password = "";
-        $dbname = "human_care_admin";
+        $servername = "sql205.infinityfree.com";
+        $db_username = "if0_42370337";
+        $db_password = "6yFxYkbKGy";
+        $dbname = "if0_42370337_human_care_admin";
         
         $conn = new mysqli($servername, $db_username, $db_password, $dbname);
         
@@ -244,11 +244,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <a href="index.php">← Back to Website</a>
                 </div>
 
-                <div class="test-credentials">
-                    <h4>🔐 Test Admin Credentials:</h4>
-                    <p><strong>Username:</strong> admin</p>
-                    <p><strong>Password:</strong> password123</p>
-                </div>
+               
             </form>
         </div>
     </div>

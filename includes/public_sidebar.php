@@ -82,7 +82,7 @@ function sb_active(string $page, string $current): string
                 </a>
             </li>
             <li>
-                <a href="patient_chat.php" class="<?= sb_active('chats', $active_page) ?>">
+                <a href="patient_msg.php" class="<?= sb_active('chats', $active_page) ?>">
                     <span class="nav-icon">💬</span>
                     <span>My Chats</span>
                     <?php if ($unreadCount > 0): ?>
@@ -128,55 +128,87 @@ function sb_active(string $page, string $current): string
      (safe to include multiple times — checks
       if already initialized via data attribute)
 ════════════════════════════════════════════ -->
+
 <script>
-    (function () {
-        // Guard: only initialise once per page
-        if (document.body.dataset.sidebarInit) return;
-        document.body.dataset.sidebarInit = '1';
+document.addEventListener('DOMContentLoaded', function () {
 
-        document.addEventListener('DOMContentLoaded', function () {
-            var toggle = document.getElementById('menuToggle');
-            var sidebar = document.getElementById('sidebar');
-            var overlay = document.getElementById('sidebarOverlay');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
 
-            if (!toggle || !sidebar || !overlay) return;
+    // Stop if sidebar elements do not exist
+    if (!menuToggle || !sidebar || !overlay) {
+        console.warn('Sidebar elements not found.');
+        return;
+    }
 
-            function openSidebar() {
-                sidebar.classList.add('active');
-                overlay.classList.add('active');
-                document.body.classList.add('sidebar-open');
-            }
+    function openSidebar() {
+        sidebar.classList.add('active');
+        overlay.classList.add('active');
+        document.body.classList.add('sidebar-open');
+    }
 
-            function closeSidebar() {
-                sidebar.classList.remove('active');
-                overlay.classList.remove('active');
-                document.body.classList.remove('sidebar-open');
-            }
+    function closeSidebar() {
+        sidebar.classList.remove('active');
+        overlay.classList.remove('active');
+        document.body.classList.remove('sidebar-open');
+    }
 
-            toggle.addEventListener('click', function (e) {
-                e.stopPropagation();
-                sidebar.classList.contains('active') ? closeSidebar() : openSidebar();
-            });
+    function toggleSidebar() {
+        if (sidebar.classList.contains('active')) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    }
 
-            // Close on overlay click
-            overlay.addEventListener('click', closeSidebar);
+    // Menu button
+    menuToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
 
-            // Close on Escape key
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') closeSidebar();
-            });
+        toggleSidebar();
+    });
 
-            // Close when clicking anywhere outside sidebar
-            document.addEventListener('click', function (e) {
-                if (sidebar.classList.contains('active') &&
-                    !sidebar.contains(e.target) &&
-                    !toggle.contains(e.target)) {
-                    closeSidebar();
-                }
-            });
+    // Overlay
+    overlay.addEventListener('click', function () {
+        closeSidebar();
+    });
 
-            // Prevent clicks inside sidebar from bubbling to document
-            sidebar.addEventListener('click', function (e) { e.stopPropagation(); });
-        });
-    }());
+    // Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeSidebar();
+        }
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', function (e) {
+
+        if (
+            sidebar.classList.contains('active') &&
+            !sidebar.contains(e.target) &&
+            !menuToggle.contains(e.target)
+        ) {
+            closeSidebar();
+        }
+
+    });
+
+    // Prevent clicks inside sidebar from closing it
+    sidebar.addEventListener('click', function (e) {
+        e.stopPropagation();
+    });
+
+});
 </script>
+
+
+
+
+
+
+
+
+
+

@@ -1,5 +1,10 @@
 <?php
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 session_start();
+
 
 // Check if admin is logged in
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
@@ -9,20 +14,20 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 // Get counts from databases
 // Patients 
-$patients_conn = new mysqli("localhost", "root", "", "human_care_patients");
+$patients_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_patients");
 $total_patients = $patients_conn->query("SELECT COUNT(*) as count FROM patients")->fetch_assoc()['count'];
 $pending_patients = $patients_conn->query("SELECT COUNT(*) as count FROM patients WHERE verification_status = 'pending'")->fetch_assoc()['count'];
 $patients_conn->close();
 
 // Doctors count
-$doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 $total_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors")->fetch_assoc()['count'];
 $pending_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors WHERE verification_status = 'pending'")->fetch_assoc()['count'];
 $total_appointments = $doctors_conn->query("SELECT COUNT(*) as count FROM doctor_appointments")->fetch_assoc()['count'];
 $doctors_conn->close();
 
 // Recent activity
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
 $recent_logs = $admin_conn->query("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 5");
 $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
 ?>

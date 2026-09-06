@@ -7,7 +7,7 @@ require_once 'includes/session.php';
 $is_logged_in = isset($_SESSION['user_id']) && isset($_SESSION['user_type']);
 
 // Connect to admin database to fetch approved content
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
 if ($admin_conn->connect_error) {
     die("Connection failed: " . $admin_conn->connect_error);
 }
@@ -372,16 +372,15 @@ $admin_conn->close();
                     <h4>Quick Links</h4>
                     <ul>
                         <li><a href="index.php">Home</a></li>
-                        <li><a href="hospitals.php">Hospitals</a></li>
                         <li><a href="doctors.php">Doctors</a></li>
                         <li><a href="education.php">Education</a></li>
                     </ul>
                 </div>
                 <div class="footer-section">
                     <h4>Contact</h4>
-                    <p>📞 +91 1234-567890</p>
-                    <p>📧 info@humancare.com</p>
-                    <p>📍 Rajkot, Gujarat, India</p>
+                    <p>📞 +91 9725219106</p>
+                    <p>📧 solankimaheshkhash7@gmail.com</p>
+                    <p>📍 Fake , Fake , Fake</p>
                 </div>
             </div>
             <div class="footer-bottom">

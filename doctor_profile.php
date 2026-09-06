@@ -15,7 +15,7 @@ if (isset($_SESSION['user_id']) && $_SESSION['user_type'] === 'doctor') {
 $active_page = 'profile'; // Change based on page
 
 // Connect to doctors database
-$conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);

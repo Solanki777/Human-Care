@@ -29,7 +29,6 @@ $userId = $_SESSION['user_id'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Assistant - Human Care</title>
     <link rel="stylesheet" href="styles/main.css">
-    <script src="scripts/main.js"></script>
 
     <style>
         /* =================================================================
@@ -554,7 +553,7 @@ $userId = $_SESSION['user_id'];
             const typingRow = document.getElementById('typingRow');
             const suggestionsWrap = document.getElementById('suggestionsWrap');
 
-            const CHAT_API_URL = 'api/medimate_chat.php';
+            const CHAT_API_URL = 'api/medimate_msg.php';
 
             // Stores full conversation: { role: 'user'|'assistant', content: '...' }
             const conversationHistory = [];
@@ -746,6 +745,8 @@ $userId = $_SESSION['user_id'];
 
         })();
     </script>
+    
+    <script src="scripts/main.js"></script>
 
 </body>
 

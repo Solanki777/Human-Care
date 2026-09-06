@@ -13,8 +13,8 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     exit();
 }
 
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
-$doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 if ($admin_conn->connect_error || $doctors_conn->connect_error) {
     die("Connection failed");
 }
@@ -186,7 +186,7 @@ $appt_sql = "
            p.diagnosis       AS rx_diagnosis,
            p.additional_notes AS rx_notes
     FROM appointments a
-    LEFT JOIN human_care_doctors.prescriptions p ON p.appointment_id = a.id
+    LEFT JOIN if0_42370337_human_care_doctors.prescriptions p ON p.appointment_id = a.id
 ";
 if ($filter !== 'all') {
     $appt_sql .= " WHERE a.status = ?";

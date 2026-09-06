@@ -6,8 +6,8 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit();
 }
 
-$conn = new mysqli("localhost", "root", "", "human_care_doctors");
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
 $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
 $admin_conn->close();
 
@@ -254,7 +254,7 @@ if (isset($_POST['action'])) {
     }
 
     // Log activity
-    $admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+    $admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
     $log_stmt = $admin_conn->prepare("INSERT INTO activity_logs (admin_id, action, description) VALUES (?, ?, ?)");
     $log_action = "doctor_$action";
     $log_desc = "Doctor ID $doctor_id was $action" . "d";

@@ -1,21 +1,21 @@
 -- =====================================================
 -- -- DROP EXISTING DATABASES IF THEY EXIST
 -- -- =====================================================
--- DROP DATABASE IF EXISTS human_care_admin;
--- DROP DATABASE IF EXISTS human_care_patients;
--- DROP DATABASE IF EXISTS human_care_doctors;
+-- DROP DATABASE IF EXISTS if0_42370337_XXXhuman_care_admin;
+-- DROP DATABASE IF EXISTS if0_42370337_XXXhuman_care_patients;
+-- DROP DATABASE IF EXISTS if0_42370337_XXXhuman_care_doctors;
 
 -- -- =====================================================
 -- -- CREATE DATABASES
 -- -- =====================================================
--- CREATE DATABASE human_care_admin;
--- CREATE DATABASE human_care_patients;
--- CREATE DATABASE human_care_doctors;
+-- CREATE DATABASE if0_42370337_XXXhuman_care_admin;
+-- CREATE DATABASE if0_42370337_XXXhuman_care_patients;
+-- CREATE DATABASE if0_42370337_XXXhuman_care_doctors;
 
 -- =====================================================
 -- ADMIN DATABASE
 -- =====================================================
-USE human_care_admin;
+USE if0_42370337_human_care_admin;
 
 -- Admin Users Table
 CREATE TABLE admins (
@@ -63,7 +63,7 @@ INSERT INTO system_settings (setting_key, setting_value) VALUES
 -- =====================================================
 -- PATIENTS DATABASE
 -- =====================================================
-USE human_care_patients;
+USE if0_42370337_human_care_patients;
 
 -- Patients Table
 CREATE TABLE patients (
@@ -116,7 +116,7 @@ INSERT INTO patients (first_name, last_name, email, phone, dob, gender, blood_gr
 -- =====================================================
 -- DOCTORS DATABASE
 -- =====================================================
-USE human_care_doctors;
+USE if0_42370337_human_care_doctors;
 
 -- Doctors Table
 CREATE TABLE doctors (
@@ -291,17 +291,17 @@ WORKFLOW TESTING:
 DATABASE STRUCTURE:
 ===========================================
 
-human_care_admin:
+if0_42370337_XXXhuman_care_admin:
   - admins (admin accounts)
   - system_settings (site configuration)
   - activity_logs (admin action logs)
 
-human_care_patients:
+if0_42370337_XXXhuman_care_patients:
   - patients (patient accounts - auto-approved)
   - patient_medical_history
   - patient_appointments
 
-human_care_doctors:
+if0_42370337_XXXhuman_care_doctors:
   - doctors (doctor accounts - requires approval)
   - doctor_appointments
   - doctor_schedule
@@ -321,7 +321,7 @@ IMPORTANT NOTES:
 -- =====================================================
 -- APPOINTMENTS TABLE (New Unified Structure)
 -- =====================================================
-USE human_care_admin;
+USE if0_42370337_human_care_admin;
 
 CREATE TABLE appointments (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -413,4 +413,63 @@ CREATE TABLE appointment_history (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE,
     INDEX idx_appointment (appointment_id)
+);
+
+-- =====================================================
+-- CHAT SYSTEM TABLES (Patient <-> Doctor messaging)
+-- Used by classes/msg.php (Chat class) and msg_api.php
+-- One chat room is created per approved appointment.
+-- =====================================================
+
+-- Chat Rooms Table
+CREATE TABLE chat_rooms (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    appointment_id INT NOT NULL,
+    patient_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    patient_name VARCHAR(100) NOT NULL,
+    doctor_name VARCHAR(100) NOT NULL,
+    last_message TEXT,
+    last_message_time TIMESTAMP NULL,
+    patient_unread_count INT DEFAULT 0,
+    doctor_unread_count INT DEFAULT 0,
+    status ENUM('active', 'archived') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_appointment (appointment_id),
+    FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE,
+    INDEX idx_patient (patient_id, status),
+    INDEX idx_doctor (doctor_id, status)
+);
+
+-- Chat Messages Table
+CREATE TABLE chat_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    chat_room_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    sender_type ENUM('patient', 'doctor') NOT NULL,
+    message TEXT NOT NULL,
+    message_type ENUM('text', 'image', 'file') DEFAULT 'text',
+    file_url VARCHAR(255) DEFAULT NULL,
+    file_name VARCHAR(255) DEFAULT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP NULL,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    INDEX idx_room_created (chat_room_id, created_at),
+    INDEX idx_room_id (chat_room_id, id)
+);
+
+-- Chat Typing Status Table (for the "is typing..." indicator)
+CREATE TABLE chat_typing (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    chat_room_id INT NOT NULL,
+    user_id INT NOT NULL,
+    user_type ENUM('patient', 'doctor') NOT NULL,
+    is_typing BOOLEAN DEFAULT FALSE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_room_user (chat_room_id, user_id, user_type),
+    FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    INDEX idx_room_type (chat_room_id, user_type)
 );

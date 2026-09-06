@@ -1,5 +1,8 @@
 <?php
 session_start();
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
 // ===============================================================
 // SECURITY LAYER (added) — see security/security_functions.php
@@ -217,8 +220,8 @@ $password = "";
 /* ===============================
    CONNECT DATABASES
 ================================ */
-$connPatient = new mysqli($servername, $username, $password, "human_care_patients");
-$connDoctor  = new mysqli($servername, $username, $password, "human_care_doctors");
+$connPatient = new mysqli($servername, $username, $password, "if0_42370337_human_care_patients");
+$connDoctor  = new mysqli($servername, $username, $password, "if0_42370337_human_care_doctors");
 
 if ($connPatient->connect_error || $connDoctor->connect_error) {
     die("Database connection failed");
@@ -394,14 +397,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if (password_verify($passwordInput, $patient["password"])) {
 
-                $_SESSION["user_id"]   = $patient["id"];
-                $_SESSION["user_name"] = $patient["first_name"];
-                $_SESSION["user_type"] = "patient";
+                // Email/mobile verification must be completed before login.
+                if ((int)($patient["email_verified"] ?? 0) !== 1 ||
+                    (int)($patient["phone_verified"] ?? 0) !== 1) {
 
-                log_security_event($ip, $email, 'success', 'patient');
+                    $_SESSION["pending_verification"] = [
+                        "user_type" => "patient",
+                        "user_id"   => (int)$patient["id"],
+                        "email"     => $patient["email"],
+                        "phone"     => $patient["phone"]
+                    ];
 
-                header("Location: index.php");
-                exit;
+                    $verification_message = "contact";
+                    $error = "Please verify your email address and mobile number before logging in.";
+
+                    log_security_event($ip, $email, 'failed', 'patient');
+                } else {
+
+                    $_SESSION["user_id"]   = $patient["id"];
+                    $_SESSION["user_name"] = $patient["first_name"];
+                    $_SESSION["user_type"] = "patient";
+
+                    log_security_event($ip, $email, 'success', 'patient');
+
+                    header("Location: index.php");
+                    exit;
+                }
             } else {
                 $error = "Invalid email or password.";
                 log_security_event($ip, $email, 'failed', 'patient');
@@ -421,7 +442,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 if (password_verify($passwordInput, $doctor["password"])) {
 
-                    if ($doctor["verification_status"] !== "approved" || $doctor["is_verified"] != 1) {
+                    // Email/mobile verification is separate from admin/doctor approval.
+                    if ((int)($doctor["email_verified"] ?? 0) !== 1 ||
+                        (int)($doctor["phone_verified"] ?? 0) !== 1) {
+
+                        $_SESSION["pending_verification"] = [
+                            "user_type" => "doctor",
+                            "user_id"   => (int)$doctor["id"],
+                            "email"     => $doctor["email"],
+                            "phone"     => $doctor["phone"]
+                        ];
+
+                        $verification_message = "contact";
+                        $error = "Please verify your email address and mobile number before logging in.";
+
+                        log_security_event($ip, $email, 'failed', 'doctor');
+
+                    } elseif ($doctor["verification_status"] !== "approved" || $doctor["is_verified"] != 1) {
                         
                         if ($doctor["verification_status"] === "pending") {
                             $verification_message = "pending";
@@ -527,7 +564,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <?php echo $error; ?>
                 </div>
                 
-                <?php if ($verification_message === "pending"): ?>
+                <?php if ($verification_message === "contact"): ?>
+                    <div class="verification-box">
+                        <strong>📧📱 Verify Your Contact Details</strong>
+                        <p>Your email address and mobile number must be verified before you can log in.</p>
+                        <a href="verify.php">🔐 Verify Email & Mobile</a>
+                    </div>
+                <?php elseif ($verification_message === "pending"): ?>
                     <div class="verification-box">
                         <strong>Check Your Verification Status</strong>
                         <p>You can check your registration status and get updates about your application.</p>

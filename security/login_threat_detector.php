@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 /**
  * Dashboard dynamic threat query replacements.
  *
@@ -85,3 +89,6 @@ function dashboard_threat_label(string $threatType): string {
 // Then keep your existing Chart.js styling and inject json_encode($labels)
 // and json_encode($data) in the same places your dashboard currently
 // writes Chart.js labels and data arrays.
+
+?>
+

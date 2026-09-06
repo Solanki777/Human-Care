@@ -1,6 +1,9 @@
 <?php
 session_start();
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Check if doctor is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
     header("Location: login.php");
@@ -8,10 +11,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
 }
 $active_page = 'dashboard'; // Change based on page
 
-require_once 'classes/Chat.php';
+require_once 'classes/msg.php';
 
 // Get doctor info from doctors database
-$doctors_conn = new mysqli("localhost", "root", "", "human_care_doctors");
+$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
 if ($doctors_conn->connect_error) {
     die("Connection failed: " . $doctors_conn->connect_error);
 }
@@ -30,7 +33,7 @@ if (!$doctor) {
 $doctor_name = $doctor['first_name'] . ' ' . $doctor['last_name'];
 
 // Connect to admin database for appointments
-$admin_conn = new mysqli("localhost", "root", "", "human_care_admin");
+$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
 if ($admin_conn->connect_error) {
     die("Connection failed: " . $admin_conn->connect_error);
 }
@@ -585,19 +588,14 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
                                 <p><strong>💼 Type:</strong> <?= ucfirst($appt['consultation_type']) ?></p>
                             </div>
 
-                            <?php if ($appt['chat_room_id']): ?>
-                                <div class="appointment-actions">
-                                    <a href="doctor_chat.php?room_id=<?= $appt['chat_room_id'] ?>" class="chat-btn">
-                                        💬 Chat with Patient
-                                        <?php if ($appt['doctor_unread_count'] > 0): ?>
-                                            <span class="unread-badge"><?= $appt['doctor_unread_count'] ?></span>
-                                        <?php endif; ?>
-                                    </a>
-
-
-                                </div>
-
-                            <?php endif; ?>
+                            <div class="appointment-actions">
+                                <button onclick="openChatForAppointment(<?= (int)$appt['id'] ?>, <?= $appt['chat_room_id'] ? (int)$appt['chat_room_id'] : 'null' ?>)" class="chat-btn" style="border:none; cursor:pointer;">
+                                    💬 Chat with Patient
+                                    <?php if ($appt['doctor_unread_count'] > 0): ?>
+                                        <span class="unread-badge"><?= $appt['doctor_unread_count'] ?></span>
+                                    <?php endif; ?>
+                                </button>
+                            </div>
                         </div>
                     <?php endwhile; ?>
                 <?php endif; ?>
@@ -668,6 +666,37 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
     </main>
 
     <script>
+        // Get-or-create the chat room for this appointment, then jump into it.
+        // If a room already exists we're handed its id directly (no extra
+        // request needed); otherwise we ask the API to create one.
+        function openChatForAppointment(appointmentId, existingRoomId) {
+            if (existingRoomId) {
+                window.location.href = `doctor_msg.php?room_id=${existingRoomId}`;
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('action', 'get_or_create_room');
+            formData.append('appointment_id', appointmentId);
+
+            fetch('msg_api.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.chatRoom) {
+                    window.location.href = `doctor_msg.php?room_id=${data.chatRoom.id}`;
+                } else {
+                    alert(data.error || 'Unable to open chat. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error opening chat:', error);
+                alert('Error opening chat. Please try again.');
+            });
+        }
+
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
             document.getElementById('sidebarOverlay').classList.toggle('active');

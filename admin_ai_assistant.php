@@ -264,7 +264,7 @@ include 'includes/admin_sidebar.php';
     const sendBtn    = document.getElementById('sendBtn');
     const typingRow  = document.getElementById('typingRow');
 
-    const CHAT_API_URL = 'api/admin_ai_chat.php';
+    const CHAT_API_URL = 'api/admin_ai_msg.php';
     const conversationHistory = [];
 
     function formatTime(d) { return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }); }
