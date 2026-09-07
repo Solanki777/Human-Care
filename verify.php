@@ -15,13 +15,12 @@ if (empty($_SESSION['pending_verification'])) {
 
 $pending = $_SESSION['pending_verification'];
 $userType = $pending['user_type'];
-$userId   = (int)$pending['user_id'];
 $email    = $pending['email'];
 $phone    = $pending['phone'];
 
-$servername = "sql205.infinityfree.com";
-$username = "";
-$password = "6yFxYkbKGy";
+$servername = "localhost";
+$username = "root";
+$password = "";
 
 $dbName = ($userType === 'doctor')
     ? "if0_42370337_human_care_doctors"

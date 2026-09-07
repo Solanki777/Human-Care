@@ -8,9 +8,9 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-$servername = "sql205.infinityfree.com";
-$username = "if0_42370337";
-$password = "6yFxYkbKGy";
+$servername = "localhost";
+$username = "root";
+$password = "";
 
 $success       = "";
 $emailError    = "";
