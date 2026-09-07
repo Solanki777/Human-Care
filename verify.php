@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 
 if (empty($_SESSION['csrf_token'])) {
@@ -13,33 +14,61 @@ if (empty($_SESSION['pending_verification'])) {
     exit;
 }
 
-$pending = $_SESSION['pending_verification'];
+$pending = &$_SESSION['pending_verification'];
+
 $userType = $pending['user_type'];
 $email    = $pending['email'];
 $phone    = $pending['phone'];
 
+/*
+|--------------------------------------------------------------------------
+| Database
+|--------------------------------------------------------------------------
+*/
+
 $servername = "localhost";
-$username = "root";
-$password = "";
+$username   = "root";
+$password   = "";
 
 $dbName = ($userType === 'doctor')
     ? "if0_42370337_human_care_doctors"
     : "if0_42370337_human_care_patients";
 
-$table = ($userType === 'doctor') ? 'doctors' : 'patients';
+$table = ($userType === 'doctor')
+    ? "doctors"
+    : "patients";
+
+
+/*
+|--------------------------------------------------------------------------
+| PHPMailer
+|--------------------------------------------------------------------------
+*/
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . "/vendor/autoload.php";
+
+
+/*
+|--------------------------------------------------------------------------
+| Send Email OTP
+|--------------------------------------------------------------------------
+*/
 
 function sendVerificationEmail(string $to, string $otp): bool
 {
-    $mailConfig = require __DIR__ . '/config/mail_config.php';
+    $mailConfig = require __DIR__ . "/config/mail_config.php";
 
     $mail = new PHPMailer(true);
+    $mail->SMTPDebug = 2;
+    $mail->Debugoutput = function ($str, $level) {
+        error_log("PHPMailer [$level]: $str");
+    };
 
     try {
+
         $mail->isSMTP();
         $mail->Host       = $mailConfig['host'];
         $mail->SMTPAuth   = true;
@@ -65,9 +94,7 @@ function sendVerificationEmail(string $to, string $otp): bool
 
                 <p>Your email verification OTP is:</p>
 
-                <h1 style='letter-spacing:8px;'>
-                    {$otp}
-                </h1>
+                <h1 style='letter-spacing:8px;'>{$otp}</h1>
 
                 <p>This OTP expires in <strong>10 minutes</strong>.</p>
 
@@ -85,164 +112,580 @@ function sendVerificationEmail(string $to, string $otp): bool
 
     } catch (Exception $e) {
 
-        error_log(
-            "Email OTP failed: " . $mail->ErrorInfo
-        );
+    $GLOBALS['generalError'] =
+        "Email OTP failed: " . $mail->ErrorInfo;
 
-        return false;
-    }
+    return false;
 }
+}
+
+
 /*
- * SMS PROVIDER:
- * Replace this function with your SMS provider API.
- *
- * Example providers: Twilio, MSG91, Fast2SMS.
- * The function must return true when the SMS is successfully accepted.
- */
+|--------------------------------------------------------------------------
+| Send SMS OTP
+|--------------------------------------------------------------------------
+|
+| Replace this later with your actual SMS provider.
+|
+*/
+
 function sendVerificationSms(string $phone, string $otp): bool
 {
-    // TODO: Connect your SMS provider here.
-    // Do NOT display the OTP to the user in production.
+    // TODO: Add SMS provider API here.
     return true;
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| Mask Email
+|--------------------------------------------------------------------------
+*/
+
 function maskEmail(string $email): string
 {
-    [$name, $domain] = array_pad(explode('@', $email, 2), 2, '');
-    if ($name === '') return $email;
-    return substr($name, 0, 1) . str_repeat('*', max(1, strlen($name) - 1)) . '@' . $domain;
+    [$name, $domain] = array_pad(
+        explode("@", $email, 2),
+        2,
+        ""
+    );
+
+    if ($name === "") {
+        return $email;
+    }
+
+    return substr($name, 0, 1)
+        . str_repeat("*", max(1, strlen($name) - 1))
+        . "@"
+        . $domain;
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| Mask Phone
+|--------------------------------------------------------------------------
+*/
 
 function maskPhone(string $phone): string
 {
     $digits = preg_replace('/\D+/', '', $phone);
-    if (strlen($digits) <= 4) return $phone;
-    return str_repeat('*', strlen($digits) - 4) . substr($digits, -4);
+
+    if (strlen($digits) <= 4) {
+        return $phone;
+    }
+
+    return str_repeat("*", strlen($digits) - 4)
+        . substr($digits, -4);
 }
 
-$conn = new mysqli($servername, $username, $password, $dbName);
+
+/*
+|--------------------------------------------------------------------------
+| Database Connection
+|--------------------------------------------------------------------------
+*/
+
+$conn = new mysqli(
+    $servername,
+    $username,
+    $password,
+    $dbName
+);
+
 if ($conn->connect_error) {
-    $generalError = "Unable to connect. Please try again later.";
+
+    $generalError =
+        "Unable to connect. Please try again later.";
+
 } else {
+
     $conn->set_charset("utf8mb4");
 
-    // Resend OTP
-    if ($_SERVER["REQUEST_METHOD"] === "POST" && ($_POST['action'] ?? '') === 'resend') {
-        if (!isset($_POST['csrf_token']) ||
-            !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-            $generalError = "Security validation failed. Please refresh the page.";
-        } else {
-            $emailOtp = (string) random_int(100000, 999999);
-            $phoneOtp = (string) random_int(100000, 999999);
-            $expires = date('Y-m-d H:i:s', time() + 600);
 
-            $emailHash = password_hash($emailOtp, PASSWORD_DEFAULT);
-            $phoneHash = password_hash($phoneOtp, PASSWORD_DEFAULT);
+    /*
+    |--------------------------------------------------------------------------
+    | FIRST VISIT
+    |--------------------------------------------------------------------------
+    |
+    | Send the OTPs generated by register.php.
+    |
+    | IMPORTANT:
+    | Refreshing the page will NOT resend them because the raw OTPs
+    | are removed from the session after the first send.
+    |
+    */
 
-            $stmt = $conn->prepare(
-                "UPDATE {$table}
-                 SET email_otp = ?, phone_otp = ?, otp_expires_at = ?
-                 WHERE id = ? AND email_verified = 0 AND phone_verified = 0"
-            );
-            $stmt->bind_param("sssi", $emailHash, $phoneHash, $expires, $userId);
+    if (
+        $_SERVER["REQUEST_METHOD"] !== "POST" &&
+        isset(
+            $pending['email_otp'],
+            $pending['phone_otp']
+        )
+    ) {
 
-            if ($stmt->execute() && $stmt->affected_rows >= 0) {
-                $emailSent = sendVerificationEmail($email, $emailOtp);
-                $smsSent   = sendVerificationSms($phone, $phoneOtp);
+        $emailOtp = $pending['email_otp'];
+        $phoneOtp = $pending['phone_otp'];
 
-                if ($emailSent && $smsSent) {
-                    $success = "New verification codes have been sent.";
-                } else {
-                    $generalError = "We could not send one or more verification codes. Check your email/SMS provider configuration.";
-                }
-            } else {
-                $generalError = "Unable to generate new verification codes.";
-            }
-            $stmt->close();
+        $emailSent = sendVerificationEmail(
+            $email,
+            $emailOtp
+        );
 
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        }
-    }
+        $smsSent = sendVerificationSms(
+            $phone,
+            $phoneOtp
+        );
 
-    // Verify both OTPs
-    if ($_SERVER["REQUEST_METHOD"] === "POST" && ($_POST['action'] ?? '') === 'verify') {
-        if (!isset($_POST['csrf_token']) ||
-            !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-            $generalError = "Security validation failed. Please refresh the page.";
-        } else {
-            $emailOtp = trim($_POST['email_otp'] ?? '');
-            $phoneOtp = trim($_POST['phone_otp'] ?? '');
-
-            if (!preg_match('/^\d{6}$/', $emailOtp) ||
-                !preg_match('/^\d{6}$/', $phoneOtp)) {
-                $generalError = "Please enter both 6-digit verification codes.";
-            } else {
-                $stmt = $conn->prepare(
-                    "SELECT email_otp, phone_otp, otp_expires_at, email_verified, phone_verified
-                     FROM {$table}
-                     WHERE id = ?
-                     LIMIT 1"
-                );
-                $stmt->bind_param("i", $userId);
-                $stmt->execute();
-                $row = $stmt->get_result()->fetch_assoc();
-                $stmt->close();
-
-                if (!$row) {
-                    $generalError = "Account not found.";
-                } elseif ((int)$row['email_verified'] === 1 &&
-                          (int)$row['phone_verified'] === 1) {
-                    $success = "Your account is already verified. Redirecting to login...";
-                    unset($_SESSION['pending_verification']);
-                    echo "<script>setTimeout(() => window.location.href='login.php', 1200);</script>";
-                } elseif (empty($row['otp_expires_at']) ||
-                          strtotime($row['otp_expires_at']) < time()) {
-                    $generalError = "The verification codes have expired. Please click Resend OTP.";
-                } elseif (!password_verify($emailOtp, $row['email_otp']) ||
-                          !password_verify($phoneOtp, $row['phone_otp'])) {
-                    $generalError = "One or both verification codes are incorrect.";
-                } else {
-                    $stmt = $conn->prepare(
-                        "UPDATE {$table}
-                         SET email_verified = 1,
-                             phone_verified = 1,
-                             email_otp = NULL,
-                             phone_otp = NULL,
-                             otp_expires_at = NULL
-                         WHERE id = ?"
-                    );
-                    $stmt->bind_param("i", $userId);
-
-                    if ($stmt->execute()) {
-                        unset($_SESSION['pending_verification']);
-                        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-                        $success = "Both email and mobile number are verified! Redirecting to login...";
-                        echo "<script>setTimeout(() => window.location.href='login.php', 1800);</script>";
-                    } else {
-                        $generalError = "Verification failed. Please try again.";
-                    }
-                    $stmt->close();
-                }
-            }
-        }
-    }
-
-    // If this is the first visit, send the generated OTPs created during registration.
-    if ($_SERVER["REQUEST_METHOD"] !== "POST" &&
-        isset($_SESSION['pending_verification']['email_otp'],
-              $_SESSION['pending_verification']['phone_otp'])) {
-
-        $emailOtp = $_SESSION['pending_verification']['email_otp'];
-        $phoneOtp = $_SESSION['pending_verification']['phone_otp'];
-
-        $emailSent = sendVerificationEmail($email, $emailOtp);
-        $smsSent   = sendVerificationSms($phone, $phoneOtp);
-
-        unset($_SESSION['pending_verification']['email_otp']);
-        unset($_SESSION['pending_verification']['phone_otp']);
+        // Remove raw OTPs after sending.
+        unset($pending['email_otp']);
+        unset($pending['phone_otp']);
 
         if (!$emailSent || !$smsSent) {
-            $generalError = "Account created, but one or more OTPs could not be sent. Please use Resend OTP after configuring your email/SMS provider.";
+
+            $generalError =
+                "One or more verification codes could not be sent. "
+                . "Please use the resend button.";
+
+        } else {
+
+            $success =
+                "Verification codes have been sent.";
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | POST ACTION
+    |--------------------------------------------------------------------------
+    */
+
+    if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+        /*
+        |--------------------------------------------------------------------------
+        | CSRF CHECK
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            !isset($_POST['csrf_token']) ||
+            !hash_equals(
+                $_SESSION['csrf_token'],
+                $_POST['csrf_token']
+            )
+        ) {
+
+            $generalError =
+                "Security validation failed. Please refresh the page.";
+
+        } else {
+
+            $action = $_POST['action'] ?? "";
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | VERIFY EMAIL
+            |--------------------------------------------------------------------------
+            */
+
+            if ($action === "verify_email") {
+
+                if (!empty($pending['email_verified'])) {
+
+                    $success =
+                        "Your email is already verified.";
+
+                } else {
+
+                    $emailOtp =
+                        trim($_POST['email_otp'] ?? "");
+
+                    if (!preg_match('/^\d{6}$/', $emailOtp)) {
+
+                        $generalError =
+                            "Please enter a valid 6-digit email OTP.";
+
+                    } elseif (
+                        empty($pending['email_otp_hash']) ||
+                        empty($pending['otp_expires_at'])
+                    ) {
+
+                        $generalError =
+                            "Email OTP is not available. Please resend the OTP.";
+
+                    } elseif (
+                        $pending['otp_expires_at'] < time()
+                    ) {
+
+                        $generalError =
+                            "Email OTP has expired. Please resend the OTP.";
+
+                    } elseif (
+                        !password_verify(
+                            $emailOtp,
+                            $pending['email_otp_hash']
+                        )
+                    ) {
+
+                        $generalError =
+                            "Incorrect email OTP.";
+
+                    } else {
+
+                        $pending['email_verified'] = true;
+
+                        $success =
+                            "Email verified successfully.";
+
+                    }
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | VERIFY PHONE
+            |--------------------------------------------------------------------------
+            */
+
+            elseif ($action === "verify_phone") {
+
+                if (!empty($pending['phone_verified'])) {
+
+                    $success =
+                        "Your mobile number is already verified.";
+
+                } else {
+
+                    $phoneOtp =
+                        trim($_POST['phone_otp'] ?? "");
+
+                    if (!preg_match('/^\d{6}$/', $phoneOtp)) {
+
+                        $generalError =
+                            "Please enter a valid 6-digit mobile OTP.";
+
+                    } elseif (
+                        empty($pending['phone_otp_hash']) ||
+                        empty($pending['otp_expires_at'])
+                    ) {
+
+                        $generalError =
+                            "Mobile OTP is not available. Please resend the OTP.";
+
+                    } elseif (
+                        $pending['otp_expires_at'] < time()
+                    ) {
+
+                        $generalError =
+                            "Mobile OTP has expired. Please resend the OTP.";
+
+                    } elseif (
+                        !password_verify(
+                            $phoneOtp,
+                            $pending['phone_otp_hash']
+                        )
+                    ) {
+
+                        $generalError =
+                            "Incorrect mobile OTP.";
+
+                    } else {
+
+                        $pending['phone_verified'] = true;
+
+                        $success =
+                            "Mobile number verified successfully.";
+
+                    }
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RESEND EMAIL OTP
+            |--------------------------------------------------------------------------
+            */
+
+            elseif ($action === "resend_email") {
+
+                if (!empty($pending['email_verified'])) {
+
+                    $generalError =
+                        "Your email is already verified.";
+
+                } else {
+
+                    $emailOtp =
+                        (string) random_int(100000, 999999);
+
+                    $pending['email_otp_hash'] =
+                        password_hash(
+                            $emailOtp,
+                            PASSWORD_DEFAULT
+                        );
+
+                    $pending['email_otp'] = $emailOtp;
+
+                    $pending['otp_expires_at'] =
+                        time() + 600;
+
+                    $emailSent =
+                        sendVerificationEmail(
+                            $email,
+                            $emailOtp
+                        );
+
+                    unset($pending['email_otp']);
+
+                    if ($emailSent) {
+
+                        $success =
+                            "A new email OTP has been sent.";
+
+                    } else {
+
+    $generalError = "Unable to send email OTP: " .
+                    ($GLOBALS['generalError'] ?? 'Unknown SMTP error');
+}
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RESEND PHONE OTP
+            |--------------------------------------------------------------------------
+            */
+
+            elseif ($action === "resend_phone") {
+
+                if (!empty($pending['phone_verified'])) {
+
+                    $generalError =
+                        "Your mobile number is already verified.";
+
+                } else {
+
+                    $phoneOtp =
+                        (string) random_int(100000, 999999);
+
+                    $pending['phone_otp_hash'] =
+                        password_hash(
+                            $phoneOtp,
+                            PASSWORD_DEFAULT
+                        );
+
+                    $pending['phone_otp'] = $phoneOtp;
+
+                    $pending['otp_expires_at'] =
+                        time() + 600;
+
+                    $smsSent =
+                        sendVerificationSms(
+                            $phone,
+                            $phoneOtp
+                        );
+
+                    unset($pending['phone_otp']);
+
+                    if ($smsSent) {
+
+                        $success =
+                            "A new mobile OTP has been sent.";
+
+                    } else {
+
+                        $generalError =
+                            "Unable to send mobile OTP.";
+                    }
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CHECK WHETHER BOTH ARE VERIFIED
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                empty($generalError) &&
+                !empty($pending['email_verified']) &&
+                !empty($pending['phone_verified'])
+            ) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | IMPORTANT:
+                | Re-check duplicate email/phone immediately before INSERT.
+                |--------------------------------------------------------------------------
+                */
+
+                $check = $conn->prepare(
+                    "SELECT id FROM {$table}
+                     WHERE email = ? OR phone = ?
+                     LIMIT 1"
+                );
+
+                $check->bind_param(
+                    "ss",
+                    $pending['email'],
+                    $pending['phone']
+                );
+
+                $check->execute();
+
+                $existing =
+                    $check->get_result()->fetch_assoc();
+
+                $check->close();
+
+
+                if ($existing) {
+
+                    unset($_SESSION['pending_verification']);
+
+                    $generalError =
+                        "An account with this email or mobile number already exists.";
+
+                } else {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | INSERT PATIENT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if ($userType === "patient") {
+
+                        $stmt = $conn->prepare(
+                            "INSERT INTO patients
+                            (
+                                first_name,
+                                last_name,
+                                email,
+                                phone,
+                                dob,
+                                gender,
+                                blood_group,
+                                password,
+                                email_verified,
+                                phone_verified
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1)"
+                        );
+
+                        $stmt->bind_param(
+                            "ssssssss",
+                            $pending['first_name'],
+                            $pending['last_name'],
+                            $pending['email'],
+                            $pending['phone'],
+                            $pending['dob'],
+                            $pending['gender'],
+                            $pending['blood_group'],
+                            $pending['password_hash']
+                        );
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | INSERT DOCTOR
+                    |--------------------------------------------------------------------------
+                    */
+
+                    else {
+
+                        $stmt = $conn->prepare(
+                            "INSERT INTO doctors
+                            (
+                                first_name,
+                                last_name,
+                                email,
+                                phone,
+                                dob,
+                                gender,
+                                blood_group,
+                                password,
+                                license_number,
+                                specialization,
+                                verification_photo,
+                                email_verified,
+                                phone_verified,
+                                verification_status,
+                                is_verified
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 'pending', 0)"
+                        );
+
+                        $stmt->bind_param(
+                            "sssssssssss",
+                            $pending['first_name'],
+                            $pending['last_name'],
+                            $pending['email'],
+                            $pending['phone'],
+                            $pending['dob'],
+                            $pending['gender'],
+                            $pending['blood_group'],
+                            $pending['password_hash'],
+                            $pending['license_number'],
+                            $pending['specialization'],
+                            $pending['verification_photo']
+                        );
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | INSERT USER
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if ($stmt->execute()) {
+
+                        $stmt->close();
+
+                        unset($_SESSION['pending_verification']);
+
+                        $_SESSION['csrf_token'] =
+                            bin2hex(random_bytes(32));
+
+                        $success =
+                            "Your account has been verified successfully! "
+                            . "Redirecting to login...";
+
+                        echo "
+                            <script>
+                                setTimeout(function() {
+                                    window.location.href = 'login.php';
+                                }, 1800);
+                            </script>
+                        ";
+
+                    } else {
+
+                        $generalError =
+                            "Unable to create your account. Please try again.";
+
+                        $stmt->close();
+                    }
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | NEW CSRF TOKEN AFTER POST
+            |--------------------------------------------------------------------------
+            */
+
+            $_SESSION['csrf_token'] =
+                bin2hex(random_bytes(32));
         }
     }
 
@@ -251,44 +694,81 @@ if ($conn->connect_error) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>Human Care - Verify Account</title>
-    <link rel="stylesheet" href="styles/register.css">
+
+    <link
+        rel="stylesheet"
+        href="styles/register.css"
+    >
+
     <style>
-        body { background: #f5f7f8; }
+
+        body {
+            background: #f5f7f8;
+        }
+
         .verify-card {
-            max-width: 520px;
+            max-width: 560px;
             margin: 60px auto;
             background: #fff;
             padding: 35px;
             border-radius: 16px;
             box-shadow: 0 10px 35px rgba(0,0,0,.08);
         }
-        .verify-card h2 { margin-bottom: 8px; }
-        .verify-subtitle { color: #666; margin-bottom: 25px; }
+
+        .verify-card h2 {
+            margin-bottom: 8px;
+        }
+
+        .verify-subtitle {
+            color: #666;
+            margin-bottom: 25px;
+        }
+
         .verify-item {
             background: #f8faf9;
             border: 1px solid #e3e9e5;
             border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
+            padding: 18px;
+            margin-bottom: 18px;
         }
-        .verify-item strong { display:block; margin-bottom:6px; }
+
+        .verify-item strong {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .verified {
+            color: #15803d;
+            font-weight: bold;
+        }
+
         .verify-input {
             width: 100%;
             box-sizing: border-box;
             padding: 13px;
+            margin-top: 12px;
             font-size: 20px;
             letter-spacing: 6px;
             text-align: center;
             border: 1px solid #ccc;
             border-radius: 8px;
         }
+
         .verify-btn {
             width: 100%;
-            padding: 14px;
+            padding: 13px;
+            margin-top: 10px;
             border: 0;
             border-radius: 8px;
             background: #4CAF50;
@@ -296,16 +776,18 @@ if ($conn->connect_error) {
             font-size: 16px;
             cursor: pointer;
         }
+
         .resend-btn {
             width: 100%;
-            margin-top: 12px;
-            padding: 12px;
+            margin-top: 10px;
+            padding: 11px;
             border: 1px solid #4CAF50;
             border-radius: 8px;
             background: white;
             color: #388e3c;
             cursor: pointer;
         }
+
         .general-error {
             background: #fee2e2;
             color: #991b1b;
@@ -313,6 +795,7 @@ if ($conn->connect_error) {
             border-radius: 8px;
             margin-bottom: 15px;
         }
+
         .success-message {
             background: #dcfce7;
             color: #166534;
@@ -320,67 +803,212 @@ if ($conn->connect_error) {
             border-radius: 8px;
             margin-bottom: 15px;
         }
+
     </style>
+
 </head>
+
 <body>
-    <div class="verify-card">
-        <h2>Verify Your Account</h2>
-        <p class="verify-subtitle">
-            Enter the 6-digit code sent to your email and mobile number.
-        </p>
 
-        <?php if ($generalError): ?>
-            <div class="general-error"><?php echo htmlspecialchars($generalError); ?></div>
+<div class="verify-card">
+
+    <h2>Verify Your Account</h2>
+
+    <p class="verify-subtitle">
+        Verify your email address and mobile number separately.
+    </p>
+
+
+    <?php if ($generalError): ?>
+
+        <div class="general-error">
+            <?php echo htmlspecialchars($generalError); ?>
+        </div>
+
+    <?php endif; ?>
+
+
+    <?php if ($success): ?>
+
+        <div class="success-message">
+            <?php echo htmlspecialchars($success); ?>
+        </div>
+
+    <?php endif; ?>
+
+
+    <!-- EMAIL VERIFICATION -->
+
+    <div class="verify-item">
+
+        <strong>📧 Email Address</strong>
+
+        <span>
+            <?php echo htmlspecialchars(maskEmail($email)); ?>
+        </span>
+
+        <?php if (!empty($pending['email_verified'])): ?>
+
+            <p class="verified">
+                ✓ Email Verified
+            </p>
+
+        <?php else: ?>
+
+            <form method="POST" autocomplete="off">
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>"
+                >
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="verify_email"
+                >
+
+                <input
+                    class="verify-input"
+                    type="text"
+                    name="email_otp"
+                    inputmode="numeric"
+                    pattern="\d{6}"
+                    maxlength="6"
+                    placeholder="000000"
+                    required
+                >
+
+                <button
+                    type="submit"
+                    class="verify-btn"
+                >
+                    Verify Email
+                </button>
+
+            </form>
+
+
+            <form method="POST">
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>"
+                >
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="resend_email"
+                >
+
+                <button
+                    type="submit"
+                    class="resend-btn"
+                >
+                    Resend Email OTP
+                </button>
+
+            </form>
+
         <?php endif; ?>
 
-        <?php if ($success): ?>
-            <div class="success-message"><?php echo htmlspecialchars($success); ?></div>
-        <?php endif; ?>
-
-        <form method="POST" autocomplete="off">
-            <input type="hidden" name="csrf_token"
-                   value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-            <input type="hidden" name="action" value="verify">
-
-            <div class="verify-item">
-                <strong>📧 Email</strong>
-                <span><?php echo htmlspecialchars(maskEmail($email)); ?></span>
-                <input class="verify-input"
-                       type="text"
-                       name="email_otp"
-                       inputmode="numeric"
-                       pattern="\d{6}"
-                       maxlength="6"
-                       placeholder="000000"
-                       required>
-            </div>
-
-            <div class="verify-item">
-                <strong>📱 Mobile Number</strong>
-                <span><?php echo htmlspecialchars(maskPhone($phone)); ?></span>
-                <input class="verify-input"
-                       type="text"
-                       name="phone_otp"
-                       inputmode="numeric"
-                       pattern="\d{6}"
-                       maxlength="6"
-                       placeholder="000000"
-                       required>
-            </div>
-
-            <button type="submit" class="verify-btn">Verify Account</button>
-        </form>
-
-        <form method="POST">
-            <input type="hidden" name="csrf_token"
-                   value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-            <input type="hidden" name="action" value="resend">
-            <button type="submit" class="resend-btn">Resend OTP</button>
-        </form>
-
-        <p style="text-align:center; margin-top:20px;">
-            <a href="register.php">← Back to Registration</a>
-        </p>
     </div>
+
+
+    <!-- MOBILE VERIFICATION -->
+
+    <div class="verify-item">
+
+        <strong>📱 Mobile Number</strong>
+
+        <span>
+            <?php echo htmlspecialchars(maskPhone($phone)); ?>
+        </span>
+
+        <?php if (!empty($pending['phone_verified'])): ?>
+
+            <p class="verified">
+                ✓ Mobile Number Verified
+            </p>
+
+        <?php else: ?>
+
+            <form method="POST" autocomplete="off">
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>"
+                >
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="verify_phone"
+                >
+
+                <input
+                    class="verify-input"
+                    type="text"
+                    name="phone_otp"
+                    inputmode="numeric"
+                    pattern="\d{6}"
+                    maxlength="6"
+                    placeholder="000000"
+                    required
+                >
+
+                <button
+                    type="submit"
+                    class="verify-btn"
+                >
+                    Verify Mobile
+                </button>
+
+            </form>
+
+
+            <form method="POST">
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>"
+                >
+
+                <input
+                    type="hidden"
+                    name="action"
+                    value="resend_phone"
+                >
+
+                <button
+                    type="submit"
+                    class="resend-btn"
+                >
+                    Resend Mobile OTP
+                </button>
+
+            </form>
+
+        <?php endif; ?>
+
+    </div>
+
+
+    <p style="text-align:center; margin-top:20px;">
+
+        <a href="register.php">
+            ← Back to Registration
+        </a>
+
+    </p>
+
+</div>
+
 </body>
+
 </html>

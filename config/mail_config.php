@@ -2,7 +2,7 @@
 
 return [
     'host'       => 'smtp.gmail.com',
-    'username'   => 'Human Care',
+    'username'   => 'anantra.login7@gmail.com',
     'password'   => 'ljlcaliaykdtltoe',
     'port'       => 587,
     'encryption' => 'tls',
