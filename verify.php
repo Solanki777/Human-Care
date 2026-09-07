@@ -20,7 +20,7 @@ $email    = $pending['email'];
 $phone    = $pending['phone'];
 
 $servername = "sql205.infinityfree.com";
-$username = "if0_42370337";
+$username = "";
 $password = "6yFxYkbKGy";
 
 $dbName = ($userType === 'doctor')
@@ -29,18 +29,70 @@ $dbName = ($userType === 'doctor')
 
 $table = ($userType === 'doctor') ? 'doctors' : 'patients';
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once __DIR__ . '/vendor/autoload.php';
+
 function sendVerificationEmail(string $to, string $otp): bool
 {
-    $subject = "Human Care - Email Verification OTP";
-    $message = "Your Human Care verification code is: {$otp}\n\n"
-             . "This code expires in 10 minutes.\n"
-             . "If you did not create this account, ignore this email.";
-    $headers = "From: Human Care <no-reply@yourdomain.com>\r\n"
-             . "Content-Type: text/plain; charset=UTF-8\r\n";
+    $mailConfig = require __DIR__ . '/config/mail_config.php';
 
-    return mail($to, $subject, $message, $headers);
+    $mail = new PHPMailer(true);
+
+    try {
+        $mail->isSMTP();
+        $mail->Host       = $mailConfig['host'];
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $mailConfig['username'];
+        $mail->Password   = $mailConfig['password'];
+        $mail->SMTPSecure = $mailConfig['encryption'];
+        $mail->Port       = $mailConfig['port'];
+
+        $mail->setFrom(
+            $mailConfig['from_email'],
+            $mailConfig['from_name']
+        );
+
+        $mail->addAddress($to);
+
+        $mail->isHTML(true);
+
+        $mail->Subject = "Human Care - Email Verification";
+
+        $mail->Body = "
+            <div style='font-family:Arial,sans-serif;'>
+                <h2>Human Care</h2>
+
+                <p>Your email verification OTP is:</p>
+
+                <h1 style='letter-spacing:8px;'>
+                    {$otp}
+                </h1>
+
+                <p>This OTP expires in <strong>10 minutes</strong>.</p>
+
+                <p>If you did not create this account, please ignore this email.</p>
+            </div>
+        ";
+
+        $mail->AltBody =
+            "Your Human Care email verification OTP is {$otp}. "
+            . "This OTP expires in 10 minutes.";
+
+        $mail->send();
+
+        return true;
+
+    } catch (Exception $e) {
+
+        error_log(
+            "Email OTP failed: " . $mail->ErrorInfo
+        );
+
+        return false;
+    }
 }
-
 /*
  * SMS PROVIDER:
  * Replace this function with your SMS provider API.

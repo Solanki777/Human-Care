@@ -11,3 +11,6 @@ __pycache__/
 
 vendor
 email_alert.php
+config
+composer.json
+composer.lock
