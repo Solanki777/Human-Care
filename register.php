@@ -1,16 +1,18 @@
 <?php
 session_start();
 
+require_once __DIR__ . '/duplication_checking/patient_duplicate_check.php';
+require_once __DIR__ . '/duplication_checking/doctor_duplicate_check.php';
+
+require_once __DIR__ . '/registration_validation/patient_registration_validation.php';
+require_once __DIR__ . '/registration_validation/doctor_registration_validation.php';
+
 // ============================================================
 // SECURITY: CSRF Protection
 // ============================================================
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
-
-$servername = "localhost";
-$username = "root";
-$password = "";
 
 $emailError    = "";
 $phoneError    = "";
@@ -49,362 +51,183 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $specialization = trim($_POST["specialization"] ?? '');
 
         $old = compact(
-            'firstName', 'lastName', 'email', 'phone', 'dob',
-            'gender', 'bloodGroup', 'userType',
-            'licenseNumber', 'specialization'
+    'firstName', 'lastName', 'email', 'phone', 'dob',
+    'gender', 'bloodGroup', 'userType',
+    'licenseNumber', 'specialization'
+);
+
+
+// ============================================================
+// REGISTRATION VALIDATION
+// ============================================================
+
+    if ($userType === 'patient') {
+
+        $validationResult = validatePatientRegistration(
+            $firstName,
+            $lastName,
+            $email,
+            $phone,
+            $dob,
+            $gender,
+            $bloodGroup,
+            $passwordInput,
+            $confirmPassword
         );
 
-        $allowedUserTypes = ['patient', 'doctor'];
-        $allowedGenders = ['male', 'female', 'other'];
-        $allowedBloodGroups = ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-        $allowedSpecializations = [
-            '', 'general', 'cardiology', 'dermatology', 'neurology',
-            'orthopedics', 'pediatrics', 'psychiatry', 'surgery', 'other'
+    } elseif ($userType === 'doctor') {
+
+        $validationResult = validateDoctorRegistration(
+            $firstName,
+            $lastName,
+            $email,
+            $phone,
+            $dob,
+            $gender,
+            $bloodGroup,
+            $passwordInput,
+            $confirmPassword,
+            $licenseNumber,
+            $specialization
+        );
+
+    } else {
+
+        $validationResult = [
+            'valid' => false,
+            'errors' => ['Please select a valid account type.']
         ];
+    }
 
-        $validationErrors = [];
 
-        if (!in_array($userType, $allowedUserTypes, true)) {
-            $validationErrors[] = "Invalid account type selected.";
-        }
+    // ============================================================
+    // HANDLE VALIDATION ERRORS
+    // ============================================================
 
-        if (!preg_match("/^[a-zA-Z\s\-']{1,50}$/", $firstName)) {
-            $validationErrors[] = "First name contains invalid characters or is too long.";
-        }
+    if (!$validationResult['valid']) {
+        $generalError = implode(' ', $validationResult['errors']);
+    }
 
-        if (!preg_match("/^[a-zA-Z\s\-']{1,50}$/", $lastName)) {
-            $validationErrors[] = "Last name contains invalid characters or is too long.";
-        }
 
-        $email = filter_var($email, FILTER_SANITIZE_EMAIL);
-        $old['email'] = $email;
+    // ============================================================
+    // DUPLICATE CHECKING
+    // ============================================================
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 100) {
-            $validationErrors[] = "Please enter a valid email address.";
-        }
+    if (empty($generalError)) {
 
-        // Mobile number validation:
-        // Human Care uses Indian mobile numbers: exactly 10 digits,
-        // starting with 6, 7, 8, or 9. Spaces, +91, brackets and hyphens
-        // are intentionally rejected so the stored value is consistent.
-        if (!preg_match("/^[6-9][0-9]{9}$/", $phone)) {
-            $validationErrors[] = "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.";
-        }
-        
-        
+        if ($userType === 'patient') {
 
-        // Age validation:
-        // Registration is allowed only for users who are 18 years or older.
-        $dobTimestamp = strtotime($dob);
-
-        if ($dob === '' || $dobTimestamp === false) {
-
-            $validationErrors[] = "Please provide a valid date of birth.";
+            $duplicateResult = checkPatientDuplicates(
+                $email,
+                $phone
+            );
 
         } else {
 
-            try {
-                $dobDate = new DateTime($dob);
-                $today = new DateTime('today');
-
-                if ($dobDate > $today) {
-
-                    $validationErrors[] = "Date of birth cannot be in the future.";
-
-                } else {
-
-                    $age = $dobDate->diff($today)->y;
-
-                    if ($age < 18) {
-                        $validationErrors[] = "You must be 18 years or older to register.";
-                    } elseif ($age > 120) {
-                        $validationErrors[] = "Please provide a valid date of birth.";
-                    }
-                }
-
-            } catch (Exception $e) {
-                $validationErrors[] = "Please provide a valid date of birth.";
-            }
+            $duplicateResult = checkDoctorDuplicates(
+                $email,
+                $phone,
+                $licenseNumber
+            );
         }
 
-        if (!in_array($gender, $allowedGenders, true)) {
-            $validationErrors[] = "Please select a valid gender.";
+        if (!empty($duplicateResult['error'])) {
+            $generalError = $duplicateResult['error'];
         }
 
-        if (!in_array($bloodGroup, $allowedBloodGroups, true)) {
-            $validationErrors[] = "Please select a valid blood group.";
+        if (!empty($duplicateResult['email_exists'])) {
+            $emailError = "This email address is already registered.";
         }
 
-        if (strlen($passwordInput) < 8 ||
-            !preg_match('/[A-Z]/', $passwordInput) ||
-            !preg_match('/[a-z]/', $passwordInput) ||
-            !preg_match('/[0-9]/', $passwordInput)) {
-
-            $passwordError = "Password must be at least 8 characters and include uppercase, lowercase, and a number.";
-
-        } elseif ($passwordInput !== $confirmPassword) {
-            $passwordError = "Passwords do not match!";
+        if (!empty($duplicateResult['phone_exists'])) {
+            $phoneError = "This phone number is already registered.";
         }
 
-        if ($userType === 'doctor') {
-
-            if (!preg_match("/^[a-zA-Z0-9\-\/]{3,50}$/", $licenseNumber)) {
-                $validationErrors[] = "Please enter a valid medical license number.";
-            }
-
-            if (!in_array($specialization, $allowedSpecializations, true) ||
-                $specialization === '') {
-
-                $validationErrors[] = "Please select a valid specialization.";
-            }
+        if (
+            $userType === 'doctor' &&
+            !empty($duplicateResult['license_exists'])
+        ) {
+            $generalError = "This medical license number is already registered.";
         }
+    }
 
-        if (!empty($validationErrors)) {
-            $generalError = implode(' ', $validationErrors);
-        }
 
-        // ========================================================
-        // IMPORTANT:
-        // Do NOT INSERT INTO patients/doctors here.
-        // We only check duplicates and save registration data
-        // temporarily in the PHP session.
-        // ========================================================
-        if (empty($generalError) && empty($passwordError)) {
+    // ============================================================
+    // START OTP VERIFICATION
+    // ============================================================
 
-            $dbName = ($userType === 'doctor')
-                ? "if0_42370337_human_care_doctors"
-                : "if0_42370337_human_care_patients";
+    if (
+        empty($generalError) &&
+        empty($emailError) &&
+        empty($phoneError) &&
+        empty($fileError) &&
+        empty($passwordError)
+    ) {
 
-            $conn = new mysqli($servername, $username, $password, $dbName);
+        $emailOtp = (string) random_int(100000, 999999);
+        $phoneOtp = (string) random_int(100000, 999999);
 
-            if ($conn->connect_error) {
+        $otpExpiresAt = time() + 600; // 10 minutes
 
-                $generalError = "Unable to connect. Please try again later.";
 
-            } else {
+        $_SESSION['pending_verification'] = [
 
-                $conn->set_charset("utf8mb4");
-            // ------------------------------------------------
-            // Check duplicate email / phone / license
-            // BEFORE temporary storage.
-            // No database INSERT happens here.
-            // ------------------------------------------------
+            'user_type' => $userType,
 
-            if ($userType === 'patient') {
+            'email' => $email,
+            'phone' => $phone,
 
-                $check = $conn->prepare(
-                    "SELECT email, phone
-                    FROM patients
-                    WHERE email = ? OR phone = ?"
-                );
+            'first_name' => $firstName,
+            'last_name' => $lastName,
 
-                $check->bind_param("ss", $email, $phone);
-                $check->execute();
+            'dob' => $dob,
+            'gender' => $gender,
+            'blood_group' => $bloodGroup,
 
-                $result = $check->get_result();
+            'password_hash' => password_hash(
+                $passwordInput,
+                PASSWORD_DEFAULT
+            ),
 
-                while ($existing = $result->fetch_assoc()) {
+            'license_number' =>
+                $userType === 'doctor'
+                    ? $licenseNumber
+                    : '',
 
-                    if (
-                        isset($existing['email']) &&
-                        strcasecmp($existing['email'], $email) === 0
-                    ) {
-                        $emailError =
-                            "This email address is already registered. Please use a different email.";
-                    }
+            'specialization' =>
+                $userType === 'doctor'
+                    ? $specialization
+                    : '',
 
-                    if (
-                        isset($existing['phone']) &&
-                        $existing['phone'] === $phone
-                    ) {
-                        $phoneError =
-                            "This mobile number is already registered. Please use a different mobile number.";
-                    }
-                }
-                $check->close();
+            'email_otp_hash' => password_hash(
+                $emailOtp,
+                PASSWORD_DEFAULT
+            ),
 
-            } else {
+            'phone_otp_hash' => password_hash(
+                $phoneOtp,
+                PASSWORD_DEFAULT
+            ),
 
-                $check = $conn->prepare(
-                    "SELECT email, phone, license_number
-                    FROM doctors
-                    WHERE email = ?
-                        OR phone = ?
-                        OR license_number = ?"
-                );
+            // Temporary values for sending OTP
+            'email_otp' => $emailOtp,
+            'phone_otp' => $phoneOtp,
 
-                $check->bind_param(
-                    "sss",
-                    $email,
-                    $phone,
-                    $licenseNumber
-                );
+            'otp_expires_at' => $otpExpiresAt,
 
-                $check->execute();
+            'created_at' => time()
+        ];
 
-                $result = $check->get_result();
-                $existing = $result->fetch_assoc();
 
-                if ($existing) {
+        // Generate a fresh CSRF token
+        $_SESSION['csrf_token'] = bin2hex(
+            random_bytes(32)
+        );
 
-                    if (
-                        isset($existing['email']) &&
-                        strcasecmp($existing['email'], $email) === 0
-                    ) {
-                        $emailError =
-                            "This email address is already registered. Please use a different email.";
-                    }
 
-                    if (
-                        isset($existing['phone']) &&
-                        $existing['phone'] === $phone
-                    ) {
-                        $phoneError =
-                            "This mobile number is already registered. Please use a different mobile number.";
-                    }
-
-                    if (
-                        isset($existing['license_number']) &&
-                        $existing['license_number'] === $licenseNumber
-                    ) {
-                        $generalError =
-                            "This medical license number is already registered. Please use a different license number.";
-                    }
-                }
-
-                $check->close();
-            }
-
-                // ------------------------------------------------
-                // Doctor photo is validated and stored as a file,
-                // but NO doctor database row is created yet.
-                // ------------------------------------------------
-                $verificationPhoto = null;
-
-                if (empty($emailError) && $userType === 'doctor') {
-
-                    if (!empty($_FILES["verificationPhoto"]["name"])) {
-
-                        $file = $_FILES["verificationPhoto"];
-
-                        if ($file["error"] !== UPLOAD_ERR_OK) {
-
-                            $fileError = "File upload failed. Please try again.";
-
-                        } elseif ($file["size"] > 5 * 1024 * 1024) {
-
-                            $fileError = "File is too large. Maximum size is 5MB.";
-
-                        } else {
-
-                            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                            $realMime = finfo_file($finfo, $file["tmp_name"]);
-                            finfo_close($finfo);
-
-                            $allowedMimes = [
-                                'image/jpeg',
-                                'image/png',
-                                'image/webp'
-                            ];
-
-                            $mimeToExt = [
-                                'image/jpeg' => 'jpg',
-                                'image/png'  => 'png',
-                                'image/webp' => 'webp'
-                            ];
-
-                            if (!in_array($realMime, $allowedMimes, true)) {
-
-                                $fileError = "Only JPG, PNG, or WEBP images are allowed.";
-
-                            } else {
-
-                                $uploadDir = "uploads/doctor_verification/";
-
-                                if (!is_dir($uploadDir)) {
-                                    if (!mkdir($uploadDir, 0755, true)) {
-                                        $fileError = "Unable to prepare upload directory.";
-                                    }
-                                }
-
-                                if (empty($fileError)) {
-
-                                    $safeExt = $mimeToExt[$realMime];
-                                    $fileName = bin2hex(random_bytes(16)) . '.' . $safeExt;
-                                    $uploadPath = $uploadDir . $fileName;
-
-                                    if (move_uploaded_file($file["tmp_name"], $uploadPath)) {
-                                        $verificationPhoto = $uploadPath;
-                                    } else {
-                                        $fileError = "Failed to save uploaded file. Please try again.";
-                                    }
-                                }
-                            }
-                        }
-
-                    } else {
-                        $fileError = "Please upload a verification photo.";
-                    }
-                }
-
-                // ------------------------------------------------
-                // Only after validation succeeds:
-                // SAVE EVERYTHING TEMPORARILY IN SESSION.
-                // No DB INSERT happens here.
-                // ------------------------------------------------
-                if (
-                    empty($emailError) &&
-                    empty($phoneError) &&
-                    empty($passwordError) &&
-                    empty($fileError) &&
-                    empty($generalError)
-                ) {
-
-                    // Generate strong 10-character OTPs.
-                    // Each OTP contains at least:
-                    // - uppercase letter
-                    // - lowercase letter
-                    // - number
-                    // - special character
-                    $emailOtp = (string) random_int(100000, 999999);
-                    $phoneOtp = (string) random_int(100000, 999999);
-
-                    // OTPs are stored hashed in the session.
-                    // The raw OTPs are kept only long enough for verify.php
-                    // to send them, then removed.
-                    $otpExpiresAt = time() + 600;
-
-                    $_SESSION['pending_verification'] = [
-                        'user_type'          => $userType,
-                        'email'              => $email,
-                        'phone'              => $phone,
-                        'first_name'         => $firstName,
-                        'last_name'          => $lastName,
-                        'dob'                => $dob,
-                        'gender'             => $gender,
-                        'blood_group'        => $bloodGroup,
-                        'password_hash'      => password_hash($passwordInput, PASSWORD_DEFAULT),
-                        'license_number'     => $userType === 'doctor' ? $licenseNumber : '',
-                        'specialization'     => $userType === 'doctor' ? $specialization : '',
-                        'verification_photo' => $verificationPhoto,
-                        'email_otp_hash'     => password_hash($emailOtp, PASSWORD_DEFAULT),
-                        'phone_otp_hash'     => password_hash($phoneOtp, PASSWORD_DEFAULT),
-                        'email_otp'          => $emailOtp,
-                        'phone_otp'          => $phoneOtp,
-                        'otp_expires_at'     => $otpExpiresAt,
-                        'created_at'         => time()
-                    ];
-
-                    // Prevent the registration form from being replayed.
-                    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-
-                    header("Location: verify.php");
-                    exit;
-                }
-
-                $conn->close();
-            }
-        }
+        header("Location: verify.php");
+        exit;
+    }
     }
 }
 ?>
