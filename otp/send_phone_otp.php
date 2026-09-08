@@ -1,9 +1,14 @@
+
 <?php
 
 /**
  * Send Phone OTP
  *
- * This function is prepared for SMS API integration.
+ * If SMS API credentials are configured, the OTP is sent
+ * through the configured SMS provider.
+ *
+ * If SMS API is not configured, the OTP is logged for
+ * development/fallback purposes.
  *
  * @param string $phone
  * @param string $otp
@@ -11,24 +16,82 @@
  */
 function sendPhoneOTP(string $phone, string $otp): bool
 {
+    // Read SMS configuration from environment variables.
+    $apiUrl = getenv('SMS_API_URL');
+    $apiKey = getenv('SMS_API_KEY');
+
     /*
-     * SMS provider integration will be added here.
+     * ---------------------------------------------------------
+     * API NOT CONFIGURED
+     * ---------------------------------------------------------
      *
-     * Example providers:
-     * - Twilio
-     * - MSG91
-     * - Fast2SMS
-     * - Textlocal
-     *
-     * Do NOT put API keys directly in this file.
+     * Keep your existing behavior.
+     */
+    if (empty($apiUrl) || empty($apiKey)) {
+
+        error_log(
+            "HUMAN CARE Phone OTP for {$phone}: {$otp}"
+        );
+
+        return true;
+    }
+
+    /*
+     * ---------------------------------------------------------
+     * API CONFIGURED
+     * ---------------------------------------------------------
      */
 
-    // Temporary development mode
-    // Remove this once an SMS provider is configured.
+    $message = "Your HUMAN CARE OTP is: {$otp}";
+
+    $payload = [
+        'mobile'  => $phone,
+        'message' => $message,
+        'otp'     => $otp,
+    ];
+
+    $ch = curl_init($apiUrl);
+
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => json_encode($payload),
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'Authorization: Bearer ' . $apiKey,
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_TIMEOUT        => 10,
+    ]);
+
+    $response = curl_exec($ch);
+
+    // cURL error
+    if ($response === false) {
+        error_log(
+            'SMS API cURL error: ' . curl_error($ch)
+        );
+
+        curl_close($ch);
+
+        return false;
+    }
+
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    curl_close($ch);
+
+    /*
+     * Consider 2xx responses successful.
+     */
+    if ($httpCode >= 200 && $httpCode < 300) {
+        return true;
+    }
 
     error_log(
-        "HUMAN CARE Phone OTP for {$phone}: {$otp}"
+        "SMS API failed. HTTP {$httpCode}. Response: {$response}"
     );
 
-    return true;
+    return false;
 }
