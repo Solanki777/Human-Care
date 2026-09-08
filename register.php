@@ -1,18 +1,19 @@
 <?php
 session_start();
 
+require_once __DIR__ . '/security_csrf/csrf.php';
+
 require_once __DIR__ . '/duplication_checking/patient_duplicate_check.php';
 require_once __DIR__ . '/duplication_checking/doctor_duplicate_check.php';
 
 require_once __DIR__ . '/registration_validation/patient_registration_validation.php';
 require_once __DIR__ . '/registration_validation/doctor_registration_validation.php';
 
-// ============================================================
-// SECURITY: CSRF Protection
-// ============================================================
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+
+require_once __DIR__ . '/otp/send_email_otp.php';
+require_once __DIR__ . '/otp/send_phone_otp.php';
+
+
 
 $emailError    = "";
 $phoneError    = "";
@@ -29,12 +30,11 @@ $old = [
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    if (!isset($_POST['csrf_token']) ||
-        !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? null)) {
 
-        $generalError = "Security validation failed. Please refresh the page and try again.";
+    $generalError = "Security validation failed. Please refresh the page and try again.";
 
-    } else {
+} else {
 
         $firstName = trim($_POST["firstName"] ?? '');
         $lastName  = trim($_POST["lastName"] ?? '');
@@ -220,9 +220,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
         // Generate a fresh CSRF token
-        $_SESSION['csrf_token'] = bin2hex(
-            random_bytes(32)
-        );
+        regenerateCSRFToken();
 
 
         header("Location: verify.php");
@@ -278,7 +276,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             <form id="registerForm" method="POST" action="" enctype="multipart/form-data" autocomplete="off">
                 <!-- SECURITY: CSRF token -->
-                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                <input type="hidden"
+            name="csrf_token"
+            value="<?php echo htmlspecialchars(getCSRFToken()); ?>">
 
                 <!-- User Type Selection -->
                 <div class="user-type-selector">
