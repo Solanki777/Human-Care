@@ -131,7 +131,14 @@ function sendVerificationEmail(string $to, string $otp): bool
 
 function sendVerificationSms(string $phone, string $otp): bool
 {
-    // TODO: Add SMS provider API here.
+    // FREE DEVELOPMENT MODE
+    // No real SMS is sent.
+    // The OTP is written to the PHP error log for testing.
+
+    error_log(
+        "HUMAN CARE MOBILE OTP | Phone: {$phone} | OTP: {$otp}"
+    );
+
     return true;
 }
 
@@ -677,15 +684,6 @@ if ($conn->connect_error) {
                     }
                 }
             }
-
-            /*
-            |--------------------------------------------------------------------------
-            | NEW CSRF TOKEN AFTER POST
-            |--------------------------------------------------------------------------
-            */
-
-            $_SESSION['csrf_token'] =
-                bin2hex(random_bytes(32));
         }
     }
 

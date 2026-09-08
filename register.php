@@ -349,8 +349,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     // - lowercase letter
                     // - number
                     // - special character
-                    $emailOtp = generateStrongOtp(10);
-                    $phoneOtp = generateStrongOtp(10);
+                    $emailOtp = (string) random_int(100000, 999999);
+                    $phoneOtp = (string) random_int(100000, 999999);
 
                     // OTPs are stored hashed in the session.
                     // The raw OTPs are kept only long enough for verify.php
