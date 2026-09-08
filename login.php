@@ -324,7 +324,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     log_security_event($ip, $email, 'success', 'patient');
 
-                    header("Location: index.php");
+                    header("Location: patient/index.php");
                     exit;
                 }
             } else {

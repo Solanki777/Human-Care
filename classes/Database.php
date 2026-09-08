@@ -8,9 +8,9 @@ class Database {
     private static $connections = [];
     
     // Database credentials
-    private const HOST = 'sql205.infinityfree.com';
-    private const USERNAME = 'if0_42370337';
-    private const PASSWORD = '6yFxYkbKGy';
+    private const HOST = 'localhost';
+    private const USERNAME = 'root';
+    private const PASSWORD = '';
     
     // Database names
     private const DB_ADMIN = 'if0_42370337_human_care_admin';

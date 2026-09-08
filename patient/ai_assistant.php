@@ -7,9 +7,9 @@
    - Chat logic is pure JS (fetch to api/chat.php). No backend built yet.
    ===================================================================== */
 
-require_once 'config/config.php';
-require_once 'config/database.php';
-require_once 'includes/session.php';
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/session.php';
 
 // ---------------------------------------------------------------------
 // Auth guard — same pattern as patient_appointment.php

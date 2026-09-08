@@ -1,5 +1,5 @@
 <?php
-require_once 'includes/session.php';
+require_once __DIR__ . '/../includes/session.php';
 
 // -------------------------------------------------------
 // LOGIN GUARD — Only logged-in users/patients can view
@@ -7,7 +7,7 @@ require_once 'includes/session.php';
 $is_logged_in = isset($_SESSION['user_id']) && isset($_SESSION['user_type']);
 
 // Connect to admin database to fetch approved content
-$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+$admin_conn = new mysqli("localhost", "root", "", "if0_42370337_human_care_admin");
 if ($admin_conn->connect_error) {
     die("Connection failed: " . $admin_conn->connect_error);
 }

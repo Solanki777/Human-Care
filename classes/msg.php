@@ -21,7 +21,7 @@ class Chat {
     public function __construct() {
         // Connect to the admin database - this is where both the unified
         // "appointments" table and all chat_* tables live.
-        $this->adminConn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+        $this->adminConn = new mysqli("localhost", "root", "", "if0_42370337_human_care_admin");
         
         if ($this->adminConn->connect_error) {
             throw new Exception("Database connection failed");

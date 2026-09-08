@@ -18,7 +18,7 @@ if ($content_id <= 0) {
     exit('Invalid ID');
 }
 
-$conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+$conn = new mysqli("localhost", "root", "", "if0_42370337_human_care_admin");
 if ($conn->connect_error) {
     http_response_code(500);
     exit('DB error');

@@ -13,8 +13,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'patient') {
 $patient_id = $_SESSION['user_id'];
 $patient_name = $_SESSION['user_name'];
 
-$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
-$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+$doctors_conn = new mysqli("localhost", "root", "", "if0_42370337_human_care_doctors");
+$admin_conn = new mysqli("localhost", "root", "", "if0_42370337_human_care_admin");
 if ($doctors_conn->connect_error || $admin_conn->connect_error) {
     die("Connection failed");
 }

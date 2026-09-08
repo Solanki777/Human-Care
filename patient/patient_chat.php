@@ -1,7 +1,7 @@
 <?php
-require_once 'config/config.php';
-require_once 'classes/Chat.php';
-require_once 'includes/session.php';
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../classes/Chat.php';
+require_once __DIR__ . '/../includes/session.php';
 
 // Check if patient is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'patient') {

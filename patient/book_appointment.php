@@ -1,9 +1,11 @@
 <?php
-require_once 'config/config.php';
-require_once 'classes/Auth.php';
-require_once 'classes/Database.php';
-require_once 'classes/Validator.php';
-require_once 'classes/AppointmentService.php';
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../classes/Auth.php';
+require_once __DIR__ . '/../classes/Database.php';
+require_once __DIR__ . '/../classes/Validator.php';
+require_once __DIR__ . '/../classes/AppointmentService.php';
+
+
 
 Auth::require('patient');
 

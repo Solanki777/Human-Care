@@ -1,8 +1,9 @@
 <?php
-require_once 'config/config.php';
-require_once 'config/database.php';
-require_once 'includes/session.php';
-require_once 'classes/msg.php';
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../classes/msg.php';
+
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
