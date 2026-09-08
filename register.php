@@ -24,42 +24,6 @@ $old = [
     'licenseNumber' => '', 'specialization' => ''
 ];
 
-/**
- * Generates a strong OTP containing uppercase, lowercase, number and special
- * character, then cryptographically shuffles the characters.
- */
-function generateStrongOtp(int $length = 10): string
-{
-    if ($length < 4) {
-        $length = 4;
-    }
-
-    $upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-    $lower   = 'abcdefghijkmnopqrstuvwxyz';
-    $numbers = '23456789';
-    $special = '@#$%&*!?';
-
-    $otp = [
-        $upper[random_int(0, strlen($upper) - 1)],
-        $lower[random_int(0, strlen($lower) - 1)],
-        $numbers[random_int(0, strlen($numbers) - 1)],
-        $special[random_int(0, strlen($special) - 1)]
-    ];
-
-    $all = $upper . $lower . $numbers . $special;
-
-    while (count($otp) < $length) {
-        $otp[] = $all[random_int(0, strlen($all) - 1)];
-    }
-
-    // Fisher-Yates shuffle using random_int.
-    for ($i = count($otp) - 1; $i > 0; $i--) {
-        $j = random_int(0, $i);
-        [$otp[$i], $otp[$j]] = [$otp[$j], $otp[$i]];
-    }
-
-    return implode('', $otp);
-}
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
