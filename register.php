@@ -12,8 +12,8 @@ $servername = "localhost";
 $username = "root";
 $password = "";
 
-$success       = "";
 $emailError    = "";
+$phoneError    = "";
 $passwordError = "";
 $fileError     = "";
 $generalError  = "";
@@ -126,6 +126,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (!preg_match("/^[6-9][0-9]{9}$/", $phone)) {
             $validationErrors[] = "Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.";
         }
+        
+        
 
         // Age validation:
         // Registration is allowed only for users who are 18 years or older.
@@ -218,51 +220,96 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             } else {
 
                 $conn->set_charset("utf8mb4");
+            // ------------------------------------------------
+            // Check duplicate email / phone / license
+            // BEFORE temporary storage.
+            // No database INSERT happens here.
+            // ------------------------------------------------
 
-                // ------------------------------------------------
-                // Check duplicate email BEFORE temporary storage.
-                // This does not create/update an account.
-                // ------------------------------------------------
-                if ($userType === 'patient') {
+            if ($userType === 'patient') {
 
-                    $check = $conn->prepare(
-                        "SELECT id FROM patients WHERE email = ? LIMIT 1"
-                    );
-                    $check->bind_param("s", $email);
-                    $check->execute();
-                    $check->store_result();
+                $check = $conn->prepare(
+                    "SELECT email, phone
+                    FROM patients
+                    WHERE email = ? OR phone = ?"
+                );
 
-                    if ($check->num_rows > 0) {
-                        $emailError = "Email already registered!";
+                $check->bind_param("ss", $email, $phone);
+                $check->execute();
+
+                $result = $check->get_result();
+
+                while ($existing = $result->fetch_assoc()) {
+
+                    if (
+                        isset($existing['email']) &&
+                        strcasecmp($existing['email'], $email) === 0
+                    ) {
+                        $emailError =
+                            "This email address is already registered. Please use a different email.";
                     }
 
-                    $check->close();
-
-                } else {
-
-                    $check = $conn->prepare(
-                        "SELECT email, license_number
-                         FROM doctors
-                         WHERE email = ? OR license_number = ?
-                         LIMIT 1"
-                    );
-
-                    $check->bind_param("ss", $email, $licenseNumber);
-                    $check->execute();
-
-                    $result = $check->get_result();
-                    $existing = $result->fetch_assoc();
-
-                    if ($existing) {
-                        if ($existing['email'] === $email) {
-                            $emailError = "This email is already registered!";
-                        } else {
-                            $emailError = "This medical license number is already registered!";
-                        }
+                    if (
+                        isset($existing['phone']) &&
+                        $existing['phone'] === $phone
+                    ) {
+                        $phoneError =
+                            "This mobile number is already registered. Please use a different mobile number.";
                     }
-
-                    $check->close();
                 }
+                $check->close();
+
+            } else {
+
+                $check = $conn->prepare(
+                    "SELECT email, phone, license_number
+                    FROM doctors
+                    WHERE email = ?
+                        OR phone = ?
+                        OR license_number = ?"
+                );
+
+                $check->bind_param(
+                    "sss",
+                    $email,
+                    $phone,
+                    $licenseNumber
+                );
+
+                $check->execute();
+
+                $result = $check->get_result();
+                $existing = $result->fetch_assoc();
+
+                if ($existing) {
+
+                    if (
+                        isset($existing['email']) &&
+                        strcasecmp($existing['email'], $email) === 0
+                    ) {
+                        $emailError =
+                            "This email address is already registered. Please use a different email.";
+                    }
+
+                    if (
+                        isset($existing['phone']) &&
+                        $existing['phone'] === $phone
+                    ) {
+                        $phoneError =
+                            "This mobile number is already registered. Please use a different mobile number.";
+                    }
+
+                    if (
+                        isset($existing['license_number']) &&
+                        $existing['license_number'] === $licenseNumber
+                    ) {
+                        $generalError =
+                            "This medical license number is already registered. Please use a different license number.";
+                    }
+                }
+
+                $check->close();
+            }
 
                 // ------------------------------------------------
                 // Doctor photo is validated and stored as a file,
@@ -341,7 +388,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 // SAVE EVERYTHING TEMPORARILY IN SESSION.
                 // No DB INSERT happens here.
                 // ------------------------------------------------
-                if (empty($emailError) && empty($fileError)) {
+                if (
+                    empty($emailError) &&
+                    empty($phoneError) &&
+                    empty($passwordError) &&
+                    empty($fileError) &&
+                    empty($generalError)
+                ) {
 
                     // Generate strong 10-character OTPs.
                     // Each OTP contains at least:
@@ -436,12 +489,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <div class="general-error"><?php echo htmlspecialchars($generalError); ?></div>
             <?php endif; ?>
 
-            <?php if ($success): ?>
-                <div class="success-message" style="display:block;"><?php echo htmlspecialchars($success); ?></div>
-            <?php else: ?>
-                <div class="success-message" id="successMessage">Registration successful! Redirecting to login...</div>
-            <?php endif; ?>
-
             <form id="registerForm" method="POST" action="" enctype="multipart/form-data" autocomplete="off">
                 <!-- SECURITY: CSRF token -->
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
@@ -521,6 +568,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <small class="field-hint">
                             Enter a valid 10-digit Indian mobile number.
                         </small>
+                        <?php if ($phoneError): ?>
+                            <div class="error-message" style="display:block;">
+                                <?php echo htmlspecialchars($phoneError); ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
 
