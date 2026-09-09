@@ -10,10 +10,6 @@ require_once __DIR__ . '/registration_validation/patient_registration_validation
 require_once __DIR__ . '/registration_validation/doctor_registration_validation.php';
 
 
-require_once __DIR__ . '/otp/send_email_otp.php';
-require_once __DIR__ . '/otp/send_phone_otp.php';
-
-
 
 $emailError    = "";
 $phoneError    = "";
@@ -46,9 +42,125 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $passwordInput   = $_POST["password"] ?? '';
         $confirmPassword = $_POST["confirmPassword"] ?? '';
         $userType  = trim($_POST["userType"] ?? '');
+        $termsAccepted = isset($_POST['terms']) && $_POST['terms'] === '1';
+        
 
         $licenseNumber  = trim($_POST["licenseNumber"] ?? '');
         $specialization = trim($_POST["specialization"] ?? '');
+
+        // ============================================================
+        // DOCTOR VERIFICATION PHOTO
+        // ============================================================
+
+        $verificationPhotoTemp = '';
+        $verificationPhotoType = '';
+
+        if ($userType === 'doctor') {
+
+            if (
+                !isset($_FILES['verificationPhoto']) ||
+                $_FILES['verificationPhoto']['error'] === UPLOAD_ERR_NO_FILE
+            ) {
+
+                $fileError = "Please upload your medical license or ID photo.";
+
+            } elseif ($_FILES['verificationPhoto']['error'] !== UPLOAD_ERR_OK) {
+
+                $fileError = "Unable to upload the verification photo.";
+
+            } else {
+
+                $file = $_FILES['verificationPhoto'];
+
+                // Maximum 5 MB
+                if ($file['size'] > 5 * 1024 * 1024) {
+
+                    $fileError = "Verification photo must be smaller than 5 MB.";
+
+                } else {
+
+                    $allowedTypes = [
+                        'image/jpeg',
+                        'image/png',
+                        'image/webp'
+                    ];
+
+                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    $detectedType = finfo_file($finfo, $file['tmp_name']);
+                    finfo_close($finfo);
+
+                    if (!in_array($detectedType, $allowedTypes, true)) {
+
+                        $fileError =
+                            "Invalid verification photo. "
+                            . "Only JPG, PNG, and WEBP files are allowed.";
+
+                    } elseif (!@getimagesize($file['tmp_name'])) {
+
+                        $fileError =
+                            "The uploaded verification file is not a valid image.";
+
+                    } else {
+
+                        $extensionMap = [
+                            'image/jpeg' => 'jpg',
+                            'image/png'  => 'png',
+                            'image/webp' => 'webp'
+                        ];
+
+                        $extension = $extensionMap[$detectedType];
+
+                        $tempDirectory =
+                            __DIR__ . '/storage/temp_verification';
+
+                        if (!is_dir($tempDirectory)) {
+
+                            if (!mkdir($tempDirectory, 0750, true)) {
+
+                                $fileError =
+                                    "Unable to prepare photo storage.";
+
+                            }
+                        }
+
+                        if (empty($fileError)) {
+
+                            $temporaryFilename =
+                                bin2hex(random_bytes(32))
+                                . '.'
+                                . $extension;
+
+                            $temporaryPath =
+                                $tempDirectory
+                                . DIRECTORY_SEPARATOR
+                                . $temporaryFilename;
+
+                            if (
+                                move_uploaded_file(
+                                    $file['tmp_name'],
+                                    $temporaryPath
+                                )
+                            ) {
+
+                                $verificationPhotoTemp =
+                                    $temporaryFilename;
+
+                                $verificationPhotoType =
+                                    $detectedType;
+
+                            } else {
+
+                                $fileError =
+                                    "Unable to save the verification photo.";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        
 
         $old = compact(
     'firstName', 'lastName', 'email', 'phone', 'dob',
@@ -60,6 +172,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 // ============================================================
 // REGISTRATION VALIDATION
 // ============================================================
+        if (!$validationResult['valid']) {
+        $generalError = implode(' ', $validationResult['errors']);
+    }
+        if (!$termsAccepted) {
+        $generalError = "You must agree to the Terms & Conditions and Privacy Policy.";
+    }
 
     if ($userType === 'patient') {
 
@@ -167,7 +285,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $emailOtp = (string) random_int(100000, 999999);
         $phoneOtp = (string) random_int(100000, 999999);
 
-        $otpExpiresAt = time() + 600; // 10 minutes
+        $emailOtpExpiresAt = time() + 600;
+        $phoneOtpExpiresAt = time() + 600; // 10 minutes
 
 
         $_SESSION['pending_verification'] = [
@@ -198,6 +317,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $userType === 'doctor'
                     ? $specialization
                     : '',
+            'verification_photo_temp' =>
+                $userType === 'doctor'
+                    ? $verificationPhotoTemp
+                    : '',
+
+            'verification_photo_type' =>
+                $userType === 'doctor'
+                    ? $verificationPhotoType
+                    : '',
 
             'email_otp_hash' => password_hash(
                 $emailOtp,
@@ -213,8 +341,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             'email_otp' => $emailOtp,
             'phone_otp' => $phoneOtp,
 
-            'otp_expires_at' => $otpExpiresAt,
-
+            'email_otp_expires_at' => $emailOtpExpiresAt,
+            'phone_otp_expires_at' => $phoneOtpExpiresAt,
             'created_at' => time()
         ];
 
