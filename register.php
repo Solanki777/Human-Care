@@ -1,20 +1,7 @@
 <?php
 session_start();
 
-require_once __DIR__ . '/security_csrf/csrf.php';
-
-require_once __DIR__ . '/duplication_checking/patient_duplicate_check.php';
-require_once __DIR__ . '/duplication_checking/doctor_duplicate_check.php';
-
-
-require_once __DIR__ . '/registration_validation/patient_registration_validation.php';
-require_once __DIR__ . '/registration_validation/doctor_registration_validation.php';
-
-
-require_once __DIR__ . '/registration/photo_handler.php';
-require_once __DIR__ . '/registration/otp_handler.php';
-
-
+require_once __DIR__ . '/registration/registration_handler.php';
 
 $emailError    = "";
 $phoneError    = "";
@@ -28,228 +15,49 @@ $old = [
     'licenseNumber' => '', 'specialization' => ''
 ];
 
-
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if (!verifyCSRFToken($_POST['csrf_token'] ?? null)) {
 
-    $generalError = "Security validation failed. Please refresh the page and try again.";
-
-} else {
-
-        $firstName = trim($_POST["firstName"] ?? '');
-        $lastName  = trim($_POST["lastName"] ?? '');
-        $email     = trim($_POST["email"] ?? '');
-        $phone     = trim($_POST["phone"] ?? '');
-        $dob       = trim($_POST["dob"] ?? '');
-        $gender    = trim($_POST["gender"] ?? '');
-        $bloodGroup = trim($_POST["bloodGroup"] ?? '');
-        $passwordInput   = $_POST["password"] ?? '';
-        $confirmPassword = $_POST["confirmPassword"] ?? '';
-        $userType  = trim($_POST["userType"] ?? '');
-        $termsAccepted = isset($_POST['terms']) && $_POST['terms'] === '1';
-        
-
-        $licenseNumber  = trim($_POST["licenseNumber"] ?? '');
-        $specialization = trim($_POST["specialization"] ?? '');
-        $old = [
-            'firstName' => $firstName,
-            'lastName' => $lastName,
-            'email' => $email,
-            'phone' => $phone,
-            'dob' => $dob,
-            'gender' => $gender,
-            'bloodGroup' => $bloodGroup,
-            'userType' => $userType,
-            'licenseNumber' => $licenseNumber,
-            'specialization' => $specialization
-        ];
-        $verificationPhotoTemp = '';
-        $verificationPhotoType = '';
-
-        
-
-
-// ============================================================
-// REGISTRATION VALIDATION
-// ============================================================
-        
-
-    if ($userType === 'patient') {
-
-        $validationResult = validatePatientRegistration(
-            $firstName,
-            $lastName,
-            $email,
-            $phone,
-            $dob,
-            $gender,
-            $bloodGroup,
-            $passwordInput,
-            $confirmPassword
-        );
-
-    } elseif ($userType === 'doctor') {
-
-        $validationResult = validateDoctorRegistration(
-            $firstName,
-            $lastName,
-            $email,
-            $phone,
-            $dob,
-            $gender,
-            $bloodGroup,
-            $passwordInput,
-            $confirmPassword,
-            $licenseNumber,
-            $specialization
-        );
+        $generalError =
+            "Security validation failed. "
+            . "Please refresh the page and try again.";
 
     } else {
 
-        $validationResult = [
-            'valid' => false,
-            'errors' => ['Please select a valid account type.']
-        ];
-    }
-
-
-    // ============================================================
-    // HANDLE VALIDATION ERRORS
-    // ============================================================
-
-    if (!$validationResult['valid']) {
-        $generalError = implode(' ', $validationResult['errors']);
-    }
-
-    // ============================================================
-    // TERMS & CONDITIONS
-    // ============================================================
-
-    if (!$termsAccepted) {
+        $registrationResult =
+            processRegistration(
+                $_POST,
+                $_FILES
+            );
 
         $generalError =
-            "You must agree to the Terms & Conditions and Privacy Policy.";
-    }
+            $registrationResult['errors']['general'];
+
+        $emailError =
+            $registrationResult['errors']['email'];
+
+        $phoneError =
+            $registrationResult['errors']['phone'];
+
+        $passwordError =
+            $registrationResult['errors']['password'];
+
+        $fileError =
+            $registrationResult['errors']['file'];
+
+        $old =
+            $registrationResult['old'];
 
 
-    // ============================================================
-    // DUPLICATE CHECKING
-    // ============================================================
+        if ($registrationResult['success']) {
 
-    if (empty($generalError)) {
-
-        if ($userType === 'patient') {
-
-            $duplicateResult = checkPatientDuplicates(
-                $email,
-                $phone
-            );
-
-        } else {
-
-            $duplicateResult = checkDoctorDuplicates(
-                $email,
-                $phone,
-                $licenseNumber
-            );
+            header("Location: verify.php");
+            exit;
         }
-
-        if (!empty($duplicateResult['error'])) {
-            $generalError = $duplicateResult['error'];
-        }
-
-        if (!empty($duplicateResult['email_exists'])) {
-            $emailError = "This email address is already registered.";
-        }
-
-        if (!empty($duplicateResult['phone_exists'])) {
-            $phoneError = "This phone number is already registered.";
-        }
-
-        if (
-            $userType === 'doctor' &&
-            !empty($duplicateResult['license_exists'])
-        ) {
-            $generalError = "This medical license number is already registered.";
-        }
-    }
-
-    // ============================================================
-    // DOCTOR VERIFICATION PHOTO
-    // ============================================================
-
-
-    if (
-        empty($generalError) &&
-        empty($emailError) &&
-        empty($phoneError) &&
-        $userType === 'doctor'
-    ) {
-
-        $photoResult = handleDoctorVerificationPhoto(
-            $_FILES['verificationPhoto'] ?? []
-        );
-
-        if (!$photoResult['success']) {
-
-            $fileError = $photoResult['error'];
-
-        } else {
-
-            $verificationPhotoTemp =
-                $photoResult['filename'];
-
-            $verificationPhotoType =
-                $photoResult['mime_type'];
-        }
-    }
-
-    // ============================================================
-    // START OTP VERIFICATION
-    // ============================================================
-
-    if (
-        empty($generalError) &&
-        empty($emailError) &&
-        empty($phoneError) &&
-        empty($fileError) &&
-        empty($passwordError)
-    ) {
-
-        startOTPVerification([
-            'user_type' => $userType,
-
-            'email' => $email,
-            'phone' => $phone,
-
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-
-            'dob' => $dob,
-            'gender' => $gender,
-            'blood_group' => $bloodGroup,
-
-            'password' => $passwordInput,
-
-            'license_number' => $licenseNumber,
-            'specialization' => $specialization,
-
-            'verification_photo_temp' =>
-                $verificationPhotoTemp,
-
-            'verification_photo_type' =>
-                $verificationPhotoType
-        ]);
-
-        // Generate a fresh CSRF token
-        regenerateCSRFToken();
-
-        header("Location: verify.php");
-        exit;
     }
 }
-}
+
 ?>
 
 
