@@ -1,6 +1,8 @@
 <?php
+
 session_start();
 
+require_once __DIR__ . '/security_csrf/csrf.php';
 require_once __DIR__ . '/registration/registration_handler.php';
 
 $emailError    = "";
