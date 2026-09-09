@@ -2,6 +2,9 @@
 
 session_start();
 
+require_once __DIR__ . '/otp/send_email_otp.php';
+require_once __DIR__ . '/otp/send_phone_otp.php';
+
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -20,126 +23,29 @@ $userType = $pending['user_type'];
 $email    = $pending['email'];
 $phone    = $pending['phone'];
 
+
 /*
 |--------------------------------------------------------------------------
 | Database
 |--------------------------------------------------------------------------
 */
 
-$servername = "localhost";
-$username   = "root";
-$password   = "";
-
-$dbName = ($userType === 'doctor')
-    ? "if0_42370337_human_care_doctors"
-    : "if0_42370337_human_care_patients";
+require_once __DIR__ . '/config/database.php';
 
 $table = ($userType === 'doctor')
-    ? "doctors"
-    : "patients";
+    ? 'doctors'
+    : 'patients';
 
+try {
 
-/*
-|--------------------------------------------------------------------------
-| PHPMailer
-|--------------------------------------------------------------------------
-*/
+    $conn = ($userType === 'doctor')
+        ? Database::getConnection('doctors')
+        : Database::getConnection('patients');
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+} catch (Exception $e) {
 
-require_once __DIR__ . "/vendor/autoload.php";
-
-
-/*
-|--------------------------------------------------------------------------
-| Send Email OTP
-|--------------------------------------------------------------------------
-*/
-
-function sendVerificationEmail(string $to, string $otp): bool
-{
-    $mailConfig = require __DIR__ . "/config/mail_config.php";
-
-    $mail = new PHPMailer(true);
-    $mail->SMTPDebug = 2;
-    $mail->Debugoutput = function ($str, $level) {
-        error_log("PHPMailer [$level]: $str");
-    };
-
-    try {
-
-        $mail->isSMTP();
-        $mail->Host       = $mailConfig['host'];
-        $mail->SMTPAuth   = true;
-        $mail->Username   = $mailConfig['username'];
-        $mail->Password   = $mailConfig['password'];
-        $mail->SMTPSecure = $mailConfig['encryption'];
-        $mail->Port       = $mailConfig['port'];
-
-        $mail->setFrom(
-            $mailConfig['from_email'],
-            $mailConfig['from_name']
-        );
-
-        $mail->addAddress($to);
-
-        $mail->isHTML(true);
-
-        $mail->Subject = "Human Care - Email Verification";
-
-        $mail->Body = "
-            <div style='font-family:Arial,sans-serif;'>
-                <h2>Human Care</h2>
-
-                <p>Your email verification OTP is:</p>
-
-                <h1 style='letter-spacing:8px;'>{$otp}</h1>
-
-                <p>This OTP expires in <strong>10 minutes</strong>.</p>
-
-                <p>If you did not create this account, please ignore this email.</p>
-            </div>
-        ";
-
-        $mail->AltBody =
-            "Your Human Care email verification OTP is {$otp}. "
-            . "This OTP expires in 10 minutes.";
-
-        $mail->send();
-
-        return true;
-
-    } catch (Exception $e) {
-
-    $GLOBALS['generalError'] =
-        "Email OTP failed: " . $mail->ErrorInfo;
-
-    return false;
-}
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Send SMS OTP
-|--------------------------------------------------------------------------
-|
-| Replace this later with your actual SMS provider.
-|
-*/
-
-function sendVerificationSms(string $phone, string $otp): bool
-{
-    // FREE DEVELOPMENT MODE
-    // No real SMS is sent.
-    // The OTP is written to the PHP error log for testing.
-
-    error_log(
-        "HUMAN CARE MOBILE OTP | Phone: {$phone} | OTP: {$otp}"
-    );
-
-    return true;
+    $generalError =
+        "Unable to connect. Please try again later.";
 }
 
 
@@ -187,29 +93,6 @@ function maskPhone(string $phone): string
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Database Connection
-|--------------------------------------------------------------------------
-*/
-
-$conn = new mysqli(
-    $servername,
-    $username,
-    $password,
-    $dbName
-);
-
-if ($conn->connect_error) {
-
-    $generalError =
-        "Unable to connect. Please try again later.";
-
-} else {
-
-    $conn->set_charset("utf8mb4");
-
-
     /*
     |--------------------------------------------------------------------------
     | FIRST VISIT
@@ -234,12 +117,12 @@ if ($conn->connect_error) {
         $emailOtp = $pending['email_otp'];
         $phoneOtp = $pending['phone_otp'];
 
-        $emailSent = sendVerificationEmail(
+        $emailSent = sendEmailOTP(
             $email,
             $emailOtp
         );
 
-        $smsSent = sendVerificationSms(
+        $smsSent = sendPhoneOTP(
             $phone,
             $phoneOtp
         );
@@ -317,14 +200,14 @@ if ($conn->connect_error) {
 
                     } elseif (
                         empty($pending['email_otp_hash']) ||
-                        empty($pending['otp_expires_at'])
+                        empty($pending['email_otp_expires_at'])
                     ) {
 
                         $generalError =
                             "Email OTP is not available. Please resend the OTP.";
 
                     } elseif (
-                        $pending['otp_expires_at'] < time()
+                        $pending['email_otp_expires_at'] < time()
                     ) {
 
                         $generalError =
@@ -377,14 +260,14 @@ if ($conn->connect_error) {
 
                     } elseif (
                         empty($pending['phone_otp_hash']) ||
-                        empty($pending['otp_expires_at'])
+                        empty($pending['phone_otp_expires_at'])
                     ) {
 
                         $generalError =
                             "Mobile OTP is not available. Please resend the OTP.";
 
                     } elseif (
-                        $pending['otp_expires_at'] < time()
+                        $pending['phone_otp_expires_at'] < time()
                     ) {
 
                         $generalError =
@@ -438,14 +321,13 @@ if ($conn->connect_error) {
 
                     $pending['email_otp'] = $emailOtp;
 
-                    $pending['otp_expires_at'] =
-                        time() + 600;
+                    $pending['email_otp_expires_at'] = time() + 600;
 
                     $emailSent =
-                        sendVerificationEmail(
-                            $email,
-                            $emailOtp
-                        );
+                    sendEmailOTP(
+                        $email,
+                        $emailOtp
+                    );
 
                     unset($pending['email_otp']);
 
@@ -489,11 +371,10 @@ if ($conn->connect_error) {
 
                     $pending['phone_otp'] = $phoneOtp;
 
-                    $pending['otp_expires_at'] =
-                        time() + 600;
+                    $pending['phone_otp_expires_at'] = time() + 600;
 
                     $smsSent =
-                        sendVerificationSms(
+                        sendPhoneOTP(
                             $phone,
                             $phoneOtp
                         );
@@ -687,8 +568,6 @@ if ($conn->connect_error) {
         }
     }
 
-    $conn->close();
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">

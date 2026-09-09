@@ -2,10 +2,14 @@
 
 function checkDoctorDuplicates($email, $phone, $licenseNumber)
 {
-    $servername = "localhost";
-    $username = "root";
-    $password = "";
-    $database = "if0_42370337_human_care_doctors";
+    require_once __DIR__ . '/../config/database.php';
+
+    try {
+        $conn = Database::getConnection('doctors');
+    } catch (Exception $e) {
+        $result['error'] = "Unable to check doctor records.";
+        return $result;
+    }
 
     $result = [
         'email_exists' => false,
@@ -14,13 +18,7 @@ function checkDoctorDuplicates($email, $phone, $licenseNumber)
         'error' => ''
     ];
 
-    $conn = new mysqli(
-        $servername,
-        $username,
-        $password,
-        $database
-    );
-
+    
     if ($conn->connect_error) {
         $result['error'] = "Unable to check doctor records.";
         return $result;

@@ -2,23 +2,22 @@
 
 function checkPatientDuplicates($email, $phone)
 {
-    $servername = "localhost";
-    $username = "root";
-    $password = "";
-    $database = "if0_42370337_human_care_patients";
+    require_once __DIR__ . '/../config/database.php';
 
+    try {
+        $conn = Database::getConnection('patients');
+    } catch (Exception $e) {
+        $result['error'] = "Unable to check patient records.";
+        return $result;
+    }
+    
     $result = [
         'email_exists' => false,
         'phone_exists' => false,
         'error' => ''
     ];
 
-    $conn = new mysqli(
-        $servername,
-        $username,
-        $password,
-        $database
-    );
+    
 
     if ($conn->connect_error) {
         $result['error'] = "Unable to check patient records.";

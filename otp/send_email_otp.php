@@ -7,42 +7,97 @@
  * @param string $otp
  * @return bool
  */
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+
 function sendEmailOTP(string $email, string $otp): bool
 {
-    $subject = "HUMAN CARE - Email Verification OTP";
+    // Load centralized mail configuration
+    $mailConfig = require __DIR__ . '/../config/mail_config.php';
 
-    $message = "
-    <html>
-    <body style='font-family: Arial, sans-serif;'>
-        <h2>HUMAN CARE</h2>
+    try {
 
-        <p>Hello,</p>
+        $mail = new PHPMailer(true);
 
-        <p>Your email verification OTP is:</p>
+        // SMTP configuration
+        $mail->isSMTP();
+        $mail->Host       = $mailConfig['host'];
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $mailConfig['username'];
+        $mail->Password   = $mailConfig['password'];
+        $mail->Port       = $mailConfig['port'];
 
-        <h1 style='letter-spacing: 5px;'>{$otp}</h1>
+        // Encryption
+        if ($mailConfig['encryption'] === 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif ($mailConfig['encryption'] === 'ssl') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        }
 
-        <p>This OTP is valid for <strong>10 minutes</strong>.</p>
+        // Sender
+        $mail->setFrom(
+            $mailConfig['from_email'],
+            $mailConfig['from_name']
+        );
 
-        <p>Please do not share this OTP with anyone.</p>
+        // Recipient
+        $mail->addAddress($email);
 
-        <br>
+        // Email content
+        $mail->isHTML(true);
 
-        <p>Regards,<br>
-        HUMAN CARE Team</p>
-    </body>
-    </html>
-    ";
+        $mail->Subject = "HUMAN CARE - Email Verification OTP";
 
-    $headers  = "MIME-Version: 1.0\r\n";
-    $headers .= "Content-type: text/html; charset=UTF-8\r\n";
-    $headers .= "From: HUMAN CARE <noreply@humancare.com>\r\n";
-    $headers .= "Reply-To: noreply@humancare.com\r\n";
+        $mail->Body = "
+        <html>
+        <body style='font-family: Arial, sans-serif;'>
+            <h2>HUMAN CARE</h2>
 
-    return mail(
-        $email,
-        $subject,
-        $message,
-        $headers
-    );
+            <p>Hello,</p>
+
+            <p>Your email verification OTP is:</p>
+
+            <h1 style='letter-spacing: 5px;'>{$otp}</h1>
+
+            <p>
+                This OTP is valid for
+                <strong>10 minutes</strong>.
+            </p>
+
+            <p>Please do not share this OTP with anyone.</p>
+
+            <br>
+
+            <p>
+                Regards,<br>
+                HUMAN CARE Team
+            </p>
+        </body>
+        </html>
+        ";
+
+        // Plain-text fallback
+        $mail->AltBody =
+            "HUMAN CARE - Email Verification\n\n" .
+            "Your email verification OTP is: {$otp}\n\n" .
+            "This OTP is valid for 10 minutes.\n" .
+            "Please do not share this OTP with anyone.\n\n" .
+            "Regards,\n" .
+            "HUMAN CARE Team";
+
+        return $mail->send();
+
+    } catch (Exception $e) {
+
+        error_log(
+            "HUMAN CARE Email OTP Error: " .
+            $mail->ErrorInfo
+        );
+
+        return false;
+    }
 }

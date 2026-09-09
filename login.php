@@ -117,15 +117,21 @@ if (is_ip_blocked($ip)) {
 
 
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-
 /* ===============================
    CONNECT DATABASES
 ================================ */
-$connPatient = new mysqli($servername, $username, $password, "if0_42370337_human_care_patients");
-$connDoctor  = new mysqli($servername, $username, $password, "if0_42370337_human_care_doctors");
+
+require_once __DIR__ . '/config/database.php';
+
+try {
+    $connPatient = Database::getConnection('patients');
+    $connDoctor  = Database::getConnection('doctors');
+} catch (Exception $e) {
+    error_log("Login database connection failed: " . $e->getMessage());
+    die("Database connection failed");
+}
+
+
 
 if ($connPatient->connect_error || $connDoctor->connect_error) {
     die("Database connection failed");

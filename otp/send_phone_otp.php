@@ -1,4 +1,3 @@
-
 <?php
 
 /**
@@ -14,18 +13,23 @@
  * @param string $otp
  * @return bool
  */
+
+require_once __DIR__ . '/../config/env.php';
+
+
 function sendPhoneOTP(string $phone, string $otp): bool
 {
-    // Read SMS configuration from environment variables.
-    $apiUrl = getenv('SMS_API_URL');
-    $apiKey = getenv('SMS_API_KEY');
+    // Read SMS configuration from .env
+    $apiUrl = env('SMS_API_URL', '');
+    $apiKey = env('SMS_API_KEY', '');
+
 
     /*
      * ---------------------------------------------------------
      * API NOT CONFIGURED
      * ---------------------------------------------------------
      *
-     * Keep your existing behavior.
+     * Development fallback.
      */
     if (empty($apiUrl) || empty($apiKey)) {
 
@@ -35,6 +39,7 @@ function sendPhoneOTP(string $phone, string $otp): bool
 
         return true;
     }
+
 
     /*
      * ---------------------------------------------------------
@@ -49,6 +54,7 @@ function sendPhoneOTP(string $phone, string $otp): bool
         'message' => $message,
         'otp'     => $otp,
     ];
+
 
     $ch = curl_init($apiUrl);
 
@@ -65,10 +71,13 @@ function sendPhoneOTP(string $phone, string $otp): bool
         CURLOPT_TIMEOUT        => 10,
     ]);
 
+
     $response = curl_exec($ch);
+
 
     // cURL error
     if ($response === false) {
+
         error_log(
             'SMS API cURL error: ' . curl_error($ch)
         );
@@ -78,9 +87,11 @@ function sendPhoneOTP(string $phone, string $otp): bool
         return false;
     }
 
+
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
     curl_close($ch);
+
 
     /*
      * Consider 2xx responses successful.
@@ -88,6 +99,7 @@ function sendPhoneOTP(string $phone, string $otp): bool
     if ($httpCode >= 200 && $httpCode < 300) {
         return true;
     }
+
 
     error_log(
         "SMS API failed. HTTP {$httpCode}. Response: {$response}"

@@ -11,6 +11,7 @@ session_start();
     <link rel="stylesheet" href="styles/public.css">
 </head>
 <body>
+    
     <!-- Menu Toggle Button -->
     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
 
