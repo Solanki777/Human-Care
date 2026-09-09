@@ -468,101 +468,187 @@ function maskPhone(string $phone): string
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1)"
                         );
 
-                        $stmt->bind_param(
-                            "ssssssss",
-                            $pending['first_name'],
-                            $pending['last_name'],
-                            $pending['email'],
-                            $pending['phone'],
-                            $pending['dob'],
-                            $pending['gender'],
-                            $pending['blood_group'],
-                            $pending['password_hash']
-                        );
-                    }
+                        if (!$stmt) {
 
+                            $generalError =
+                                "Unable to prepare patient account.";
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | INSERT DOCTOR
-                    |--------------------------------------------------------------------------
-                    */
+                        } else {
 
-                    else {
+                            $stmt->bind_param(
+                                "ssssssss",
+                                $pending['first_name'],
+                                $pending['last_name'],
+                                $pending['email'],
+                                $pending['phone'],
+                                $pending['dob'],
+                                $pending['gender'],
+                                $pending['blood_group'],
+                                $pending['password_hash']
+                            );
+                        }
 
-                        $stmt = $conn->prepare(
-                            "INSERT INTO doctors
-                            (
-                                first_name,
-                                last_name,
-                                email,
-                                phone,
-                                dob,
-                                gender,
-                                blood_group,
-                                password,
-                                license_number,
-                                specialization,
-                                verification_photo,
-                                email_verified,
-                                phone_verified,
-                                verification_status,
-                                is_verified
+                    } else {
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Read temporary verification photo
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $tempPhotoFilename =
+                            $pending['verification_photo_temp'] ?? '';
+
+                        $photoType =
+                            $pending['verification_photo_type'] ?? '';
+
+                        $tempPhotoPath =
+                            __DIR__
+                            . '/storage/temp_verification/'
+                            . basename($tempPhotoFilename);
+
+                        if (
+                            empty($tempPhotoFilename) ||
+                            !is_file($tempPhotoPath)
+                        ) {
+
+                            $generalError =
+                                "Doctor verification document is missing. "
+                                . "Please restart the registration process.";
+
+                        } elseif (
+                            !in_array(
+                                $photoType,
+                                ['image/jpeg', 'image/png', 'image/webp'],
+                                true
                             )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 'pending', 0)"
-                        );
+                        ) {
 
-                        $stmt->bind_param(
-                            "sssssssssss",
-                            $pending['first_name'],
-                            $pending['last_name'],
-                            $pending['email'],
-                            $pending['phone'],
-                            $pending['dob'],
-                            $pending['gender'],
-                            $pending['blood_group'],
-                            $pending['password_hash'],
-                            $pending['license_number'],
-                            $pending['specialization'],
-                            $pending['verification_photo']
-                        );
+                            $generalError =
+                                "Invalid verification document type.";
+
+                        } else {
+
+                            $photoData =
+                                file_get_contents($tempPhotoPath);
+
+                            if ($photoData === false) {
+
+                                $generalError =
+                                    "Unable to read the verification document.";
+
+                            } else {
+
+                                $stmt = $conn->prepare(
+                                    "INSERT INTO doctors
+                                    (
+                                        first_name,
+                                        last_name,
+                                        email,
+                                        phone,
+                                        dob,
+                                        gender,
+                                        blood_group,
+                                        password,
+                                        license_number,
+                                        specialization,
+                                        verification_photo,
+                                        verification_photo_type,
+                                        email_verified,
+                                        phone_verified,
+                                        verification_status,
+                                        is_verified
+                                    )
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 'pending', 0)"
+                                );
+
+                                if (!$stmt) {
+
+                                    $generalError =
+                                        "Unable to prepare doctor account.";
+
+                                } else {
+
+                                    $null = null;
+
+                                    $stmt->bind_param(
+                                        "ssssssssssbs",
+                                        $pending['first_name'],
+                                        $pending['last_name'],
+                                        $pending['email'],
+                                        $pending['phone'],
+                                        $pending['dob'],
+                                        $pending['gender'],
+                                        $pending['blood_group'],
+                                        $pending['password_hash'],
+                                        $pending['license_number'],
+                                        $pending['specialization'],
+                                        $null,
+                                        $photoType
+                                    );
+
+                                    $stmt->send_long_data(
+                                        10,
+                                        $photoData
+                                    );
+                                }
+                            }
+                        }
                     }
-
+                   
 
                     /*
                     |--------------------------------------------------------------------------
                     | INSERT USER
                     |--------------------------------------------------------------------------
                     */
+                    if (
+                        empty($generalError) &&
+                        isset($stmt) &&
+                        $stmt instanceof mysqli_stmt
+                    ) {
 
-                    if ($stmt->execute()) {
+                        if ($stmt->execute()) {
 
-                        $stmt->close();
+                            $stmt->close();
 
-                        unset($_SESSION['pending_verification']);
+                            // Delete temporary doctor verification photo
+                            if (
+                                $userType === 'doctor' &&
+                                !empty($tempPhotoPath) &&
+                                is_file($tempPhotoPath)
+                            ) {
+                                @unlink($tempPhotoPath);
+                            }
 
-                        $_SESSION['csrf_token'] =
-                            bin2hex(random_bytes(32));
+                            unset($_SESSION['pending_verification']);
 
-                        $success =
-                            "Your account has been verified successfully! "
-                            . "Redirecting to login...";
+                            $_SESSION['csrf_token'] =
+                                bin2hex(random_bytes(32));
 
-                        echo "
-                            <script>
-                                setTimeout(function() {
-                                    window.location.href = 'login.php';
-                                }, 1800);
-                            </script>
-                        ";
+                            $success =
+                                "Your account has been verified successfully! "
+                                . "Redirecting to login...";
 
-                    } else {
+                            echo "
+                                <script>
+                                    setTimeout(function() {
+                                        window.location.href = 'login.php';
+                                    }, 1800);
+                                </script>
+                            ";
 
-                        $generalError =
-                            "Unable to create your account. Please try again.";
+                        } else {
 
-                        $stmt->close();
+                            $generalError =
+                                "Unable to create your account. Please try again.";
+
+                            $stmt->close();
+                        }
                     }
+                    
+                    
+                    
                 }
             }
         }

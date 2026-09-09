@@ -6,8 +6,13 @@ require_once __DIR__ . '/security_csrf/csrf.php';
 require_once __DIR__ . '/duplication_checking/patient_duplicate_check.php';
 require_once __DIR__ . '/duplication_checking/doctor_duplicate_check.php';
 
+
 require_once __DIR__ . '/registration_validation/patient_registration_validation.php';
 require_once __DIR__ . '/registration_validation/doctor_registration_validation.php';
+
+
+require_once __DIR__ . '/registration/photo_handler.php';
+require_once __DIR__ . '/registration/otp_handler.php';
 
 
 
@@ -47,137 +52,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $licenseNumber  = trim($_POST["licenseNumber"] ?? '');
         $specialization = trim($_POST["specialization"] ?? '');
-
-        // ============================================================
-        // DOCTOR VERIFICATION PHOTO
-        // ============================================================
-
+        $old = [
+            'firstName' => $firstName,
+            'lastName' => $lastName,
+            'email' => $email,
+            'phone' => $phone,
+            'dob' => $dob,
+            'gender' => $gender,
+            'bloodGroup' => $bloodGroup,
+            'userType' => $userType,
+            'licenseNumber' => $licenseNumber,
+            'specialization' => $specialization
+        ];
         $verificationPhotoTemp = '';
         $verificationPhotoType = '';
 
-        if ($userType === 'doctor') {
-
-            if (
-                !isset($_FILES['verificationPhoto']) ||
-                $_FILES['verificationPhoto']['error'] === UPLOAD_ERR_NO_FILE
-            ) {
-
-                $fileError = "Please upload your medical license or ID photo.";
-
-            } elseif ($_FILES['verificationPhoto']['error'] !== UPLOAD_ERR_OK) {
-
-                $fileError = "Unable to upload the verification photo.";
-
-            } else {
-
-                $file = $_FILES['verificationPhoto'];
-
-                // Maximum 5 MB
-                if ($file['size'] > 5 * 1024 * 1024) {
-
-                    $fileError = "Verification photo must be smaller than 5 MB.";
-
-                } else {
-
-                    $allowedTypes = [
-                        'image/jpeg',
-                        'image/png',
-                        'image/webp'
-                    ];
-
-                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                    $detectedType = finfo_file($finfo, $file['tmp_name']);
-                    finfo_close($finfo);
-
-                    if (!in_array($detectedType, $allowedTypes, true)) {
-
-                        $fileError =
-                            "Invalid verification photo. "
-                            . "Only JPG, PNG, and WEBP files are allowed.";
-
-                    } elseif (!@getimagesize($file['tmp_name'])) {
-
-                        $fileError =
-                            "The uploaded verification file is not a valid image.";
-
-                    } else {
-
-                        $extensionMap = [
-                            'image/jpeg' => 'jpg',
-                            'image/png'  => 'png',
-                            'image/webp' => 'webp'
-                        ];
-
-                        $extension = $extensionMap[$detectedType];
-
-                        $tempDirectory =
-                            __DIR__ . '/storage/temp_verification';
-
-                        if (!is_dir($tempDirectory)) {
-
-                            if (!mkdir($tempDirectory, 0750, true)) {
-
-                                $fileError =
-                                    "Unable to prepare photo storage.";
-
-                            }
-                        }
-
-                        if (empty($fileError)) {
-
-                            $temporaryFilename =
-                                bin2hex(random_bytes(32))
-                                . '.'
-                                . $extension;
-
-                            $temporaryPath =
-                                $tempDirectory
-                                . DIRECTORY_SEPARATOR
-                                . $temporaryFilename;
-
-                            if (
-                                move_uploaded_file(
-                                    $file['tmp_name'],
-                                    $temporaryPath
-                                )
-                            ) {
-
-                                $verificationPhotoTemp =
-                                    $temporaryFilename;
-
-                                $verificationPhotoType =
-                                    $detectedType;
-
-                            } else {
-
-                                $fileError =
-                                    "Unable to save the verification photo.";
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-
         
-
-        $old = compact(
-    'firstName', 'lastName', 'email', 'phone', 'dob',
-    'gender', 'bloodGroup', 'userType',
-    'licenseNumber', 'specialization'
-);
 
 
 // ============================================================
 // REGISTRATION VALIDATION
 // ============================================================
-        if (!$validationResult['valid']) {
-        $generalError = implode(' ', $validationResult['errors']);
-    }
-        if (!$termsAccepted) {
-        $generalError = "You must agree to the Terms & Conditions and Privacy Policy.";
-    }
+        
 
     if ($userType === 'patient') {
 
@@ -226,6 +122,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $generalError = implode(' ', $validationResult['errors']);
     }
 
+    // ============================================================
+    // TERMS & CONDITIONS
+    // ============================================================
+
+    if (!$termsAccepted) {
+
+        $generalError =
+            "You must agree to the Terms & Conditions and Privacy Policy.";
+    }
+
 
     // ============================================================
     // DUPLICATE CHECKING
@@ -269,6 +175,35 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
     }
 
+    // ============================================================
+    // DOCTOR VERIFICATION PHOTO
+    // ============================================================
+
+
+    if (
+        empty($generalError) &&
+        empty($emailError) &&
+        empty($phoneError) &&
+        $userType === 'doctor'
+    ) {
+
+        $photoResult = handleDoctorVerificationPhoto(
+            $_FILES['verificationPhoto'] ?? []
+        );
+
+        if (!$photoResult['success']) {
+
+            $fileError = $photoResult['error'];
+
+        } else {
+
+            $verificationPhotoTemp =
+                $photoResult['filename'];
+
+            $verificationPhotoType =
+                $photoResult['mime_type'];
+        }
+    }
 
     // ============================================================
     // START OTP VERIFICATION
@@ -282,15 +217,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         empty($passwordError)
     ) {
 
-        $emailOtp = (string) random_int(100000, 999999);
-        $phoneOtp = (string) random_int(100000, 999999);
-
-        $emailOtpExpiresAt = time() + 600;
-        $phoneOtpExpiresAt = time() + 600; // 10 minutes
-
-
-        $_SESSION['pending_verification'] = [
-
+        startOTPVerification([
             'user_type' => $userType,
 
             'email' => $email,
@@ -303,58 +230,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             'gender' => $gender,
             'blood_group' => $bloodGroup,
 
-            'password_hash' => password_hash(
-                $passwordInput,
-                PASSWORD_DEFAULT
-            ),
+            'password' => $passwordInput,
 
-            'license_number' =>
-                $userType === 'doctor'
-                    ? $licenseNumber
-                    : '',
+            'license_number' => $licenseNumber,
+            'specialization' => $specialization,
 
-            'specialization' =>
-                $userType === 'doctor'
-                    ? $specialization
-                    : '',
             'verification_photo_temp' =>
-                $userType === 'doctor'
-                    ? $verificationPhotoTemp
-                    : '',
+                $verificationPhotoTemp,
 
             'verification_photo_type' =>
-                $userType === 'doctor'
-                    ? $verificationPhotoType
-                    : '',
-
-            'email_otp_hash' => password_hash(
-                $emailOtp,
-                PASSWORD_DEFAULT
-            ),
-
-            'phone_otp_hash' => password_hash(
-                $phoneOtp,
-                PASSWORD_DEFAULT
-            ),
-
-            // Temporary values for sending OTP
-            'email_otp' => $emailOtp,
-            'phone_otp' => $phoneOtp,
-
-            'email_otp_expires_at' => $emailOtpExpiresAt,
-            'phone_otp_expires_at' => $phoneOtpExpiresAt,
-            'created_at' => time()
-        ];
-
+                $verificationPhotoType
+        ]);
 
         // Generate a fresh CSRF token
         regenerateCSRFToken();
 
-
         header("Location: verify.php");
         exit;
     }
-    }
+}
 }
 ?>
 
