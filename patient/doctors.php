@@ -1,12 +1,19 @@
-<?php 
+<?php
 session_start();
 
-// Connect to doctors database
-$conn = new mysqli("localhost", "root", "", "if0_42370337_human_care_doctors");
+require_once __DIR__ . '/../config/config.php';
+
+$conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_DOCTORS
+);
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
+
 
 // Get filter parameters
 $specialty_filter = isset($_GET['specialty']) ? $_GET['specialty'] : 'all';
@@ -45,115 +52,22 @@ $total_doctors = $conn->query("SELECT COUNT(*) as count FROM doctors WHERE is_ve
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Our Doctors - Human Care</title>
+
+    <!-- Common CSS -->
     <link rel="stylesheet" href="styles/main.css">
-    <style>
-        .doctors-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
 
-        .doctors-count {
-            background: linear-gradient(135deg, #e0e7ff 0%, #f3e7ff 100%);
-            color: #667eea;
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-weight: 600;
-            display: inline-block;
-            margin-top: 10px;
-        }
+    <!-- Sidebar CSS -->
+    <link rel="stylesheet" href="styles/sidebar.css">
 
-        .no-doctors {
-            text-align: center;
-            padding: 80px 20px;
-            color: #999;
-        }
+    <!-- Doctors Page CSS -->
+    <link rel="stylesheet" href="styles/doctors.css">
 
-        .no-doctors-icon {
-            font-size: 80px;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-
-        .no-doctors h3 {
-            font-size: 24px;
-            color: #666;
-            margin-bottom: 10px;
-        }
-
-        .availability-badge {
-            background: #d1fae5;
-            color: #065f46;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            display: inline-block;
-            margin-top: 5px;
-        }
-
-        .doctor-meta {
-            display: flex;
-            gap: 10px;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 13px;
-            color: #666;
-        }
-
-        .consultation-fee {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 8px;
-            font-weight: 600;
-            display: inline-block;
-            margin: 10px 0;
-        }
-
-        .verified-badge {
-            background: #d1fae5;
-            color: #065f46;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .filter-results {
-            background: white;
-            padding: 15px 25px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-
-        .filter-results strong {
-            color: #667eea;
-        }
-
-        .clear-filters {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-            margin-left: 15px;
-            font-size: 14px;
-        }
-
-        .clear-filters:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <!-- Footer CSS -->
+    <link rel="stylesheet" href="styles/footer.css">
 </head>
+
 <body>
     <?php $active_page = 'doctors'; ?>
     <?php include 'includes/public_sidebar.php'; ?>
@@ -311,34 +225,7 @@ $total_doctors = $conn->query("SELECT COUNT(*) as count FROM doctors WHERE is_ve
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>Human Care</h3>
-                    <p>Your health, our priority</p>
-                </div>
-                <div class="footer-section">
-                    <h4>Quick Links</h4>
-                    <ul>
-                        <li><a href="index.php">Home</a></li>
-                        <li><a href="education.php">Education</a></li>
-                        <li><a href="contact.php">Contact</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Contact</h4>
-                    <p>📞 +91 9725219106</p>
-                    <p>📧 solankimaheshkhash7@gmail.com</p>
-                    <p>📍 Fake, Fake, Fake</p>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2025 Human Care. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
+  <?php include 'includes/footer.php'; ?>
 
 </body>
 </html>

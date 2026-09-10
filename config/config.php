@@ -52,6 +52,21 @@ define(
 define('BASE_URL', APP_URL . '/');
 
 /* =========================
+   DATABASE CONFIG
+========================= */
+
+define('DB_HOST', env('DB_HOST', 'localhost'));
+define('DB_USERNAME', env('DB_USERNAME', 'root'));
+define('DB_PASSWORD', env('DB_PASSWORD', ''));
+
+define('DB_ADMIN', env('DB_ADMIN', ''));
+define('DB_PATIENTS', env('DB_PATIENTS', ''));
+define('DB_DOCTORS', env('DB_DOCTORS', ''));
+define('DB_SECURITY', env('DB_SECURITY', ''));
+
+
+
+/* =========================
    EMAIL CONFIG
 ========================= */
 

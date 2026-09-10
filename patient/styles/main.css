@@ -16,29 +16,6 @@ body {
     padding: 0 20px;
 }
 
-/* Menu Toggle Button */
-.menu-toggle {
-    display: block;
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 1002;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 12px 16px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 20px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    transition: all 0.3s;
-}
-
-.menu-toggle:hover {
-    background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
-    transform: scale(1.05);
-}
-
 
 /* Buttons */
 .btn-primary {
@@ -301,92 +278,6 @@ body {
 
 .emergency-btn:hover {
     transform: scale(1.05);
-}
-
-/* Doctors Grid */
-.doctors-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 30px;
-}
-
-.doctor-card {
-    background: white;
-    padding: 30px;
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-    text-align: center;
-    transition: all 0.3s;
-}
-
-.doctor-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-}
-
-.doctor-avatar {
-    width: 100px;
-    height: 100px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 48px;
-    margin: 0 auto 20px;
-}
-
-.doctor-card h3 {
-    color: #333;
-    font-size: 22px;
-    margin-bottom: 8px;
-}
-
-.specialty {
-    color: #667eea;
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 5px;
-}
-
-.experience {
-    color: #666;
-    font-size: 14px;
-    margin-bottom: 15px;
-}
-
-.qualifications {
-    margin: 15px 0;
-}
-
-.badge {
-    display: inline-block;
-    background: #e0e7ff;
-    color: #667eea;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    margin: 3px;
-}
-
-.doctor-description {
-    color: #666;
-    font-size: 14px;
-    line-height: 1.6;
-    margin: 15px 0;
-}
-
-.doctor-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-}
-
-.doctor-actions button,
-.doctor-actions a {
-    flex: 1;
-    padding: 10px;
-    text-align: center;
 }
 
 /* Education Categories */
