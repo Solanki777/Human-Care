@@ -1,0 +1,97 @@
+/* ============================================================
+   HUMAN CARE - FOOTER
+   ============================================================ */
+
+.footer {
+    background: #1f2937;
+    color: #ffffff;
+    margin-top: 60px;
+    padding: 50px 0 0;
+}
+
+.footer .container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1.5fr;
+    gap: 40px;
+    padding-bottom: 40px;
+}
+
+.footer-section h3 {
+    margin: 0 0 12px;
+    font-size: 24px;
+}
+
+.footer-section h4 {
+    margin: 0 0 18px;
+    font-size: 17px;
+}
+
+.footer-section p {
+    margin: 8px 0;
+    color: #d1d5db;
+    line-height: 1.6;
+}
+
+.footer-description {
+    max-width: 280px;
+}
+
+.footer-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-section ul li {
+    margin-bottom: 10px;
+}
+
+.footer-section ul li a {
+    color: #d1d5db;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.footer-section ul li a:hover {
+    color: #ffffff;
+}
+
+.footer-bottom {
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 20px 0;
+    text-align: center;
+}
+
+.footer-bottom p {
+    margin: 0;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 900px) {
+    .footer-content {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 30px;
+    }
+}
+
+@media (max-width: 600px) {
+    .footer {
+        padding-top: 35px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 25px;
+    }
+}

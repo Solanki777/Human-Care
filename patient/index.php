@@ -7,10 +7,28 @@ require_once __DIR__ . '/../config/config.php';
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>Human Care - Welcome</title>
+
+    <!-- Common CSS -->
     <link rel="stylesheet" href="styles/main.css">
+
+    <!-- Sidebar CSS -->
+    <link rel="stylesheet" href="styles/sidebar.css">
+
+    <!-- Home Page CSS -->
+    <link rel="stylesheet" href="styles/home.css">
+
+    <!-- Footer CSS -->
+    <link rel="stylesheet" href="styles/footer.css">
+
 </head>
 
 <body>
@@ -99,40 +117,16 @@ require_once __DIR__ . '/../config/config.php';
             </div>
         </div>
     </section>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>Human Care</h3>
-                    <p>Your health, our priority</p>
-                </div>
-                <div class="footer-section">
-                    <h4>Quick Links</h4>
-                    <ul>
-                        <li><a href="index.php">Home</a></li>
-                        <li><a href="doctors.php">Doctors</a></li>
-                        <li><a href="education.php">Education</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Contact</h4>
-                    <p>📞 +91 9725219106</p>
-                    <p>📧 solankimaheshkhash7@gmail.com</p>
-                    <p>📍 Fake , Fake , Fake</p>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2025 Human Care. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
-
     
 
     <!-- Load main.js for other functionality -->
-    <script src="scripts/main.js"></script>
+    <?php include 'includes/footer.php'; ?>
+
+<script src="scripts/main.js"></script>
+<script src="scripts/home.js"></script>
+
+</body>
+</html>
 </body>
 
 </html>

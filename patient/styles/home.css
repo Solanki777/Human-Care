@@ -1,0 +1,273 @@
+/* ============================================
+   HUMAN CARE - HOME PAGE STYLES
+   ============================================ */
+
+
+/* ============================================
+   HERO SECTION
+   ============================================ */
+
+.hero {
+    background:
+        linear-gradient(
+            rgba(102, 126, 234, 0.9),
+            rgba(118, 75, 162, 0.9)
+        ),
+        url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1200');
+
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+
+    min-height: 100vh;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    color: white;
+
+    padding: 100px 20px;
+}
+
+.hero-content {
+    max-width: 800px;
+}
+
+.hero h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+
+    animation: fadeInUp 0.8s ease;
+}
+
+.hero p {
+    font-size: 20px;
+    margin-bottom: 30px;
+    opacity: 0.95;
+
+    animation: fadeInUp 0.8s ease 0.2s both;
+}
+
+.hero-btn {
+    padding: 15px 40px;
+
+    background: white;
+    color: #667eea;
+
+    border: none;
+    border-radius: 10px;
+
+    font-size: 18px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: transform 0.2s;
+
+    text-decoration: none;
+    display: inline-block;
+
+    animation: fadeInUp 0.8s ease 0.4s both;
+}
+
+.hero-btn:hover {
+    transform: scale(1.05);
+}
+
+
+/* ============================================
+   QUICK SERVICES SECTION
+   ============================================ */
+
+.quick-services {
+    padding: 80px 20px;
+    background: white;
+}
+
+.quick-services h2 {
+    text-align: center;
+
+    font-size: 36px;
+
+    color: #333;
+
+    margin-bottom: 50px;
+}
+
+.services-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fit, minmax(250px, 1fr));
+
+    gap: 30px;
+}
+
+.service-card {
+    background: white;
+
+    padding: 40px 30px;
+
+    border-radius: 15px;
+
+    box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.08);
+
+    text-align: center;
+
+    transition: all 0.3s;
+
+    text-decoration: none;
+
+    color: inherit;
+
+    border: 2px solid transparent;
+}
+
+.service-card:hover {
+    transform: translateY(-10px);
+
+    box-shadow:
+        0 8px 30px rgba(102, 126, 234, 0.2);
+
+    border-color: #667eea;
+}
+
+.service-icon {
+    font-size: 60px;
+
+    margin-bottom: 20px;
+}
+
+.service-card h3 {
+    color: #333;
+
+    font-size: 22px;
+
+    margin-bottom: 10px;
+}
+
+.service-card p {
+    color: #666;
+
+    font-size: 14px;
+}
+
+
+/* ============================================
+   ABOUT SECTION
+   ============================================ */
+
+.about-section {
+    padding: 80px 20px;
+
+    background: #f8f9fa;
+}
+
+.about-content {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 50px;
+
+    align-items: center;
+}
+
+.about-text h2 {
+    font-size: 36px;
+
+    color: #333;
+
+    margin-bottom: 20px;
+}
+
+.about-text p {
+    color: #666;
+
+    font-size: 16px;
+
+    margin-bottom: 25px;
+}
+
+.features-list {
+    list-style: none;
+}
+
+.features-list li {
+    color: #333;
+
+    margin-bottom: 12px;
+
+    font-size: 15px;
+}
+
+.about-image {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 20px;
+}
+
+.stats-card {
+    background:
+        linear-gradient(
+            135deg,
+            #667eea 0%,
+            #764ba2 100%
+        );
+
+    color: white;
+
+    padding: 30px;
+
+    border-radius: 15px;
+
+    text-align: center;
+}
+
+.stats-card:first-child {
+    grid-column: span 2;
+}
+
+.stats-card h3 {
+    font-size: 48px;
+
+    margin-bottom: 10px;
+}
+
+.stats-card p {
+    font-size: 16px;
+
+    opacity: 0.95;
+}
+
+
+/* ============================================
+   HOME PAGE RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+
+    .hero h1 {
+        font-size: 32px;
+    }
+
+    .hero p {
+        font-size: 16px;
+    }
+
+    .about-content {
+        grid-template-columns: 1fr;
+    }
+
+    .services-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
