@@ -1,10 +1,8 @@
-
 <?php
+require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/session.php';
 
 $active_page = 'contact';
-
-include 'includes/public_sidebar.php';
 ?>
 
 <!DOCTYPE html>
@@ -17,9 +15,13 @@ include 'includes/public_sidebar.php';
     <title>Contact Us - Human Care</title>
 
     <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/sidebar.css">
+    <link rel="stylesheet" href="styles/footer.css">
 </head>
 
 <body>
+
+    <?php include 'includes/public_sidebar.php'; ?>
 
     <!-- =========================================
          PAGE HEADER
@@ -360,109 +362,10 @@ include 'includes/public_sidebar.php';
         </div>
 
     </section>
+    <?php include 'includes/footer.php'; ?>
 
 
-    <!-- =========================================
-         FOOTER
-    ========================================== -->
-
-    <footer class="footer">
-
-        <div class="container">
-
-            <div class="footer-content">
-
-
-                <!-- Footer About -->
-
-                <div class="footer-section">
-
-                    <h3>
-                        Human Care
-                    </h3>
-
-                    <p>
-                        Your health, our priority
-                    </p>
-
-                </div>
-
-
-                <!-- Quick Links -->
-
-                <div class="footer-section">
-
-                    <h4>
-                        Quick Links
-                    </h4>
-
-                    <ul>
-
-                        <li>
-                            <a href="index.php">
-                                Home
-                            </a>
-                        </li>
-
-                      
-
-                        <li>
-                            <a href="doctors.php">
-                                Doctors
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="education.php">
-                                Education
-                            </a>
-                        </li>
-
-                    </ul>
-
-                </div>
-
-
-                <!-- Footer Contact -->
-
-                <div class="footer-section">
-
-                    <h4>
-                        Contact
-                    </h4>
-
-                    <p>
-                        📞 +91 97252 19106
-                    </p>
-
-                    <p>
-                        📧 solankimaheshkhash7@gmail.com
-                    </p>
-
-                    <p>
-                        📍 Fake , Fake , Fake
-                    </p>
-
-                </div>
-
-
-            </div>
-
-
-            <!-- Footer Bottom -->
-
-            <div class="footer-bottom">
-
-                <p>
-                    &copy; 2025 Human Care.
-                    All rights reserved.
-                </p>
-
-            </div>
-
-        </div>
-
-    </footer>
+                
 
 
     <!-- =========================================
