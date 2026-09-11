@@ -1,0 +1,288 @@
+
+        .rx-wrap {
+            max-width: 1050px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .rx-page-hdr {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        .rx-page-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            color: #fff;
+        }
+
+        .rx-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, .09);
+            margin-bottom: 28px;
+            overflow: hidden;
+            transition: .3s;
+        }
+
+        .rx-card:hover {
+            box-shadow: 0 6px 24px rgba(0, 0, 0, .13);
+            transform: translateY(-2px);
+        }
+
+        .rx-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            padding: 20px 26px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .rx-header h3 {
+            margin: 0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rx-date {
+            font-size: 13px;
+            opacity: .9;
+        }
+
+        .rx-body {
+            padding: 24px 26px;
+        }
+
+        /* Doctor info strip */
+        .doctor-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            background: #f8fafc;
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .ds-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ds-label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            margin-bottom: 3px;
+        }
+
+        .ds-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* Diagnosis */
+        .diag-box {
+            padding: 14px 18px;
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .diag-box h4 {
+            margin: 0 0 6px;
+            font-size: 13px;
+            color: #92400e;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .diag-box p {
+            margin: 0;
+            font-size: 14px;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        /* Medicines table */
+        .med-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .med-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+
+        .med-table thead {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .med-table th {
+            padding: 11px 14px;
+            text-align: left;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .3px;
+        }
+
+        .med-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+            vertical-align: top;
+        }
+
+        .med-table tbody tr:hover {
+            background: #fafbff;
+        }
+
+        .med-name-cell {
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 3px;
+        }
+
+        .med-sub {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .price-cell {
+            font-weight: 700;
+            color: #667eea;
+            white-space: nowrap;
+        }
+
+        /* Total row */
+        .total-row td {
+            background: #f0f9ff;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        /* Notes */
+        .notes-box {
+            padding: 14px 18px;
+            background: #e0e7ff;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .notes-box h4 {
+            margin: 0 0 6px;
+            font-size: 13px;
+            color: #3730a3;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .notes-box p {
+            margin: 0;
+            font-size: 14px;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        /* Print btn */
+        .print-btn {
+            padding: 10px 22px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .print-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px rgba(102, 126, 234, .35);
+        }
+
+        /* Empty */
+        .empty-state {
+            background: #fff;
+            border-radius: 14px;
+            padding: 70px 30px;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+        }
+
+        .empty-icon {
+            font-size: 72px;
+            opacity: .25;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            color: #64748b;
+        }
+
+        /* Badge */
+        .badge-new {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        @media print {
+
+            .sidebar,
+            .menu-toggle,
+            .print-btn,
+            .rx-page-hdr {
+                display: none !important;
+            }
+
+            .main-content {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .rx-card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                break-inside: avoid;
+            }
+        }
