@@ -1,306 +1,95 @@
 <?php
+
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/session.php';
 require_once __DIR__ . '/../classes/msg.php';
 
 
+/*
+|--------------------------------------------------------------------------
+| Check Login
+|--------------------------------------------------------------------------
+*/
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| User & Database
+|--------------------------------------------------------------------------
+*/
+
 $userId = $_SESSION['user_id'];
+
 $conn = Database::getConnection('admin');
+
 $chat = new Chat();
 
-// Get appointments with chat room info
+
+/*
+|--------------------------------------------------------------------------
+| Get Appointments
+|--------------------------------------------------------------------------
+*/
+
 $stmt = $conn->prepare("
-    SELECT 
+    SELECT
         a.*,
-        cr.id as chat_room_id,
+        cr.id AS chat_room_id,
         cr.patient_unread_count
     FROM appointments a
-    LEFT JOIN chat_rooms cr ON cr.appointment_id = a.id
+    LEFT JOIN chat_rooms cr
+        ON cr.appointment_id = a.id
     WHERE a.patient_id = ?
     ORDER BY a.created_at DESC
 ");
+
+if (!$stmt) {
+    die("Database query preparation failed: " . $conn->error);
+}
+
+
 $stmt->bind_param("i", $userId);
+
 $stmt->execute();
+
 $result = $stmt->get_result();
 
-// Get total unread messages
-$unreadCount = $chat->getUnreadCount($userId, 'patient');
+
+/*
+|--------------------------------------------------------------------------
+| Get Total Unread Messages
+|--------------------------------------------------------------------------
+*/
+
+$unreadCount = $chat->getUnreadCount(
+    $userId,
+    'patient'
+);
+
 ?>
 <!DOCTYPE html>
 <html>
 
 <head>
     <title>My Appointments - Human Care</title>
+    <!-- Common CSS -->
     <link rel="stylesheet" href="styles/main.css">
+
+    <link rel="stylesheet" href="styles/patient_appointment.css">
+
+    <!-- Sidebar CSS -->
+    <link rel="stylesheet" href="styles/sidebar.css">
+
+    
     <script src="scripts/main.js"></script>
-    <style>
-        .appointment-card {
-            background: white;
-            padding: 25px;
-            margin-bottom: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            border-left: 5px solid #667eea;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .appointment-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-        }
-
-        .appointment-card.status-approved {
-            border-left-color: #10b981;
-        }
-
-        .appointment-card.status-rejected {
-            border-left-color: #ef4444;
-        }
-
-        .appointment-card.status-cancelled {
-            border-left-color: #8b5cf6;
-        }
-
-        .appointment-card.status-pending {
-            border-left-color: #f59e0b;
-        }
-
-        .appointment-card.status-completed {
-            border-left-color: #3b82f6;
-        }
-
-        .appointment-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .doctor-name {
-            font-size: 20px;
-            font-weight: 700;
-            color: #333;
-        }
-
-        .status-badge {
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .status-approved {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .status-rejected {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .status-pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .status-cancelled {
-            background: #f3e8ff;
-            color: #6b21a8;
-        }
-
-        .status-completed {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        .appointment-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .detail-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            color: #666;
-        }
-
-        .detail-icon {
-            font-size: 18px;
-        }
-
-        .detail-label {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .reason-box {
-            background: #f9fafb;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .reason-box strong {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-size: 14px;
-        }
-
-        .reason-box p {
-            color: #666;
-            font-size: 14px;
-            line-height: 1.6;
-            margin: 0;
-        }
-
-        .cancellation-alert {
-            background: #fef3c7;
-            border-left: 4px solid #f59e0b;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .cancellation-alert.cancelled {
-            background: #f3e8ff;
-            border-left-color: #8b5cf6;
-        }
-
-        .cancellation-alert.rejected {
-            background: #fee2e2;
-            border-left-color: #ef4444;
-        }
-
-        .cancellation-alert strong {
-            display: block;
-            margin-bottom: 8px;
-            color: #991b1b;
-            font-size: 14px;
-        }
-
-        .cancellation-alert.cancelled strong {
-            color: #6b21a8;
-        }
-
-        .cancellation-alert p {
-            color: #92400e;
-            font-size: 14px;
-            margin: 0;
-            line-height: 1.6;
-        }
-
-        .cancellation-alert.cancelled p {
-            color: #6b21a8;
-        }
-
-        .cancellation-alert.rejected p {
-            color: #991b1b;
-        }
-
-        /* Chat Button Styles */
-        .appointment-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-        }
-
-        .chat-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.3s;
-            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
-        }
-
-        .chat-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .chat-btn-icon {
-            font-size: 18px;
-        }
-
-        .unread-badge {
-            background: #ff4757;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-left: 5px;
-        }
-
-        .no-appointments {
-            text-align: center;
-            padding: 60px 20px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .no-appointments-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
-
-        .page-title {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 30px;
-        }
-
-        .specialty-tag {
-            display: inline-block;
-            padding: 4px 12px;
-            background: #e0e7ff;
-            color: #667eea;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 5px;
-        }
-
-        @media (max-width: 768px) {
-            .appointment-details {
-                grid-template-columns: 1fr;
-            }
-
-            .appointment-actions {
-                flex-direction: column;
-            }
-
-            .chat-btn {
-                width: 100%;
-                justify-content: center;
-            }
-        }
-    </style>
+  
+    
 </head>
 
 <body>
@@ -441,30 +230,9 @@ $unreadCount = $chat->getUnreadCount($userId, 'patient');
             <?php endwhile; ?>
         <?php endif; ?>
     </div>
-    <script>
-        function openChatForAppointment(appointmentId) {
-            const formData = new FormData();
-            formData.append('action', 'get_or_create_room');
-            formData.append('appointment_id', appointmentId);
 
-            fetch('msg_api.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.chatRoom) {
-                    window.location.href = `patient_msg.php?room_id=${data.chatRoom.id}`;
-                } else {
-                    alert(data.error || 'Unable to open chat. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error opening chat:', error);
-                alert('Error opening chat. Please try again.');
-            });
-        }
-        </script>
+    <script src="js/patent_appointment.js"></script>
+    
 
     
 </body>

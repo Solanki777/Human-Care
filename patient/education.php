@@ -63,7 +63,7 @@ if ($is_logged_in) {
     <link rel="stylesheet" href="styles/sidebar.css">
 
     <!-- Footer CSS -->
-    <link rel="stylesheet" href="includes/styles/footer.css">
+    <link rel="stylesheet" href="includes/footer.css">
 
 </head>
 <body>
