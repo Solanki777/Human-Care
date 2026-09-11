@@ -1,211 +1,4 @@
-<?php
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../classes/Chat.php';
-require_once __DIR__ . '/../includes/session.php';
 
-// Check if patient is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'patient') {
-    header("Location: login.php");
-    exit();
-}
-
-$userId = $_SESSION['user_id'];
-$userName = $_SESSION['user_name'];
-$chat = new Chat();
-
-// Get selected chat room ID from URL
-$selectedRoomId = isset($_GET['room_id']) ? intval($_GET['room_id']) : null;
-
-// Get all chat rooms for this patient
-$chatRooms = $chat->getUserChatRooms($userId, 'patient');
-
-// Get total unread count
-$unreadCount = $chat->getUnreadCount($userId, 'patient');
-
-// If a room is selected, verify access and get details
-$selectedRoom = null;
-if ($selectedRoomId) {
-    if ($chat->hasAccess($selectedRoomId, $userId, 'patient')) {
-        $selectedRoom = $chat->getChatRoom($selectedRoomId);
-        // Mark messages as read when opening chat
-        $chat->markAsRead($selectedRoomId, 'patient');
-    } else {
-        $selectedRoomId = null;
-    }
-}
-?>
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Chats - Human Care</title>
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/chat.css">
-    <style>
-        body {
-            background: #f5f7fa;
-        }
-
-        .chat-page-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 30px 20px;
-            padding-top: 80px;
-        }
-
-        .page-header {
-            margin-bottom: 30px;
-        }
-
-        .page-header h1 {
-            font-size: 28px;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .page-header p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .unread-badge {
-            background: #ff4757;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-left: 8px;
-        }
-    </style>
-</head>
-
-<body>
-    <!-- Menu Toggle Button -->
-    <?php $active_page = 'chats'; ?>
-    <?php include 'includes/public_sidebar.php'; ?>
-
-    <!-- Main Content -->
-    <div class="chat-page-container">
-        <div class="page-header">
-            <h1>💬 My Chats</h1>
-            <p>Chat with your doctors about your appointments</p>
-        </div>
-
-        <div class="chat-container">
-            <!-- Chat List Sidebar -->
-            <div class="chat-list-container" id="chatListContainer">
-                <div class="chat-list-header">
-                    <h3>Conversations</h3>
-                    <?php if ($unreadCount > 0): ?>
-                        <span class="total-unread-badge"><?php echo $unreadCount; ?></span>
-                    <?php endif; ?>
-                </div>
-
-                <div class="chat-search">
-                    <input type="text" placeholder="🔍 Search chats..." id="chatSearch">
-                </div>
-
-                <div class="chat-list" id="chatList">
-                    <?php if (empty($chatRooms)): ?>
-                        <div class="chat-list-empty">
-                            <p>No conversations yet</p>
-                            <small>Book an approved appointment to start chatting with your doctor</small>
-                        </div>
-                    <?php else: ?>
-                        <?php foreach ($chatRooms as $room): ?>
-                            <div class="chat-list-item <?php echo $selectedRoomId == $room['id'] ? 'active' : ''; ?>"
-                                onclick="openChat(<?php echo $room['id']; ?>)">
-                                <div class="chat-avatar">👨‍⚕️</div>
-                                <div class="chat-preview">
-                                    <div class="chat-preview-header">
-                                        <h4>Dr. <?php echo htmlspecialchars($room['doctor_name']); ?></h4>
-                                        <span class="chat-time">
-                                            <?php
-                                            if ($room['last_message_time']) {
-                                                echo date('M j, g:i A', strtotime($room['last_message_time']));
-                                            }
-                                            ?>
-                                        </span>
-                                    </div>
-                                    <p class="last-message">
-                                        <?php echo $room['last_message'] ? htmlspecialchars(substr($room['last_message'], 0, 50)) . '...' : 'No messages yet'; ?>
-                                    </p>
-                                </div>
-                                <?php if ($room['patient_unread_count'] > 0): ?>
-                                    <span class="unread-badge"><?php echo $room['patient_unread_count']; ?></span>
-                                <?php endif; ?>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Chat Window -->
-            <div class="chat-window-container" id="chatWindow">
-                <?php if (!$selectedRoom): ?>
-                    <div class="chat-window">
-                        <div class="chat-empty-state">
-                            <div class="empty-icon">💬</div>
-                            <h3>Select a Conversation</h3>
-                            <p>Choose a doctor from the list to start chatting</p>
-                        </div>
-                    </div>
-                <?php else: ?>
-                    <div class="active-chat">
-                        <!-- Chat Header -->
-                        <div class="chat-header">
-                            <div class="chat-header-left">
-                                <button class="back-btn" onclick="closeChat()">←</button>
-                                <div class="chat-avatar">👨‍⚕️</div>
-                                <div class="chat-info">
-                                    <h4>Dr. <?php echo htmlspecialchars($selectedRoom['doctor_name']); ?></h4>
-                                    <span class="chat-status" id="typingStatus">Online</span>
-                                </div>
-                            </div>
-                            <div class="chat-header-right">
-                                <button class="chat-action-btn" onclick="refreshMessages()" title="Refresh">🔄</button>
-                            </div>
-                        </div>
-
-                        <!-- Messages Container -->
-                        <div class="messages-container" id="messagesContainer">
-                            <div class="messages-loading" id="messagesLoading">
-                                <div class="spinner"></div>
-                            </div>
-                        </div>
-
-                        <!-- Typing Indicator -->
-                        <div class="typing-indicator" id="typingIndicator" style="display: none;">
-                            <div class="typing-dots">
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                            </div>
-                            <span>Doctor is typing...</span>
-                        </div>
-
-                        <!-- Message Input -->
-                        <div class="message-input-container">
-                            <form id="messageForm">
-                                <textarea id="messageInput" placeholder="Type your message here..." rows="1"
-                                    required></textarea>
-                                <button type="submit" class="send-btn">
-                                    <span>Send</span>
-                                    <span>📤</span>
-                                </button>
-                            </form>
-                            <div class="message-hint">Press Enter to send, Shift+Enter for new line</div>
-                        </div>
-                    </div>
-             <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <script>
         const chatRoomId = <?php echo $selectedRoomId ? $selectedRoomId : 'null'; ?>;
         const userId = <?php echo $userId; ?>;
         const userType = 'patient';
@@ -225,7 +18,7 @@ if ($selectedRoomId) {
 
         // Load messages
         function loadMessages() {
-            fetch(`chat_api.php?action=get_messages&chat_room_id=${chatRoomId}`)
+            fetch(`msg_api.php?action=get_messages&chat_room_id=${chatRoomId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -280,7 +73,7 @@ if ($selectedRoomId) {
         // Poll for new messages
         function startPolling() {
             pollingInterval = setInterval(() => {
-                fetch(`chat_api.php?action=get_recent_messages&chat_room_id=${chatRoomId}&after_message_id=${lastMessageId}`)
+                fetch(`msg_api.php?action=get_recent_messages&chat_room_id=${chatRoomId}&after_message_id=${lastMessageId}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.success && data.messages.length > 0) {
@@ -373,7 +166,7 @@ if ($selectedRoomId) {
             formData.append('chat_room_id', chatRoomId);
             formData.append('message', message);
 
-            fetch('chat_api.php', {
+            fetch('msg_api.php', {
                 method: 'POST',
                 body: formData
             })
@@ -386,7 +179,7 @@ if ($selectedRoomId) {
 
                         // Immediately fetch the new message
                         setTimeout(() => {
-                            fetch(`chat_api.php?action=get_recent_messages&chat_room_id=${chatRoomId}&after_message_id=${lastMessageId}`)
+                            fetch(`msg_api.php?action=get_recent_messages&chat_room_id=${chatRoomId}&after_message_id=${lastMessageId}`)
                                 .then(response => response.json())
                                 .then(data => {
                                     if (data.success && data.messages.length > 0) {
@@ -412,7 +205,7 @@ if ($selectedRoomId) {
             formData.append('chat_room_id', chatRoomId);
             formData.append('is_typing', isTyping ? '1' : '0');
 
-            fetch('chat_api.php', {
+            fetch('msg_api.php', {
                 method: 'POST',
                 body: formData
             }).catch(error => console.error('Error updating typing status:', error));
@@ -434,8 +227,36 @@ if ($selectedRoomId) {
             loadMessages();
         }
 
-        function openChat(roomId) {
-            window.location.href = `patient_chat.php?room_id=${roomId}`;
+        // If a room already exists we just navigate to it. If not (the
+        // patient hasn't messaged this doctor before), create the room
+        // first via the API, then navigate - so clicking a contact always
+        // "just works" whether or not a conversation exists yet.
+        function openChat(roomId, appointmentId) {
+            if (roomId) {
+                window.location.href = `patient_msg.php?room_id=${roomId}`;
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('action', 'get_or_create_room');
+            formData.append('appointment_id', appointmentId);
+
+            fetch('msg_api.php', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.chatRoom) {
+                        window.location.href = `patient_msg.php?room_id=${data.chatRoom.id}`;
+                    } else {
+                        alert(data.error || 'Unable to open chat. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error opening chat:', error);
+                    alert('Error opening chat. Please try again.');
+                });
         }
 
         function closeChat() {
@@ -465,7 +286,3 @@ if ($selectedRoomId) {
                 updateTypingStatus(false);
             }
         });
-    </script>
-</body>
-
-</html>
