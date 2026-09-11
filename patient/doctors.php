@@ -1,5 +1,6 @@
 <?php
-session_start();
+
+require_once __DIR__ . '/../includes/session.php';
 
 require_once __DIR__ . '/../config/config.php';
 
@@ -65,7 +66,7 @@ $total_doctors = $conn->query("SELECT COUNT(*) as count FROM doctors WHERE is_ve
     <link rel="stylesheet" href="styles/doctors.css">
 
     <!-- Footer CSS -->
-    <link rel="stylesheet" href="styles/footer.css">
+    <link rel="stylesheet" href="includes/styles/footer.css">
 </head>
 
 <body>
