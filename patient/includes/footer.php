@@ -65,7 +65,7 @@
                 <h4>Contact</h4>
 
                 <p>📞 +91 9725219106</p>
-                <p>📧 solankimaheshkhash7@gmail.com</p>
+                <p>📧solankimaheshkhash7@gmail.com</p>
                 <p>📍 Gujarat, India</p>
             </div>
 
