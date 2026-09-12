@@ -116,6 +116,7 @@ function maskPhone(string $phone): string
 
         $emailOtp = $pending['email_otp'];
         $phoneOtp = $pending['phone_otp'];
+        
 
         $emailSent = sendEmailOTP(
             $email,
