@@ -105,54 +105,28 @@ function maskPhone(string $phone): string
     | are removed from the session after the first send.
     |
     */
-
     if (
         $_SERVER["REQUEST_METHOD"] !== "POST" &&
         isset(
             $pending['email_otp'],
             $pending['phone_otp']
         )
-    ) {
-
+) {
         $emailOtp = $pending['email_otp'];
         $phoneOtp = $pending['phone_otp'];
         
 
-        // $emailSent = sendEmailOTP(
-        //     $email,
-        //     $emailOtp
-        // );
-
-        // $smsSent = sendPhoneOTP(
-        //     $phone,
-        //     $phoneOtp
-        // );
-        error_log("========== OTP DEBUG START ==========");
-
-        error_log("OTP DEBUG: User type = " . ($pending['user_type'] ?? 'missing'));
-        error_log("OTP DEBUG: Email = " . ($email ?? 'missing'));
-        error_log("OTP DEBUG: Phone = " . ($phone ?? 'missing'));
-
-        error_log("OTP DEBUG: Email OTP function starting");
-
-        $emailSent = sendEmailOTP($email, $emailOtp);
-
-        error_log(
-            "OTP DEBUG: Email result = " .
-            ($emailSent ? "SUCCESS" : "FAILED")
+        $emailSent = sendEmailOTP(
+            $email,
+            $emailOtp
         );
 
-        error_log("OTP DEBUG: SMS OTP function starting");
-
-        $smsSent = sendPhoneOTP($phone, $phoneOtp);
-
-        error_log(
-            "OTP DEBUG: SMS result = " .
-            ($smsSent ? "SUCCESS" : "FAILED")
+        $smsSent = sendPhoneOTP(
+            $phone,
+            $phoneOtp
         );
-
-        error_log("========== OTP DEBUG END ==========");
-
+       
+        
         // Remove raw OTPs after sending.
         unset($pending['email_otp']);
         unset($pending['phone_otp']);
