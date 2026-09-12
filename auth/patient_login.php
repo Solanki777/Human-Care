@@ -1,0 +1,1 @@
+$stmt = $connPatient->prepare("SELECT * FROM patients WHERE email = ?");

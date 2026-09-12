@@ -41,7 +41,7 @@ require_once __DIR__ . '/../config/config.php';
             <h1>Welcome to HUMAN CARE</h1>
             <p>Your health, our priority. Quality healthcare accessible to everyone.</p>
             <?php if (!isset($_SESSION['user_name'])): ?>
-                <a href="login.php" class="hero-btn">Get Started</a>
+                <a href="../login.php" class="hero-btn">Get Started</a>
             <?php else: ?>
                 <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'patient'): ?>
                     
