@@ -126,7 +126,7 @@ function maskPhone(string $phone): string
             $phoneOtp
         );
        
-        
+
         // Remove raw OTPs after sending.
         unset($pending['email_otp']);
         unset($pending['phone_otp']);
@@ -551,7 +551,7 @@ function maskPhone(string $phone): string
                                         blood_group,
                                         password,
                                         license_number,
-                                        specialization,
+                                        specialty,
                                         verification_photo,
                                         verification_photo_type,
                                         email_verified,
@@ -561,13 +561,16 @@ function maskPhone(string $phone): string
                                     )
                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 'pending', 0)"
                                 );
-
+                                 
                                 if (!$stmt) {
 
-                                    $generalError =
-                                        "Unable to prepare doctor account.";
+                                        error_log(
+                                            "DOCTOR INSERT PREPARE ERROR: " . $conn->error
+                                        );
 
-                                } else {
+                                        $generalError =
+                                            "Unable to prepare doctor account: " . $conn->error;
+                                    } else {
 
                                     $null = null;
 
