@@ -67,17 +67,17 @@ if (is_ip_blocked($ip)) {
                     <span class="detail-label">IP Address</span>
                     <span class="detail-value"><span class="badge badge-red"><?= htmlspecialchars($ip) ?></span></span>
                 </div>
-                <hr class="divider">
+                <hr class="block-divider">
                 <div class="detail-row">
                     <span class="detail-label">Attack Type</span>
                     <span class="detail-value"><span class="badge badge-red"><?= htmlspecialchars($attackType) ?></span></span>
                 </div>
-                <hr class="divider">
+                <hr class="block-divider">
                 <div class="detail-row">
                     <span class="detail-label">Reason</span>
                     <span class="detail-value"><?= htmlspecialchars($reason) ?></span>
                 </div>
-                <hr class="divider">
+                <hr class="block-divider">
                 <div class="detail-row">
                     <span class="detail-label">Blocked By</span>
                     <span class="detail-value">
@@ -88,12 +88,12 @@ if (is_ip_blocked($ip)) {
                         <?php endif; ?>
                     </span>
                 </div>
-                <hr class="divider">
+                <hr class="block-divider">
                 <div class="detail-row">
                     <span class="detail-label">Blocked At</span>
                     <span class="detail-value"><?= htmlspecialchars($blockedAtLabel) ?></span>
                 </div>
-                <hr class="divider">
+                <hr class="block-divider">
                 <div class="detail-row">
                     <span class="detail-label">Expires At</span>
                     <span class="detail-value"><?= htmlspecialchars($expiresAtLabel) ?></span>
@@ -185,53 +185,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Access Blocked – Human Care</title>
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body {
-                    min-height: 100vh;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-                    font-family: 'Segoe UI', sans-serif;
-                    color: #fff;
-                    padding: 20px;
-                }
-                .block-card {
-                    background: rgba(255,255,255,0.05);
-                    backdrop-filter: blur(12px);
-                    border: 1px solid rgba(255,80,80,0.35);
-                    border-radius: 16px;
-                    padding: 44px 40px;
-                    max-width: 560px;
-                    width: 100%;
-                    text-align: center;
-                    box-shadow: 0 8px 40px rgba(255,50,50,0.18);
-                }
-                .block-icon { font-size: 62px; margin-bottom: 18px; }
-                h1 { font-size: 26px; font-weight: 700; color: #ff5f5f; margin-bottom: 8px; }
-                .subtitle { font-size: 14px; color: rgba(255,255,255,0.55); margin-bottom: 32px; }
-                .detail-grid {
-                    text-align: left;
-                    background: rgba(255,255,255,0.04);
-                    border-radius: 10px;
-                    padding: 20px 24px;
-                    margin-bottom: 28px;
-                    display: grid;
-                    gap: 14px;
-                }
-                .detail-row { display: grid; grid-template-columns: 160px 1fr; gap: 8px; align-items: start; }
-                .detail-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.45); padding-top: 2px; }
-                .detail-value { font-size: 14px; color: #fff; word-break: break-word; }
-                .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-                .badge-red    { background: rgba(255,80,80,0.2);  color: #ff7070; border: 1px solid rgba(255,80,80,0.4); }
-                .badge-purple { background: rgba(150,80,255,0.2); color: #bb88ff; border: 1px solid rgba(150,80,255,0.4); }
-                .badge-blue   { background: rgba(80,150,255,0.2); color: #70aaff; border: 1px solid rgba(80,150,255,0.4); }
-                .divider { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 4px 0; }
-                .footer-note { font-size: 12px; color: rgba(255,255,255,0.35); line-height: 1.6; }
-                .footer-note a { color: rgba(100,180,255,0.7); text-decoration: none; }
-                .nexora-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 20px; padding: 8px 16px; background: rgba(80,100,255,0.12); border: 1px solid rgba(80,100,255,0.25); border-radius: 20px; font-size: 12px; color: rgba(180,190,255,0.7); }
-            </style>
+            <link rel="stylesheet" href="styles/login.css">
+            
         </head>
         <body>
             <div class="block-card">
@@ -243,17 +198,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <span class="detail-label">IP Address</span>
                         <span class="detail-value"><span class="badge badge-red"><?= htmlspecialchars($ip) ?></span></span>
                     </div>
-                    <hr class="divider">
+                    <hr class="block-divider">
                     <div class="detail-row">
                         <span class="detail-label">Attack Type</span>
                         <span class="detail-value"><span class="badge badge-red"><?= htmlspecialchars($attackType) ?></span></span>
                     </div>
-                    <hr class="divider">
+                    <hr class="block-divider">
                     <div class="detail-row">
                         <span class="detail-label">Reason</span>
                         <span class="detail-value"><?= htmlspecialchars($reason) ?></span>
                     </div>
-                    <hr class="divider">
+                    <hr class="block-divider">
                     <div class="detail-row">
                         <span class="detail-label">Blocked By</span>
                         <span class="detail-value">
@@ -264,12 +219,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             <?php endif; ?>
                         </span>
                     </div>
-                    <hr class="divider">
+                    <hr class="block-divider">
                     <div class="detail-row">
                         <span class="detail-label">Blocked At</span>
                         <span class="detail-value"><?= htmlspecialchars($blockedAtLabel) ?></span>
                     </div>
-                    <hr class="divider">
+                    <hr class="block-divider">
                     <div class="detail-row">
                         <span class="detail-label">Expires At</span>
                         <span class="detail-value"><?= htmlspecialchars($expiresAtLabel) ?></span>
@@ -413,39 +368,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Human Care - Login</title>
     <link rel="stylesheet" href="styles/login.css">
-    <style>
-        .verification-box {
-            background: #e0e7ff;
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        
-        .verification-box strong {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-        }
-        
-        .verification-box a {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 8px 16px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .verification-box a:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-        }
-    </style>
+    
 </head>
 <body>
     <div class="login-container">
@@ -496,6 +419,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <?php endif; ?>
 
             <form id="loginForm" method="POST" action="">
+                
+                <div class="user-type-selection">
+                    <label class="selection-title">Login As</label>
+
+                    <div class="user-type-options">
+                        <label class="user-type-card">
+                            <input type="radio" name="user_type" value="patient" checked>
+                            <div class="user-type-content">
+                                <span class="user-type-icon">👤</span>
+                                <span class="user-type-name">Patient</span>
+                                <span class="user-type-description">Patient Portal</span>
+                            </div>
+                        </label>
+
+                        <label class="user-type-card">
+                            <input type="radio" name="user_type" value="doctor">
+                            <div class="user-type-content">
+                                <span class="user-type-icon">👨‍⚕️</span>
+                                <span class="user-type-name">Doctor</span>
+                                <span class="user-type-description">Doctor Portal</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <div class="input-wrapper">
@@ -520,7 +469,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 <button type="submit" class="login-btn">Login</button>
 
-                <div class="divider">or</div>
+                <div class="login-divider">or</div>
 
                 <div class="signup-link">
                     Don't have an account? <a href="register.php">Sign Up Now</a><br>

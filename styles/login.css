@@ -1,3 +1,8 @@
+
+/* =========================================================
+   GLOBAL
+========================================================= */
+
 * {
     margin: 0;
     padding: 0;
@@ -14,6 +19,11 @@ body {
     padding: 20px;
 }
 
+
+/* =========================================================
+   LOGIN CONTAINER
+========================================================= */
+
 .login-container {
     background: #fff;
     border-radius: 20px;
@@ -25,7 +35,11 @@ body {
     min-height: 550px;
 }
 
-/* Left side */
+
+/* =========================================================
+   LOGIN - LEFT SIDE
+========================================================= */
+
 .login-left {
     flex: 1;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -87,7 +101,11 @@ body {
     flex-shrink: 0;
 }
 
-/* Right side */
+
+/* =========================================================
+   LOGIN - RIGHT SIDE
+========================================================= */
+
 .login-right {
     flex: 1;
     padding: 60px 50px;
@@ -107,7 +125,11 @@ body {
     margin-bottom: 30px;
 }
 
-/* Form */
+
+/* =========================================================
+   FORM
+========================================================= */
+
 .form-group {
     margin-bottom: 20px;
 }
@@ -138,6 +160,11 @@ body {
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
+
+
+/* =========================================================
+   FORM OPTIONS
+========================================================= */
 
 .form-options {
     display: flex;
@@ -170,7 +197,11 @@ body {
     text-decoration: underline;
 }
 
-/* Login button */
+
+/* =========================================================
+   LOGIN BUTTON
+========================================================= */
+
 .login-btn {
     width: 100%;
     padding: 14px;
@@ -193,16 +224,20 @@ body {
     transform: translateY(0);
 }
 
-/* Divider */
-.divider {
+
+/* =========================================================
+   LOGIN DIVIDER
+========================================================= */
+
+.login-divider {
     text-align: center;
     margin: 25px 0;
     color: #999;
     position: relative;
 }
 
-.divider::before,
-.divider::after {
+.login-divider::before,
+.login-divider::after {
     content: "";
     position: absolute;
     top: 50%;
@@ -211,15 +246,19 @@ body {
     background: #e0e0e0;
 }
 
-.divider::before {
+.login-divider::before {
     left: 0;
 }
 
-.divider::after {
+.login-divider::after {
     right: 0;
 }
 
-/* Sign up */
+
+/* =========================================================
+   SIGN UP
+========================================================= */
+
 .signup-link {
     text-align: center;
     color: #666;
@@ -229,14 +268,197 @@ body {
 .signup-link a {
     color: #667eea;
     text-decoration: none;
-    font-weight: 600;
 }
 
 .signup-link a:hover {
     text-decoration: underline;
 }
 
-/* Responsive */
+
+/* =========================================================
+   VERIFICATION MESSAGE
+========================================================= */
+
+.verification-box {
+    background: #e0e7ff;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.verification-box strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.verification-box a {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: #667eea;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.verification-box a:hover {
+    background: #5568d3;
+    transform: translateY(-2px);
+}
+
+
+/* =========================================================
+   ACCESS BLOCKED PAGE
+========================================================= */
+
+.block-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 80, 80, 0.35);
+    border-radius: 16px;
+    padding: 44px 40px;
+    max-width: 560px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 8px 40px rgba(255, 50, 50, 0.18);
+}
+
+.block-icon {
+    font-size: 62px;
+    margin-bottom: 18px;
+}
+
+.block-card h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #ff5f5f;
+    margin-bottom: 8px;
+}
+
+.block-card .subtitle {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.55);
+    margin-bottom: 32px;
+}
+
+
+/* =========================================================
+   BLOCK DETAILS
+========================================================= */
+
+.detail-grid {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 28px;
+    display: grid;
+    gap: 14px;
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 8px;
+    align-items: start;
+}
+
+.detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.45);
+    padding-top: 2px;
+}
+
+.detail-value {
+    font-size: 14px;
+    color: #fff;
+    word-break: break-word;
+}
+
+
+/* =========================================================
+   BLOCK BADGES
+========================================================= */
+
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-red {
+    background: rgba(255, 80, 80, 0.2);
+    color: #ff7070;
+    border: 1px solid rgba(255, 80, 80, 0.4);
+}
+
+.badge-purple {
+    background: rgba(150, 80, 255, 0.2);
+    color: #bb88ff;
+    border: 1px solid rgba(150, 80, 255, 0.4);
+}
+
+.badge-blue {
+    background: rgba(80, 150, 255, 0.2);
+    color: #70aaff;
+    border: 1px solid rgba(80, 150, 255, 0.4);
+}
+
+
+/* =========================================================
+   BLOCK PAGE DIVIDER
+========================================================= */
+
+.block-divider {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 4px 0;
+}
+
+
+/* =========================================================
+   BLOCK FOOTER
+========================================================= */
+
+.footer-note {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.35);
+    line-height: 1.6;
+}
+
+.footer-note a {
+    color: rgba(100, 180, 255, 0.7);
+    text-decoration: none;
+}
+
+.nexora-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 20px;
+    padding: 8px 16px;
+    background: rgba(80, 100, 255, 0.12);
+    border: 1px solid rgba(80, 100, 255, 0.25);
+    border-radius: 20px;
+    font-size: 12px;
+    color: rgba(180, 190, 255, 0.7);
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
 @media (max-width: 768px) {
     .login-container {
         flex-direction: column;
@@ -276,8 +498,87 @@ body {
         gap: 12px;
     }
 
-    .divider::before,
-    .divider::after {
+    .login-divider::before,
+    .login-divider::after {
         width: 35%;
     }
+
+    .detail-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+
+/* =========================================================
+   USER TYPE SELECTION
+========================================================= */
+
+.user-type-selection {
+    margin-bottom: 20px;
+}
+
+.selection-title {
+    display: block;
+    margin-bottom: 10px;
+    color: #555;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.user-type-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.user-type-card {
+    position: relative;
+    cursor: pointer;
+}
+
+.user-type-card input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.user-type-content {
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    transition: all 0.2s ease;
+    background: #fff;
+}
+
+.user-type-card:hover .user-type-content {
+    border-color: #667eea;
+    background: #f8f9ff;
+}
+
+.user-type-card input:checked + .user-type-content {
+    border-color: #667eea;
+    background: #f0f2ff;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.user-type-icon {
+    display: block;
+    font-size: 28px;
+    margin-bottom: 6px;
+}
+
+.user-type-name {
+    display: block;
+    color: #333;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.user-type-description {
+    display: block;
+    color: #888;
+    font-size: 11px;
+    margin-top: 3px;
 }
