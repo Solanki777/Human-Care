@@ -2,6 +2,4 @@ config/config.php
 .env
 .env.*
 !.env.example
-composer.json
-composer.lock
 .env.example

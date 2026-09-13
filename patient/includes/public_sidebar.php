@@ -98,6 +98,12 @@ function sb_active(string $page, string $current): string
                 <span>Contact & Support</span>
             </a>
         </li>
+        <li>
+            <a href="report_bug.php" class="bug-report-link">
+                <span class="nav-icon">🐞</span>
+                <span>Report a Bug</span>
+            </a>
+        </li>
     </ul>
 
     <!-- User Box -->
