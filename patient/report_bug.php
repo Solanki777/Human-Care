@@ -1,6 +1,14 @@
 <?php
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+// Mail configuration
+$mailConfig = require __DIR__ . '/../config/mail_config.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 $success = '';
 $error = '';
 
@@ -25,12 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // =========================================
-    // PHOTO VALIDATION
+    // PHOTO SETTINGS
     // =========================================
 
     $photos = $_FILES['bug_photos'] ?? null;
-
-    $uploaded_files = [];
 
     $allowed_types = [
         'image/jpeg' => 'jpg',
@@ -41,40 +47,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $max_file_size = 5 * 1024 * 1024; // 5 MB
     $max_photos = 10;
 
+    $uploaded_files = [];
+
+    // =========================================
+    // VALIDATE PHOTOS
+    // =========================================
+
     if (empty($error) && $photos) {
 
-        // Count successfully selected files
         $photo_count = count($photos['name']);
 
         if ($photo_count > $max_photos) {
             $error = "You can upload a maximum of {$max_photos} photos.";
         }
 
-        // Validate every photo
         if (empty($error)) {
 
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
 
             for ($i = 0; $i < $photo_count; $i++) {
 
-                // Skip empty file inputs
                 if ($photos['error'][$i] === UPLOAD_ERR_NO_FILE) {
                     continue;
                 }
 
-                // Upload error
                 if ($photos['error'][$i] !== UPLOAD_ERR_OK) {
                     $error = 'One of the photos could not be uploaded.';
                     break;
                 }
 
-                // File size
                 if ($photos['size'][$i] > $max_file_size) {
                     $error = 'Each photo must be less than 5 MB.';
                     break;
                 }
 
-                // Detect real MIME type
                 $mime_type = finfo_file(
                     $finfo,
                     $photos['tmp_name'][$i]
@@ -99,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $upload_dir = __DIR__ . '/../uploads/bug_reports/';
 
         if (!is_dir($upload_dir)) {
+
             if (!mkdir($upload_dir, 0755, true)) {
                 $error = 'Unable to create the upload directory.';
             }
@@ -124,8 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $extension = $allowed_types[$mime_type];
 
-            // Generate random filename
-            $filename = 'bug_' .
+            $filename =
+                'bug_' .
                 bin2hex(random_bytes(16)) .
                 '.' .
                 $extension;
@@ -136,6 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $photos['tmp_name'][$i],
                 $destination
             )) {
+
                 $error = 'Unable to save one of the uploaded photos.';
                 break;
             }
@@ -147,14 +155,113 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // =========================================
-    // SUCCESS
+    // SEND EMAIL
     // =========================================
 
     if (empty($error)) {
 
-        $success =
-            'Bug report submitted successfully. ' .
-            'Thank you for helping us improve Human Care.';
+        try {
+
+            $mail = new PHPMailer(true);
+
+            // SMTP configuration
+            $mail->isSMTP();
+
+            $mail->Host = $mailConfig['host'];
+            $mail->SMTPAuth = true;
+            $mail->Username = $mailConfig['username'];
+            $mail->Password = $mailConfig['password'];
+
+            $mail->Port = $mailConfig['port'];
+
+            if ($mailConfig['encryption'] === 'tls') {
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            } elseif ($mailConfig['encryption'] === 'ssl') {
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            }
+
+            // Sender
+            $mail->setFrom(
+                $mailConfig['from_email'],
+                $mailConfig['from_name']
+            );
+
+            // Receiver
+            $mail->addAddress(ADMIN_EMAIL);
+
+            // Email subject
+            $mail->Subject = '🐞 Human Care - Bug Report';
+
+            // Email body
+            $mail->isHTML(true);
+
+            $safe_description = nl2br(
+                htmlspecialchars(
+                    $description,
+                    ENT_QUOTES,
+                    'UTF-8'
+                )
+            );
+
+            $mail->Body = "
+                <h2>🐞 Human Care Bug Report</h2>
+
+                <h3>Bug Description</h3>
+
+                <p>
+                    {$safe_description}
+                </p>
+
+                <hr>
+
+                <p>
+                    <strong>Photos attached:</strong>
+                    " . count($uploaded_files) . "
+                </p>
+
+                <p>
+                    This bug report was submitted from the Human Care website.
+                </p>
+            ";
+
+            // Plain text fallback
+            $mail->AltBody =
+                "Human Care Bug Report\n\n" .
+                "Bug Description:\n" .
+                $description .
+                "\n\nPhotos attached: " .
+                count($uploaded_files);
+
+            // Attach every uploaded photo
+            foreach ($uploaded_files as $file) {
+
+                $mail->addAttachment($file);
+            }
+
+            // Send
+            $mail->send();
+
+            // =========================================
+            // DELETE TEMPORARY UPLOADS
+            // =========================================
+
+            foreach ($uploaded_files as $file) {
+
+                if (file_exists($file)) {
+                    unlink($file);
+                }
+            }
+
+            $success =
+                'Bug report submitted successfully. ' .
+                'Thank you for helping us improve Human Care.';
+
+        } catch (Exception $e) {
+
+            $error =
+                'Unable to send the bug report right now. ' .
+                'Please try again later.';
+        }
     }
 }
 ?>
@@ -163,8 +270,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Report a Bug - Human Care</title>
 
@@ -172,6 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="styles/sidebar.css">
     <link rel="stylesheet" href="styles/footer.css">
     <link rel="stylesheet" href="styles/report_bug.css">
+
 </head>
 
 <body>
@@ -180,6 +293,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <?php include 'includes/public_sidebar.php'; ?>
 
+
     <main class="bug-report-page">
 
         <div class="container">
@@ -187,7 +301,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="bug-report-card">
 
                 <div class="bug-report-header">
-                    <div class="bug-icon">🐞</div>
+
+                    
 
                     <h1>Report a Bug</h1>
 
@@ -195,23 +310,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         Found something that isn't working correctly?
                         Let us know so we can fix it.
                     </p>
+
                 </div>
+
 
                 <?php if (!empty($success)): ?>
 
                     <div class="bug-success">
-                        ✓ <?php echo htmlspecialchars($success); ?>
+
+                        ✓
+                        <?php echo htmlspecialchars($success); ?>
+
                     </div>
 
                 <?php endif; ?>
+
 
                 <?php if (!empty($error)): ?>
 
                     <div class="bug-error">
-                        ⚠ <?php echo htmlspecialchars($error); ?>
+
+                        ⚠
+                        <?php echo htmlspecialchars($error); ?>
+
                     </div>
 
                 <?php endif; ?>
+
 
                 <?php if (empty($success)): ?>
 
@@ -222,6 +347,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     >
 
                         <?php echo csrf_field(); ?>
+
+
+                        <!-- Bug Description -->
 
                         <div class="form-group">
 
@@ -240,10 +368,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
 
+                        <!-- Bug Photos -->
+
                         <div class="form-group">
 
                             <label for="bug_photo">
-                                Bug Photo / Screenshots
+                                Bug Photos / Screenshots
                                 <span>(Optional)</span>
                             </label>
 
@@ -256,11 +386,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             >
 
                             <small>
-                                JPG, PNG or WEBP — Maximum 5 MB per photo, up to 10 photos.
+                                JPG, PNG or WEBP —
+                                Maximum 5 MB per photo,
+                                up to 10 photos.
                             </small>
 
                         </div>
 
+
+                        <!-- Submit -->
 
                         <button
                             type="submit"
@@ -278,6 +412,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
     </main>
+
 
     <?php include 'includes/footer.php'; ?>
 
