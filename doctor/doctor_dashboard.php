@@ -11,10 +11,20 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
 }
 $active_page = 'dashboard'; // Change based on page
 
-require_once 'classes/msg.php';
+
+require_once __DIR__.'/../classes/msg.php';
+require_once __DIR__.'/../config/config.php';
+
+
 
 // Get doctor info from doctors database
-$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
+$doctors_conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_DOCTORS
+);
+
 if ($doctors_conn->connect_error) {
     die("Connection failed: " . $doctors_conn->connect_error);
 }
@@ -33,7 +43,12 @@ if (!$doctor) {
 $doctor_name = $doctor['first_name'] . ' ' . $doctor['last_name'];
 
 // Connect to admin database for appointments
-$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+$admin_conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_ADMIN
+);
 if ($admin_conn->connect_error) {
     die("Connection failed: " . $admin_conn->connect_error);
 }
@@ -78,6 +93,8 @@ $stmt->execute();
 $total_patients = $stmt->get_result()->fetch_assoc()['count'];
 $stmt->close();
 
+
+
 $today = date('Y-m-d');
 $stmt = $admin_conn->prepare("
     SELECT COUNT(*) as count 
@@ -86,6 +103,8 @@ $stmt = $admin_conn->prepare("
     AND appointment_date = ? 
     AND status = 'approved'
 ");
+
+
 $stmt->bind_param("ss", $doctor_name, $today);
 $stmt->execute();
 $today_appointments = $stmt->get_result()->fetch_assoc()['count'];
@@ -148,7 +167,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Doctor Dashboard - Human Care</title>
-    <link rel="stylesheet" href="styles/dashboard.css">
+    <link rel="stylesheet" href="styles/sidebar.css">
     <style>
         /* Additional styles for doctor dashboard */
         .doctor-badge {
@@ -484,8 +503,7 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
 </head>
 
 <body>
-    <!-- Menu Toggle Button -->
-    <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
+    
 
     <?php include 'includes/doctor_sidebar.php'; ?>
 
@@ -697,24 +715,6 @@ $filter = isset($_GET['view']) ? $_GET['view'] : 'upcoming';
             });
         }
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
-
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('DOMContentLoaded', function () {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            const menuToggle = document.getElementById('menuToggle');
-
-            if (overlay) {
-                overlay.addEventListener('click', function () {
-                    sidebar.classList.remove('active');
-                    overlay.classList.remove('active');
-                });
-            }
-        });
     </script>
 </body>
 
