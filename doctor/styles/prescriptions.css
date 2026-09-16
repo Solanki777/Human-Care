@@ -1,0 +1,422 @@
+
+        /* ── Layout ──────────────────────────────── */
+        .rx-wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .rx-page-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ── Patient card ────────────────────────── */
+        .patient-card {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .patient-card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e0e7ff;
+            margin-bottom: 16px;
+        }
+
+        .patient-avatar {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .patient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .pinfo-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pinfo-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 3px;
+        }
+
+        .pinfo-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* ── Status pill ─────────────────────────── */
+        .rx-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 18px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        /* ── Form card ───────────────────────────── */
+        .rx-card {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .rx-section-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── Medicine picker ─────────────────────── */
+        .med-search-wrap {
+            position: relative;
+            margin-bottom: 14px;
+        }
+
+        .med-search {
+            width: 100%;
+            padding: 11px 16px 11px 40px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: .3s;
+            box-sizing: border-box;
+        }
+
+        .med-search:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, .15);
+        }
+
+        .med-search-icon {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+
+        .cat-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .cat-tab {
+            padding: 6px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            background: #fff;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .cat-tab:hover,
+        .cat-tab.active {
+            border-color: #667eea;
+            color: #667eea;
+            background: #eff6ff;
+        }
+
+        .medicines-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px;
+            max-height: 340px;
+            overflow-y: auto;
+            padding: 4px 2px;
+        }
+
+        .med-item {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: .2s;
+            background: #fff;
+            user-select: none;
+        }
+
+        .med-item:hover {
+            border-color: #667eea;
+            background: #fafbff;
+        }
+
+        .med-item.selected {
+            border-color: #667eea;
+            background: #eff6ff;
+        }
+
+        .med-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .med-meta {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .med-price {
+            font-size: 13px;
+            font-weight: 700;
+            color: #667eea;
+            margin-top: 6px;
+        }
+
+        /* ── Selected medicines table ────────────── */
+        .selected-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+        }
+
+        .selected-table th {
+            background: #f1f5f9;
+            padding: 11px 12px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+
+        .selected-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+            font-size: 13px;
+        }
+
+        .selected-table tbody tr:hover {
+            background: #fafbff;
+        }
+
+        .tbl-med-name {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 13px;
+        }
+
+        .tbl-med-meta {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .tbl-price {
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .tbl-input {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 7px;
+            font-size: 13px;
+            outline: none;
+            transition: .2s;
+            box-sizing: border-box;
+        }
+
+        .tbl-input:focus {
+            border-color: #667eea;
+        }
+
+        .del-btn {
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: .2s;
+        }
+
+        .del-btn:hover {
+            background: #dc2626;
+            color: #fff;
+        }
+
+        .total-row {
+            background: #f8fafc;
+            font-weight: 700;
+        }
+
+        .total-row td {
+            padding: 12px;
+        }
+
+        /* ── Form fields ─────────────────────────── */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 7px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 11px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 9px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: .3s;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, .12);
+        }
+
+        /* ── Alerts ──────────────────────────────── */
+        .alert {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-color: #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: #ef4444;
+        }
+
+        /* ── Buttons ─────────────────────────────── */
+        .btn-row {
+            display: flex;
+            gap: 14px;
+            margin-top: 24px;
+        }
+
+        .btn-save {
+            flex: 1;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .3s;
+        }
+
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 18px rgba(102, 126, 234, .35);
+        }
+
+        .btn-back {
+            flex: 1;
+            padding: 14px;
+            background: #f1f5f9;
+            color: #475569;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: .2s;
+        }
+
+        .btn-back:hover {
+            background: #e2e8f0;
+        }
+
+        /* ── Readonly saved view ─────────────────── */
+        .saved-rx {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+            padding: 28px;
+        }
+
+        /* ── Empty state ─────────────────────────── */
+        .empty-box {
+            background: #fff;
+            border-radius: 14px;
+            padding: 60px 30px;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+        }
+
+        .empty-box h3 {
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+
+        .empty-box p {
+            color: #64748b;
+        }
