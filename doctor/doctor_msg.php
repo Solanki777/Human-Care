@@ -10,9 +10,12 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
 }
 $active_page = 'chat'; // Change based on page
 
-require_once 'classes/msg.php';
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../classes/msg.php';
 
 $doctorId = $_SESSION['user_id'];
+$doctor_id = $doctorId;
+
 $doctorName = $_SESSION['user_name'];
 $chat = new Chat();
 
@@ -47,51 +50,12 @@ if ($selectedRoomId) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Chats - Human Care</title>
-    <link rel="stylesheet" href="styles/dashboard.css">
+
+    <link rel="stylesheet" href="styles/sidebar.css">
     <link rel="stylesheet" href="styles/msg.css">
-    <style>
-        body {
-            background: #f5f7fa;
-        }
-
-        .chat-page-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            margin-left: 0;
-            padding: 30px 20px;
-            padding-top: 80px;
-        }
-
-        .page-header {
-            margin-bottom: 30px;
-        }
-
-        .page-header h1 {
-            font-size: 28px;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .page-header p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .unread-badge {
-            background: #ff4757;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-left: 8px;
-        }
-    </style>
+    
 </head>
-
 <body>
-    <!-- Menu Toggle Button -->
-    <button class="menu-toggle" id="menuToggle">☰</button>
 
     <?php include 'includes/doctor_sidebar.php'; ?>
 
@@ -484,22 +448,12 @@ if ($selectedRoomId) {
             container.classList.remove('hidden');
         }
 
-        // Setup sidebar
-        function setupSidebar() {
-            const menuToggle = document.getElementById('menuToggle');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-
-            menuToggle.addEventListener('click', function () {
-                sidebar.classList.toggle('active');
-                overlay.classList.toggle('active');
-            });
 
             overlay.addEventListener('click', function () {
                 sidebar.classList.remove('active');
                 overlay.classList.remove('active');
             });
-        }
+        
 
         // Search chats
         document.getElementById('chatSearch')?.addEventListener('input', function (e) {

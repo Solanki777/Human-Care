@@ -119,7 +119,7 @@ function sb_active(string $page, string $current): string
                     <a href="doctor_dashboard.php" class="login-btn-sidebar">My Dashboard</a>
                 <?php endif; ?>
             <?php endif; ?>
-            <a href="logout.php" class="logout-btn-sidebar">Logout</a>
+            <a href="../logout.php" class="logout-btn-sidebar">Logout</a>
         <?php else: ?>
             <a href="login.php" class="login-btn-sidebar">Login / Sign Up</a>
         <?php endif; ?>

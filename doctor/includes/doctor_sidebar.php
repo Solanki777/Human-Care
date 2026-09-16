@@ -68,7 +68,7 @@ if (!isset($unreadCount)) {
 
     try {
 
-        require_once __DIR__ . '/../classes/msg.php';
+        require_once __DIR__ . '/../../classes/msg.php';
 
         $chat_sidebar = new Chat();
 
@@ -330,7 +330,7 @@ function doctor_sb_active(string $page, string $current): string
 
 
         <a
-            href="logout.php"
+            href="../logout.php"
             class="logout-btn-sidebar"
         >
             Logout
