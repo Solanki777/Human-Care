@@ -64,8 +64,13 @@
     left: 0;
     top: 0;
 
-    width: 280px;
+    /* TOTAL WIDTH */
+    width: 240px;
+
     height: 100vh;
+
+    /* Important */
+    box-sizing: border-box;
 
     background:
         linear-gradient(
@@ -172,6 +177,8 @@
     justify-content: center;
 
     font-size: 20px;
+
+    flex-shrink: 0;
 }
 
 
@@ -181,6 +188,9 @@
 
 .sidebar-nav {
     list-style: none;
+
+    margin: 0;
+    padding: 0;
 }
 
 .sidebar-nav li {
@@ -194,7 +204,7 @@
 
     gap: 12px;
 
-    padding: 12px 16px;
+    padding: 12px 14px;
 
     color: white;
 
@@ -205,6 +215,8 @@
     transition: all 0.3s;
 
     cursor: pointer;
+
+    white-space: nowrap;
 }
 
 .sidebar-nav a:hover,
@@ -222,6 +234,10 @@
     font-size: 20px;
 
     width: 24px;
+
+    min-width: 24px;
+
+    text-align: center;
 }
 
 
@@ -239,7 +255,7 @@
 }
 
 .user-name-sidebar {
-    padding: 10px 16px;
+    padding: 10px 12px;
 
     background:
         rgba(255, 255, 255, 0.2);
@@ -251,6 +267,12 @@
     font-weight: 600;
 
     margin-bottom: 10px;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
 }
 
 
@@ -287,6 +309,8 @@
     border: none;
 
     cursor: pointer;
+
+    box-sizing: border-box;
 }
 
 .logout-btn-sidebar:hover {
@@ -321,36 +345,104 @@
     display: block;
 
     text-align: center;
+
+    box-sizing: border-box;
 }
 
 .login-btn-sidebar:hover {
     transform: scale(1.02);
 }
 
- /* Doctor-specific sidebar styles */
-    .doctor-badge {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        margin-top: 5px;
-        display: inline-block;
+
+/* ============================================
+   DOCTOR-SPECIFIC SIDEBAR
+   ============================================ */
+
+.doctor-badge {
+    background:
+        linear-gradient(
+            135deg,
+            #667eea 0%,
+            #764ba2 100%
+        );
+
+    color: white;
+
+    padding: 6px 12px;
+
+    border-radius: 20px;
+
+    font-size: 12px;
+
+    font-weight: 600;
+
+    margin-top: 5px;
+
+    display: inline-block;
+}
+
+.specialty-tag {
+    font-size: 13px;
+
+    color:
+        rgba(255, 255, 255, 0.9);
+
+    margin-top: 5px;
+}
+
+.badge {
+    background: #ff4757;
+
+    color: white;
+
+    padding: 3px 8px;
+
+    border-radius: 10px;
+
+    font-size: 11px;
+
+    font-weight: 600;
+
+    margin-left: 8px;
+}
+
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+.sidebar::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background:
+        rgba(255, 255, 255, 0.3);
+
+    border-radius: 10px;
+}
+
+
+/* ============================================
+   MOBILE
+   ============================================ */
+
+@media (max-width: 768px) {
+
+    .sidebar {
+        width: 240px;
     }
 
-    .specialty-tag {
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.9);
-        margin-top: 5px;
-    }
+    .menu-toggle {
+        top: 15px;
+        left: 15px;
 
-    .badge {
-        background: #ff4757;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 10px;
-        font-size: 11px;
-        font-weight: 600;
-        margin-left: 8px;
+        padding: 10px 14px;
+
+        font-size: 18px;
     }
+}

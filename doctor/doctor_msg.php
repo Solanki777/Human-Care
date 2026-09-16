@@ -190,7 +190,6 @@ if ($selectedRoomId) {
     };
 </script>
 
-<script src="js/sidebar.js"></script>
 <script src="js/msg.js"></script>
 </body>
 
