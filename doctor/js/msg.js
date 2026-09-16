@@ -1,33 +1,42 @@
-const chatRoomId = window.chatConfig.chatRoomId;
-const userId = window.chatConfig.userId;
-const userType = window.chatConfig.userType;
+const chatConfig = window.chatConfig || {};
+
+const chatRoomId = chatConfig.chatRoomId ?? null;
+const userId = chatConfig.userId;
+const userType = chatConfig.userType;
 
 let lastMessageId = 0;
 let pollingInterval = null;
 let typingTimeout = null;
 
-// ============================================================
-// INITIALIZATION
-// ============================================================
+
+// ================================
+// INITIALIZE
+// ================================
 
 document.addEventListener('DOMContentLoaded', function () {
+
     if (chatRoomId) {
         loadMessages();
         startPolling();
         setupMessageInput();
     }
+
+    setupChatSearch();
 });
 
 
-// ============================================================
+// ================================
 // LOAD MESSAGES
-// ============================================================
+// ================================
 
 function loadMessages() {
+
     fetch(`msg_api.php?action=get_messages&chat_room_id=${chatRoomId}`)
         .then(response => response.json())
         .then(data => {
+
             if (data.success) {
+
                 displayMessages(data.messages);
 
                 if (data.messages.length > 0) {
@@ -35,6 +44,7 @@ function loadMessages() {
                         data.messages[data.messages.length - 1].id;
                 }
             }
+
         })
         .catch(error => {
             console.error('Error loading messages:', error);
@@ -42,19 +52,26 @@ function loadMessages() {
 }
 
 
-// ============================================================
+// ================================
 // DISPLAY MESSAGES
-// ============================================================
+// ================================
 
 function displayMessages(messages) {
-    const container = document.getElementById('messagesContainer');
-    const loading = document.getElementById('messagesLoading');
+
+    const container =
+        document.getElementById('messagesContainer');
+
+    const loading =
+        document.getElementById('messagesLoading');
+
+    if (!container) return;
 
     if (loading) {
         loading.style.display = 'none';
     }
 
     if (messages.length === 0) {
+
         container.innerHTML = `
             <div class="no-messages">
                 <p>No messages yet</p>
@@ -68,20 +85,20 @@ function displayMessages(messages) {
     let html = '';
 
     messages.forEach(msg => {
+
         const isMine =
             msg.sender_id == userId &&
             msg.sender_type.toLowerCase().trim() ===
             userType.toLowerCase().trim();
 
-        const time = new Date(msg.created_at).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit'
-        });
+        const time =
+            new Date(msg.created_at).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit'
+            });
 
         html += `
-            <div class="message ${
-                isMine ? 'message-mine' : 'message-theirs'
-            }">
+            <div class="message ${isMine ? 'message-mine' : 'message-theirs'}">
                 <div class="message-content">
                     <p>${escapeHtml(msg.message)}</p>
                     <span class="message-time">${time}</span>
@@ -96,37 +113,37 @@ function displayMessages(messages) {
 }
 
 
-// ============================================================
-// POLLING FOR NEW MESSAGES
-// ============================================================
+// ================================
+// POLLING
+// ================================
 
 function startPolling() {
+
     pollingInterval = setInterval(() => {
 
         fetch(
-            `msg_api.php?action=get_recent_messages` +
-            `&chat_room_id=${chatRoomId}` +
-            `&after_message_id=${lastMessageId}`
+            `msg_api.php?action=get_recent_messages&chat_room_id=${chatRoomId}&after_message_id=${lastMessageId}`
         )
             .then(response => response.json())
             .then(data => {
 
                 if (data.success && data.messages.length > 0) {
+
                     appendMessages(data.messages);
 
                     lastMessageId =
                         data.messages[data.messages.length - 1].id;
                 }
 
-                // Update typing indicator
                 const typingIndicator =
                     document.getElementById('typingIndicator');
 
-                if (data.isTyping) {
-                    typingIndicator.style.display = 'flex';
-                } else {
-                    typingIndicator.style.display = 'none';
+                if (typingIndicator) {
+
+                    typingIndicator.style.display =
+                        data.isTyping ? 'flex' : 'none';
                 }
+
             })
             .catch(error => {
                 console.error('Error polling messages:', error);
@@ -136,13 +153,16 @@ function startPolling() {
 }
 
 
-// ============================================================
+// ================================
 // APPEND NEW MESSAGES
-// ============================================================
+// ================================
 
 function appendMessages(messages) {
+
     const container =
         document.getElementById('messagesContainer');
+
+    if (!container) return;
 
     messages.forEach(msg => {
 
@@ -151,18 +171,17 @@ function appendMessages(messages) {
             msg.sender_type.toLowerCase().trim() ===
             userType.toLowerCase().trim();
 
-        const time = new Date(msg.created_at).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit'
-        });
+        const time =
+            new Date(msg.created_at).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit'
+            });
 
         const messageDiv =
             document.createElement('div');
 
         messageDiv.className =
-            `message ${
-                isMine ? 'message-mine' : 'message-theirs'
-            }`;
+            `message ${isMine ? 'message-mine' : 'message-theirs'}`;
 
         messageDiv.innerHTML = `
             <div class="message-content">
@@ -178,9 +197,9 @@ function appendMessages(messages) {
 }
 
 
-// ============================================================
+// ================================
 // MESSAGE INPUT
-// ============================================================
+// ================================
 
 function setupMessageInput() {
 
@@ -190,36 +209,27 @@ function setupMessageInput() {
     const input =
         document.getElementById('messageInput');
 
+    if (!form || !input) return;
 
-    // --------------------------------------------------------
-    // FORM SUBMIT
-    // --------------------------------------------------------
 
     form.addEventListener('submit', function (e) {
+
         e.preventDefault();
 
         sendMessage();
     });
 
 
-    // --------------------------------------------------------
-    // ENTER KEY
-    // --------------------------------------------------------
-
     input.addEventListener('keydown', function (e) {
 
         if (e.key === 'Enter' && !e.shiftKey) {
+
             e.preventDefault();
 
             sendMessage();
         }
-
     });
 
-
-    // --------------------------------------------------------
-    // TYPING INDICATOR
-    // --------------------------------------------------------
 
     input.addEventListener('input', function () {
 
@@ -228,15 +238,12 @@ function setupMessageInput() {
         clearTimeout(typingTimeout);
 
         typingTimeout = setTimeout(() => {
-            updateTypingStatus(false);
-        }, 3000);
 
+            updateTypingStatus(false);
+
+        }, 3000);
     });
 
-
-    // --------------------------------------------------------
-    // AUTO RESIZE TEXTAREA
-    // --------------------------------------------------------
 
     input.addEventListener('input', function () {
 
@@ -244,72 +251,83 @@ function setupMessageInput() {
 
         this.style.height =
             this.scrollHeight + 'px';
-
     });
 }
 
 
-// ============================================================
+// ================================
 // SEND MESSAGE
-// ============================================================
+// ================================
 
 function sendMessage() {
 
     const input =
         document.getElementById('messageInput');
 
+    if (!input) return;
+
     const message =
         input.value.trim();
 
-
-    if (!message) {
-        return;
-    }
+    if (!message) return;
 
 
-    const formData = new FormData();
+    const formData =
+        new FormData();
 
-    formData.append('action', 'send_message');
-    formData.append('chat_room_id', chatRoomId);
-    formData.append('message', message);
+    formData.append(
+        'action',
+        'send_message'
+    );
+
+    formData.append(
+        'chat_room_id',
+        chatRoomId
+    );
+
+    formData.append(
+        'message',
+        message
+    );
 
 
     fetch('msg_api.php', {
         method: 'POST',
         body: formData
     })
+
         .then(response => response.json())
+
         .then(data => {
 
             if (data.success) {
 
                 input.value = '';
+
                 input.style.height = 'auto';
 
                 updateTypingStatus(false);
 
 
-                // Immediately fetch new message
                 setTimeout(() => {
 
                     fetch(
-                        `msg_api.php?action=get_recent_messages` +
-                        `&chat_room_id=${chatRoomId}` +
-                        `&after_message_id=${lastMessageId}`
+                        `msg_api.php?action=get_recent_messages&chat_room_id=${chatRoomId}&after_message_id=${lastMessageId}`
                     )
+
                         .then(response => response.json())
+
                         .then(data => {
 
                             if (
                                 data.success &&
                                 data.messages.length > 0
                             ) {
+
                                 appendMessages(data.messages);
 
                                 lastMessageId =
-                                    data.messages[
-                                        data.messages.length - 1
-                                    ].id;
+                                    data.messages[data.messages.length - 1].id;
                             }
 
                         });
@@ -319,12 +337,13 @@ function sendMessage() {
             } else {
 
                 alert(
+                    data.error ||
                     'Failed to send message. Please try again.'
                 );
-
             }
 
         })
+
         .catch(error => {
 
             console.error(
@@ -335,18 +354,20 @@ function sendMessage() {
             alert(
                 'Error sending message. Please try again.'
             );
-
         });
 }
 
 
-// ============================================================
-// UPDATE TYPING STATUS
-// ============================================================
+// ================================
+// TYPING STATUS
+// ================================
 
 function updateTypingStatus(isTyping) {
 
-    const formData = new FormData();
+    if (!chatRoomId) return;
+
+    const formData =
+        new FormData();
 
     formData.append(
         'action',
@@ -368,7 +389,9 @@ function updateTypingStatus(isTyping) {
         method: 'POST',
         body: formData
     })
+
         .catch(error => {
+
             console.error(
                 'Error updating typing status:',
                 error
@@ -377,14 +400,16 @@ function updateTypingStatus(isTyping) {
 }
 
 
-// ============================================================
-// UTILITY FUNCTIONS
-// ============================================================
+// ================================
+// UTILITY
+// ================================
 
 function scrollToBottom() {
 
     const container =
         document.getElementById('messagesContainer');
+
+    if (!container) return;
 
     container.scrollTop =
         container.scrollHeight;
@@ -403,27 +428,26 @@ function escapeHtml(text) {
 
 
 function refreshMessages() {
+
     loadMessages();
 }
 
 
-// ============================================================
+// ================================
 // OPEN CHAT
-// ============================================================
+// ================================
 
 function openChat(roomId, appointmentId) {
 
-    // Existing room
     if (roomId) {
 
         window.location.href =
-            `patient_msg.php?room_id=${roomId}`;
+            `doctor_msg.php?room_id=${roomId}`;
 
         return;
     }
 
 
-    // Create new room
     const formData =
         new FormData();
 
@@ -442,13 +466,18 @@ function openChat(roomId, appointmentId) {
         method: 'POST',
         body: formData
     })
+
         .then(response => response.json())
+
         .then(data => {
 
-            if (data.success && data.chatRoom) {
+            if (
+                data.success &&
+                data.chatRoom
+            ) {
 
                 window.location.href =
-                    `patient_msg.php?room_id=${data.chatRoom.id}`;
+                    `doctor_msg.php?room_id=${data.chatRoom.id}`;
 
             } else {
 
@@ -456,10 +485,10 @@ function openChat(roomId, appointmentId) {
                     data.error ||
                     'Unable to open chat. Please try again.'
                 );
-
             }
 
         })
+
         .catch(error => {
 
             console.error(
@@ -470,66 +499,83 @@ function openChat(roomId, appointmentId) {
             alert(
                 'Error opening chat. Please try again.'
             );
-
         });
 }
 
 
-// ============================================================
+// ================================
 // CLOSE CHAT
-// ============================================================
+// ================================
 
 function closeChat() {
 
     const container =
         document.getElementById('chatListContainer');
 
-    container.classList.remove('hidden');
+    if (container) {
+        container.classList.remove('hidden');
+    }
 }
 
 
-// ============================================================
-// CHAT SEARCH
-// ============================================================
+// ================================
+// SEARCH
+// ================================
 
-document
-    .getElementById('chatSearch')
-    ?.addEventListener('input', function (e) {
+function setupChatSearch() {
 
-        const search =
-            e.target.value.toLowerCase();
+    const searchInput =
+        document.getElementById('chatSearch');
 
-        const items =
-            document.querySelectorAll('.chat-list-item');
+    if (!searchInput) return;
 
 
-        items.forEach(item => {
+    searchInput.addEventListener(
+        'input',
+        function (e) {
 
-            const text =
-                item.textContent.toLowerCase();
+            const search =
+                e.target.value.toLowerCase();
 
-            item.style.display =
-                text.includes(search)
-                    ? 'flex'
-                    : 'none';
-
-        });
-
-    });
+            const items =
+                document.querySelectorAll(
+                    '.chat-list-item'
+                );
 
 
-// ============================================================
+            items.forEach(item => {
+
+                const text =
+                    item.textContent.toLowerCase();
+
+                item.style.display =
+                    text.includes(search)
+                        ? 'flex'
+                        : 'none';
+            });
+        }
+    );
+}
+
+
+// ================================
 // CLEANUP
-// ============================================================
+// ================================
 
-window.addEventListener('beforeunload', function () {
+window.addEventListener(
+    'beforeunload',
+    function () {
 
-    if (pollingInterval) {
-        clearInterval(pollingInterval);
+        if (pollingInterval) {
+
+            clearInterval(
+                pollingInterval
+            );
+        }
+
+        if (chatRoomId) {
+
+            updateTypingStatus(false);
+        }
     }
-
-    if (chatRoomId) {
-        updateTypingStatus(false);
-    }
-
-});
+);

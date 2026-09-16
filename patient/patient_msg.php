@@ -181,9 +181,15 @@ if ($selectedRoomId) {
              <?php endif; ?>
             </div>
         </div>
-    </div>
-    <script src="js/patient_msg.js"></script>
-    
+    <script>
+    window.chatConfig = {
+        chatRoomId: <?php echo $selectedRoomId ? (int)$selectedRoomId : 'null'; ?>,
+        userId: <?php echo (int)$userId; ?>,
+        userType: 'patient'
+    };
+</script>
+
+<script src="js/patient_msg.js"></script>
 </body>
 
 </html>

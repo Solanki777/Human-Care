@@ -1,11 +1,10 @@
 <?php
-/**
- * Chat Class - Handles all chat operations
- * Location: classes/Chat.php
- */
+
+require_once __DIR__ . '/../config/config.php';
 
 class Chat {
     private $adminConn;
+    private $doctorsConn;
     
     /**
      * Validate that userType is one of the allowed values.
@@ -19,24 +18,45 @@ class Chat {
     }
 
     public function __construct() {
-        // Connect to the admin database - this is where both the unified
-        // "appointments" table and all chat_* tables live.
-        $this->adminConn = new mysqli("localhost", "root", "", "if0_42370337_human_care_admin");
-        
-        if ($this->adminConn->connect_error) {
-            throw new Exception("Database connection failed");
-        }
-        
-        $this->adminConn->set_charset("utf8mb4");
+
+    // Connect to Admin database
+    $this->adminConn = new mysqli(
+        DB_HOST,
+        DB_USERNAME,
+        DB_PASSWORD,
+        DB_ADMIN
+    );
+
+    // Connect to Doctors database
+    $this->doctorsConn = new mysqli(
+        DB_HOST,
+        DB_USERNAME,
+        DB_PASSWORD,
+        DB_DOCTORS
+    );
+
+    if ($this->adminConn->connect_error) {
+        throw new Exception(
+            "Admin database connection failed: " .
+            $this->adminConn->connect_error
+        );
     }
+
+    if ($this->doctorsConn->connect_error) {
+        throw new Exception(
+            "Doctors database connection failed: " .
+            $this->doctorsConn->connect_error
+        );
+    }
+
+    $this->adminConn->set_charset("utf8mb4");
+    $this->doctorsConn->set_charset("utf8mb4");
+}
     
     /**
-     * Create or get chat room for an appointment.
-     * Also verifies that the requesting user actually owns the appointment
-     * and that the appointment has been approved, so this can be safely
-     * called directly from the API layer.
+     * Create or get chat room for an appointment
      */
-    public function getOrCreateChatRoom($appointmentId, $userId = null, $userType = null) {
+    public function getOrCreateChatRoom($appointmentId) {
         // Check if chat room already exists
         $stmt = $this->adminConn->prepare("SELECT * FROM chat_rooms WHERE appointment_id = ?");
         $stmt->bind_param("i", $appointmentId);
@@ -47,32 +67,26 @@ class Chat {
             return $result->fetch_assoc();
         }
         
-        // Get appointment details from the real, unified appointments table
-        // (chat_rooms and appointments both live in the admin database)
-        $stmt = $this->adminConn->prepare("
-            SELECT id, patient_id, doctor_id, patient_name, doctor_name, status
-            FROM appointments
-            WHERE id = ?
-        ");
+        $patientsDb = DB_PATIENTS;
+        // Get appointment details
+        $stmt = $this->doctorsConn->prepare("
+            SELECT 
+        da.id, 
+        da.patient_id, 
+        da.doctor_id,
+        CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+        CONCAT(d.first_name, ' ', d.last_name) AS doctor_name
+    FROM doctor_appointments da
+    JOIN {$patientsDb}.patients p ON da.patient_id = p.id
+    JOIN doctors d ON da.doctor_id = d.id
+    WHERE da.id = ?
+");
         $stmt->bind_param("i", $appointmentId);
         $stmt->execute();
         $appointment = $stmt->get_result()->fetch_assoc();
         
         if (!$appointment) {
             throw new Exception("Appointment not found");
-        }
-        
-        if ($appointment['status'] !== 'approved') {
-            throw new Exception("Chat is only available for approved appointments");
-        }
-        
-        // If the caller told us who's asking, verify they actually own this appointment
-        if ($userType !== null) {
-            $this->validateUserType($userType);
-            $ownerId = $userType === 'patient' ? $appointment['patient_id'] : $appointment['doctor_id'];
-            if ((int)$ownerId !== (int)$userId) {
-                throw new Exception("Access denied");
-            }
         }
         
         // Create new chat room
@@ -91,70 +105,13 @@ class Chat {
         
         $chatRoomId = $this->adminConn->insert_id;
         
+        // Update appointment to enable chat
+        $stmt = $this->doctorsConn->prepare("UPDATE doctor_appointments SET chat_enabled = TRUE, chat_room_id = ? WHERE id = ?");
+        $stmt->bind_param("ii", $chatRoomId, $appointmentId);
+        $stmt->execute();
+        
         // Return the newly created chat room
         return $this->getChatRoom($chatRoomId);
-    }
-
-    /**
-     * Get every person (doctor or patient) this user has an approved
-     * appointment with, whether or not a chat room has been started yet.
-     * Used to populate the chat page contact list so a conversation can
-     * be started straight from the chat screen, on either side.
-     */
-    public function getApprovedContacts($userId, $userType) {
-        $this->validateUserType($userType);
-
-        if ($userType === 'patient') {
-            $sql = "
-                SELECT
-                    a.id AS appointment_id,
-                    a.doctor_id AS contact_id,
-                    a.doctor_name AS contact_name,
-                    a.doctor_specialty AS contact_meta,
-                    cr.id AS chat_room_id,
-                    cr.last_message,
-                    cr.last_message_time,
-                    cr.patient_unread_count AS unread_count
-                FROM appointments a
-                LEFT JOIN chat_rooms cr ON cr.appointment_id = a.id
-                WHERE a.patient_id = ? AND a.status = 'approved'
-                ORDER BY (cr.last_message_time IS NULL), cr.last_message_time DESC, a.doctor_name ASC
-            ";
-        } else {
-            $sql = "
-                SELECT
-                    a.id AS appointment_id,
-                    a.patient_id AS contact_id,
-                    a.patient_name AS contact_name,
-                    NULL AS contact_meta,
-                    cr.id AS chat_room_id,
-                    cr.last_message,
-                    cr.last_message_time,
-                    cr.doctor_unread_count AS unread_count
-                FROM appointments a
-                LEFT JOIN chat_rooms cr ON cr.appointment_id = a.id
-                WHERE a.doctor_id = ? AND a.status = 'approved'
-                ORDER BY (cr.last_message_time IS NULL), cr.last_message_time DESC, a.patient_name ASC
-            ";
-        }
-
-        $stmt = $this->adminConn->prepare($sql);
-        $stmt->bind_param("i", $userId);
-        $stmt->execute();
-        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-
-        // A patient/doctor pair can have multiple approved appointments over
-        // time; only keep one contact entry per distinct other-party, and
-        // prefer the one that already has a chat room / the most recent one.
-        $contacts = [];
-        foreach ($rows as $row) {
-            $key = $row['contact_id'];
-            if (!isset($contacts[$key]) || (!$contacts[$key]['chat_room_id'] && $row['chat_room_id'])) {
-                $contacts[$key] = $row;
-            }
-        }
-
-        return array_values($contacts);
     }
     
     /**
@@ -183,6 +140,85 @@ class Chat {
         $stmt->execute();
         return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
+    /**
+ * Get approved patient contacts for a doctor
+ */
+public function getApprovedContacts($userId, $userType) {
+    $this->validateUserType($userType);
+
+    if ($userType !== 'doctor') {
+        throw new Exception("getApprovedContacts is only available for doctors");
+    }
+
+    $patientsDb = DB_PATIENTS;
+
+    /*
+     * Get all approved appointments for this doctor.
+     * Appointment data is stored in the Doctors database.
+     */
+    $stmt = $this->doctorsConn->prepare("
+        SELECT
+            da.id AS appointment_id,
+            da.patient_id,
+            CONCAT(p.first_name, ' ', p.last_name) AS contact_name
+        FROM doctor_appointments da
+        JOIN {$patientsDb}.patients p
+            ON da.patient_id = p.id
+        WHERE da.doctor_id = ?
+          AND da.status = 'approved'
+        ORDER BY da.id DESC
+    ");
+
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+
+    $appointments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    /*
+     * Add chat-room information from the Admin database.
+     */
+    foreach ($appointments as &$appointment) {
+
+        $roomStmt = $this->adminConn->prepare("
+            SELECT
+                id AS chat_room_id,
+                last_message,
+                last_message_time,
+                COALESCE(doctor_unread_count, 0) AS unread_count
+            FROM chat_rooms
+            WHERE appointment_id = ?
+            LIMIT 1
+        ");
+
+        $roomStmt->bind_param(
+            "i",
+            $appointment['appointment_id']
+        );
+
+        $roomStmt->execute();
+
+        $room = $roomStmt->get_result()->fetch_assoc();
+
+        if ($room) {
+            $appointment['chat_room_id'] = $room['chat_room_id'];
+            $appointment['last_message'] = $room['last_message'];
+            $appointment['last_message_time'] = $room['last_message_time'];
+            $appointment['unread_count'] = (int)$room['unread_count'];
+        } else {
+            $appointment['chat_room_id'] = null;
+            $appointment['last_message'] = null;
+            $appointment['last_message_time'] = null;
+            $appointment['unread_count'] = 0;
+        }
+
+        $roomStmt->close();
+    }
+
+    unset($appointment);
+
+    return $appointments;
+}
+    
     
     /**
      * Send a message
@@ -357,6 +393,9 @@ class Chat {
     public function __destruct() {
         if ($this->adminConn) {
             $this->adminConn->close();
+        }
+        if ($this->doctorsConn) {
+            $this->doctorsConn->close();
         }
     }
 }
