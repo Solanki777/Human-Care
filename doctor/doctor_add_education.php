@@ -1,6 +1,8 @@
 <?php
 session_start();
 
+require_once __DIR__ . '/../classes/Database.php';
+
 // Check if doctor is logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
     header("Location: login.php");
@@ -9,10 +11,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'doctor') {
 $active_page = 'education';
 
 // Get doctor info from doctors database
-$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
-if ($doctors_conn->connect_error) {
-    die("Connection failed: " . $doctors_conn->connect_error);
-}
+$doctors_conn = Database::getConnection('doctors');
 
 $doctor_id = $_SESSION['user_id'];
 $stmt = $doctors_conn->prepare("SELECT * FROM doctors WHERE id = ?");
@@ -30,11 +29,7 @@ if (!$doctor) {
 $doctor_name = $doctor['first_name'] . ' ' . $doctor['last_name'];
 
 // Connect to admin database (where educational_content lives)
-$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
-
-if ($admin_conn->connect_error) {
-    die("Connection failed: " . $admin_conn->connect_error);
-}
+$admin_conn = Database::getConnection('admin');
 
 // Handle form submission
 $success_message = '';
@@ -101,189 +96,12 @@ $stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Educational Content - Human Care</title>
-    <link rel="stylesheet" href="styles/dashboard.css">
-    <style>
-        .content-form-container {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 30px;
-        }
-
-        .form-group { margin-bottom: 20px; }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .form-group label .required { color: #ef4444; }
-
-        .form-control {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s;
-            box-sizing: border-box;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
-        }
-
-        textarea.form-control {
-            resize: vertical;
-            min-height: 100px;
-            font-family: inherit;
-        }
-
-        .content-textarea { min-height: 200px; }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-
-        .icon-selector {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .icon-option {
-            padding: 15px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 24px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .icon-option:hover  { border-color: #3b82f6; background: #eff6ff; }
-        .icon-option.selected { border-color: #3b82f6; background: #dbeafe; }
-
-        .submit-btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            padding: 15px 40px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(59,130,246,0.3);
-        }
-
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-weight: 500;
-            border-left: 4px solid;
-        }
-
-        .alert-success { background: #d1fae5; color: #065f46; border-color: #10b981; }
-        .alert-error   { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
-
-        /* My content cards */
-        .my-content-section {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-
-        .content-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 15px;
-            transition: box-shadow 0.2s;
-        }
-
-        .content-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-
-        /* Status-specific left border */
-        .content-card.status-pending  { border-left: 4px solid #f59e0b; }
-        .content-card.status-approved { border-left: 4px solid #10b981; }
-        .content-card.status-rejected { border-left: 4px solid #ef4444; }
-
-        .content-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .content-title { display: flex; align-items: center; gap: 8px; font-size: 16px; }
-
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .status-pending  { background: #fef3c7; color: #92400e; }
-        .status-approved { background: #d1fae5; color: #065f46; }
-        .status-rejected { background: #fee2e2; color: #991b1b; }
-
-        .status-note {
-            font-size: 13px;
-            margin-top: 6px;
-            padding: 6px 12px;
-            border-radius: 6px;
-        }
-
-        .status-note.pending  { background: #fffbeb; color: #92400e; }
-        .status-note.approved { background: #ecfdf5; color: #065f46; }
-        .status-note.rejected { background: #fef2f2; color: #991b1b; }
-
-        .content-meta {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            margin-top: 10px;
-            font-size: 13px;
-            color: #6b7280;
-        }
-
-        .content-meta span { display: flex; align-items: center; gap: 5px; }
-
-        .no-content { text-align: center; padding: 40px; color: #6b7280; }
-
-        .section-title {
-            font-size: 24px;
-            color: #1f2937;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-    </style>
+    <link rel="stylesheet" href="styles/sidebar.css">
+    <link rel="stylesheet" href="styles/doc_add_edu.css">
+    
 </head>
 
 <body>
-    <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
-
     <?php include 'includes/doctor_sidebar.php'; ?>
 
     <!-- Main Content -->
@@ -428,11 +246,6 @@ $stmt->close();
     </main>
 
     <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
-
         function selectIcon(element, icon) {
             document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
             element.classList.add('selected');
