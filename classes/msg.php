@@ -141,41 +141,60 @@ class Chat {
         return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     }
     /**
- * Get approved patient contacts for a doctor
+ * Get approved appointment contacts for patient or doctor
+ *
+ * Only APPROVED appointments are allowed to appear in chat.
  */
 public function getApprovedContacts($userId, $userType) {
     $this->validateUserType($userType);
 
-    if ($userType !== 'doctor') {
-        throw new Exception("getApprovedContacts is only available for doctors");
-    }
-
     $patientsDb = DB_PATIENTS;
 
-    /*
-     * Get all approved appointments for this doctor.
-     * Appointment data is stored in the Doctors database.
-     */
-    $stmt = $this->doctorsConn->prepare("
-        SELECT
-            da.id AS appointment_id,
-            da.patient_id,
-            CONCAT(p.first_name, ' ', p.last_name) AS contact_name
-        FROM doctor_appointments da
-        JOIN {$patientsDb}.patients p
-            ON da.patient_id = p.id
-        WHERE da.doctor_id = ?
-          AND da.status = 'approved'
-        ORDER BY da.id DESC
-    ");
+    if ($userType === 'doctor') {
 
-    $stmt->bind_param("i", $userId);
+        // Get approved appointments for this doctor
+        $stmt = $this->doctorsConn->prepare("
+            SELECT
+                da.id AS appointment_id,
+                da.patient_id,
+                da.doctor_id,
+                CONCAT(p.first_name, ' ', p.last_name) AS contact_name
+            FROM doctor_appointments da
+            JOIN {$patientsDb}.patients p
+                ON da.patient_id = p.id
+            WHERE da.doctor_id = ?
+              AND da.status = 'approved'
+            ORDER BY da.id DESC
+        ");
+
+        $stmt->bind_param("i", $userId);
+
+    } else {
+
+        // Get approved appointments for this patient
+        $stmt = $this->doctorsConn->prepare("
+            SELECT
+                da.id AS appointment_id,
+                da.patient_id,
+                da.doctor_id,
+                CONCAT(d.first_name, ' ', d.last_name) AS contact_name
+            FROM doctor_appointments da
+            JOIN doctors d
+                ON da.doctor_id = d.id
+            WHERE da.patient_id = ?
+              AND da.status = 'approved'
+            ORDER BY da.id DESC
+        ");
+
+        $stmt->bind_param("i", $userId);
+    }
+
     $stmt->execute();
 
     $appointments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
     /*
-     * Add chat-room information from the Admin database.
+     * Add chat-room information from Admin database.
      */
     foreach ($appointments as &$appointment) {
 
@@ -184,7 +203,12 @@ public function getApprovedContacts($userId, $userType) {
                 id AS chat_room_id,
                 last_message,
                 last_message_time,
-                COALESCE(doctor_unread_count, 0) AS unread_count
+                COALESCE(
+                    " . ($userType === 'patient'
+                        ? 'patient_unread_count'
+                        : 'doctor_unread_count') . ",
+                    0
+                ) AS unread_count
             FROM chat_rooms
             WHERE appointment_id = ?
             LIMIT 1
@@ -203,7 +227,7 @@ public function getApprovedContacts($userId, $userType) {
             $appointment['chat_room_id'] = $room['chat_room_id'];
             $appointment['last_message'] = $room['last_message'];
             $appointment['last_message_time'] = $room['last_message_time'];
-            $appointment['unread_count'] = (int)$room['unread_count'];
+            $appointment['unread_count'] = (int) $room['unread_count'];
         } else {
             $appointment['chat_room_id'] = null;
             $appointment['last_message'] = null;
