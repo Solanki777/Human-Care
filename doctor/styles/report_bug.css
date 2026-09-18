@@ -1,0 +1,154 @@
+/* =========================================
+   REPORT BUG PAGE
+========================================= */
+
+.bug-report-page {
+    min-height: calc(100vh - 200px);
+    padding: 60px 20px;
+}
+
+.bug-report-card {
+    max-width: 700px;
+    margin: 0 auto;
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.08);
+}
+
+.bug-report-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.bug-icon {
+    font-size: 55px;
+    margin-bottom: 10px;
+}
+
+.bug-report-header h1 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.bug-report-header p {
+    color: #666;
+    line-height: 1.6;
+}
+
+.bug-report-form {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.form-group label span {
+    font-weight: normal;
+    color: #999;
+    font-size: 13px;
+}
+
+.form-group textarea,
+.form-group input[type="file"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 160px;
+    padding: 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+}
+
+.form-group textarea:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group input[type="file"] {
+    padding: 12px;
+    border: 1px dashed #bbb;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.form-group small {
+    color: #888;
+    font-size: 12px;
+}
+
+.bug-submit-btn {
+    width: 100%;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 14px;
+}
+
+.bug-success {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.bug-error {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+
+    .bug-report-page {
+        padding: 30px 15px;
+    }
+
+    .bug-report-card {
+        padding: 25px 20px;
+    }
+
+    .bug-icon {
+        font-size: 45px;
+    }
+}
+
+.btn-primary {
+    padding: 12px 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
