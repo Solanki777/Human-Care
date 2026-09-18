@@ -107,10 +107,10 @@ $active_page = 'contact';
                     </p>
 
                     <a
-                        href="mailto:solankimaheshkhash7@gmail.com"
+                        href="mailto:anantra.login7@gmail.com"
                         class="contact-link"
                     >
-                        solankimaheshkhash7@gmail.com
+                        anantra.login7@gmail.com
                     </a>
 
                     <button
