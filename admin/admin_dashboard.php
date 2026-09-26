@@ -1,162 +1,99 @@
 <?php
-
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
-session_start();
+require_once __DIR__ . '/../config/config.php';
 
-
-// Check if admin is logged in
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
+// Check admin login before outputting anything
+if (
+    !isset($_SESSION['admin_logged_in']) ||
+    $_SESSION['admin_logged_in'] !== true
+) {
     header("Location: admin_login.php");
     exit();
 }
 
-// Get counts from databases
-// Patients 
-$patients_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_patients");
-$total_patients = $patients_conn->query("SELECT COUNT(*) as count FROM patients")->fetch_assoc()['count'];
-$pending_patients = $patients_conn->query("SELECT COUNT(*) as count FROM patients WHERE verification_status = 'pending'")->fetch_assoc()['count'];
-$patients_conn->close();
+// Active sidebar page
+$active_page = 'dashboard';
 
-// Doctors count
-$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
-$total_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors")->fetch_assoc()['count'];
-$pending_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors WHERE verification_status = 'pending'")->fetch_assoc()['count'];
-$total_appointments = $doctors_conn->query("SELECT COUNT(*) as count FROM doctor_appointments")->fetch_assoc()['count'];
-$doctors_conn->close();
+// Database connections
+$patients_conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_PATIENTS
+);
+
+$doctors_conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_DOCTORS
+);
+
+$admin_conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_ADMIN
+);
+
+$patients_conn->set_charset("utf8mb4");
+$doctors_conn->set_charset("utf8mb4");
+$admin_conn->set_charset("utf8mb4");
+
+// Patients
+$total_patients = $patients_conn
+    ->query("SELECT COUNT(*) AS count FROM patients")
+    ->fetch_assoc()['count'];
+
+$pending_patients = $patients_conn
+    ->query("SELECT COUNT(*) AS count FROM patients WHERE verification_status = 'pending'")
+    ->fetch_assoc()['count'];
+
+// Doctors and appointments
+$total_doctors = $doctors_conn
+    ->query("SELECT COUNT(*) AS count FROM doctors")
+    ->fetch_assoc()['count'];
+
+$pending_doctors = $doctors_conn
+    ->query("SELECT COUNT(*) AS count FROM doctors WHERE verification_status = 'pending'")
+    ->fetch_assoc()['count'];
+
+$total_appointments = $doctors_conn
+    ->query("SELECT COUNT(*) AS count FROM doctor_appointments")
+    ->fetch_assoc()['count'];
 
 // Recent activity
-$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
-$recent_logs = $admin_conn->query("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 5");
-$pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
+$recent_logs = $admin_conn->query(
+    "SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 5"
+);
+
+// Pending education
+$pending_education = $admin_conn
+    ->query("SELECT COUNT(*) AS count FROM educational_content WHERE status = 'pending'")
+    ->fetch_assoc()['count'];
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Human Care</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/sidebar.css">
     <link rel="stylesheet" href="styles/dashboard.css">
-    <style>
-        .admin-badge {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-left: 10px;
-        }
 
-        .stat-card.admin {
-            border-left: 4px solid #1e3c72;
-        }
-
-        .stat-card.warning {
-            border-left: 4px solid #f59e0b;
-        }
-
-        .stat-card.success {
-            border-left: 4px solid #10b981;
-        }
-
-        .stat-card.info {
-            border-left: 4px solid #3b82f6;
-        }
-
-        .pending-badge {
-            background: #fef3c7;
-            color: #92400e;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .action-card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .action-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-
-        .action-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .action-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 5px;
-        }
-
-        .action-desc {
-            font-size: 13px;
-            color: #666;
-        }
-
-        .activity-log {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-
-        .log-item {
-            padding: 15px;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .log-item:last-child {
-            border-bottom: none;
-        }
-
-        .log-action {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .log-time {
-            font-size: 12px;
-            color: #999;
-        }
-
-        .nav-link.admin-nav {
-            background: rgba(30, 60, 114, 0.1);
-        }
-
-        .nav-link.admin-nav:hover {
-            background: rgba(30, 60, 114, 0.2);
-        }
-    </style>
 </head>
+
 <body>
-    <?php include 'includes/admin_sidebar.php'; ?>
-    
+     <?php
+    require_once __DIR__ . '/includes/admin_sidebar.php';
+    ?>
+
+
     <!-- Main Content -->
     <main class="main-content">
         <section id="dashboard" class="section active">
@@ -170,7 +107,8 @@ $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM education
                 <div class="card stat-card info">
                     <div class="card-icon">👥</div>
                     <h3>Total Patients</h3>
-                    <p style="font-size: 32px; font-weight: bold; color: #3b82f6; margin: 10px 0;"><?php echo $total_patients; ?></p>
+                    <p style="font-size: 32px; font-weight: bold; color: #3b82f6; margin: 10px 0;">
+                        <?php echo $total_patients; ?></p>
                     <?php if ($pending_patients > 0): ?>
                         <span class="pending-badge"><?php echo $pending_patients; ?> Pending</span>
                     <?php endif; ?>
@@ -179,7 +117,8 @@ $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM education
                 <div class="card stat-card success">
                     <div class="card-icon">👨‍⚕️</div>
                     <h3>Total Doctors</h3>
-                    <p style="font-size: 32px; font-weight: bold; color: #10b981; margin: 10px 0;"><?php echo $total_doctors; ?></p>
+                    <p style="font-size: 32px; font-weight: bold; color: #10b981; margin: 10px 0;">
+                        <?php echo $total_doctors; ?></p>
                     <?php if ($pending_doctors > 0): ?>
                         <span class="pending-badge"><?php echo $pending_doctors; ?> Pending</span>
                     <?php endif; ?>
@@ -188,13 +127,15 @@ $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM education
                 <div class="card stat-card warning">
                     <div class="card-icon">📅</div>
                     <h3>Total Appointments</h3>
-                    <p style="font-size: 32px; font-weight: bold; color: #f59e0b; margin: 10px 0;"><?php echo $total_appointments; ?></p>
+                    <p style="font-size: 32px; font-weight: bold; color: #f59e0b; margin: 10px 0;">
+                        <?php echo $total_appointments; ?></p>
                 </div>
 
                 <div class="card stat-card admin">
                     <div class="card-icon">📚</div>
                     <h3>Pending Education</h3>
-                    <p style="font-size: 32px; font-weight: bold; color: #1e3c72; margin: 10px 0;"><?php echo $pending_education; ?></p>
+                    <p style="font-size: 32px; font-weight: bold; color: #1e3c72; margin: 10px 0;">
+                        <?php echo $pending_education; ?></p>
                 </div>
             </div>
 
@@ -225,9 +166,9 @@ $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM education
                     <div class="action-desc">Review educational content from doctors</div>
                 </a>
 
-                
 
-              
+
+
 
                 <a href="index.php" target="_blank" class="action-card">
                     <div class="action-icon">🌐</div>
@@ -246,11 +187,16 @@ $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM education
                     <?php while ($edu = $pending_list->fetch_assoc()): ?>
                         <div class="log-item">
                             <div>
-                                <div class="log-action"><?php echo $edu['icon']; ?> <?php echo htmlspecialchars($edu['title']); ?></div>
-                                <div style="font-size: 13px; color: #666;">By Dr. <?php echo htmlspecialchars($edu['doctor_name']); ?> (<?php echo htmlspecialchars($edu['category']); ?>)</div>
+                                <div class="log-action"><?php echo $edu['icon']; ?>
+                                    <?php echo htmlspecialchars($edu['title']); ?></div>
+                                <div style="font-size: 13px; color: #666;">By Dr.
+                                    <?php echo htmlspecialchars($edu['doctor_name']); ?>
+                                    (<?php echo htmlspecialchars($edu['category']); ?>)</div>
                             </div>
                             <div style="display: flex; gap: 10px;">
-                                <a href="admin_manage_education.php" class="pending-badge" style="background: #3b82f6; color: white; text-decoration: none; padding: 5px 15px;">Review Now</a>
+                                <a href="admin_manage_education.php" class="pending-badge"
+                                    style="background: #3b82f6; color: white; text-decoration: none; padding: 5px 15px;">Review
+                                    Now</a>
                             </div>
                         </div>
                     <?php endwhile; ?>
@@ -265,7 +211,8 @@ $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM education
                         <div class="log-item">
                             <div>
                                 <div class="log-action"><?php echo htmlspecialchars($log['action']); ?></div>
-                                <div style="font-size: 13px; color: #666;"><?php echo htmlspecialchars($log['description']); ?></div>
+                                <div style="font-size: 13px; color: #666;"><?php echo htmlspecialchars($log['description']); ?>
+                                </div>
                             </div>
                             <div class="log-time"><?php echo date('M d, Y H:i', strtotime($log['created_at'])); ?></div>
                         </div>
@@ -277,21 +224,13 @@ $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM education
         </section>
     </main>
 
-    <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
-
-        function showSection(sectionId) {
-            document.querySelectorAll('.section').forEach(section => {
-                section.classList.remove('active');
-                section.classList.add('hidden');
-            });
-            document.getElementById(sectionId)?.classList.remove('hidden');
-            document.getElementById(sectionId)?.classList.add('active');
-        }
-    </script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/sidebar.js"></script>
 </body>
 </html>
-<?php $admin_conn->close(); ?>
+
+<?php
+$patients_conn->close();
+$doctors_conn->close();
+$admin_conn->close();
+?>
