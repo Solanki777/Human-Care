@@ -5,262 +5,130 @@ if (!isset($_SESSION['admin_logged_in'])) {
     header("Location: admin_login.php");
     exit();
 }
+require_once __DIR__ . '/../config/config.php';
 
-$conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
-$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+
+$conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_DOCTORS
+);
+
+$admin_conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_ADMIN
+);
 $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
 $admin_conn->close();
 
-// Handle approval/rejection
-if (isset($_POST['action'])) {
-    $doctor_id = $_POST['doctor_id'];
+// Handle doctor approval, rejection, and deletion
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['doctor_id'])) {
+    $doctor_id = filter_input(INPUT_POST, 'doctor_id', FILTER_VALIDATE_INT);
     $action = $_POST['action'];
 
-    if ($action === 'approve') {
-        // Get doctor details for email
-        $doctor_stmt = $conn->prepare("SELECT email, first_name, last_name FROM doctors WHERE id = ?");
-        $doctor_stmt->bind_param("i", $doctor_id);
-        $doctor_stmt->execute();
-        $doctor_info = $doctor_stmt->get_result()->fetch_assoc();
-        $doctor_stmt->close();
-
-        // Update doctor status
-        $stmt = $conn->prepare("UPDATE doctors SET is_verified = 1, verification_status = 'approved', verified_by = ?, verified_at = NOW() WHERE id = ?");
+    if (!$doctor_id || !in_array($action, ['approve', 'reject', 'delete'], true)) {
+        $message = "Invalid doctor action.";
+    } elseif ($action === 'approve') {
+        $stmt = $conn->prepare(
+            "UPDATE doctors
+             SET is_verified = 1,
+                 verification_status = 'approved',
+                 verified_by = ?,
+                 verified_at = NOW()
+             WHERE id = ?"
+        );
         $stmt->bind_param("ii", $_SESSION['admin_id'], $doctor_id);
         $stmt->execute();
-
-        // Send approval email
-        $to = $doctor_info['email'];
-        $subject = "Account Approved - Human Care Hospital";
-        $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
-
-        $email_message = "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-                .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-                .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-                .credentials { background: white; padding: 15px; border-left: 4px solid #667eea; margin: 20px 0; }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
-                    <h1>✅ Account Approved!</h1>
-                </div>
-                <div class='content'>
-                    <p>Dear Dr. $doctor_name,</p>
-                    
-                    <p>Congratulations! Your doctor account has been approved by our admin team.</p>
-                    
-                    <p>You can now login to your dashboard and start providing medical services through our platform.</p>
-                    
-                    <div class='credentials'>
-                        <strong>Your Login Credentials:</strong><br>
-                        Email: $to<br>
-                        Password: (The password you set during registration)
-                    </div>
-                    
-                    <p style='text-align: center;'>
-                        <a href='http://localhost/humancare/login.php' class='button'>Login Now</a>
-                    </p>
-                    
-                    <p><strong>Next Steps:</strong></p>
-                    <ul>
-                        <li>Login to your doctor dashboard</li>
-                        <li>Complete your profile information</li>
-                        <li>Set your availability schedule</li>
-                        <li>Start accepting patient appointments</li>
-                    </ul>
-                    
-                    <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
-                    
-                    <p>Best regards,<br>
-                    <strong>Human Care Hospital Team</strong></p>
-                </div>
-                <div class='footer'>
-                    <p>This is an automated email. Please do not reply to this message.</p>
-                    <p>© 2025 Human Care Hospital. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        ";
-
-        // Email headers
-        $headers = "MIME-Version: 1.0" . "\r\n";
-        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-        $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
-
-        // Send email
-        if (mail($to, $subject, $email_message, $headers)) {
-            $message = "Doctor approved successfully! Email notification sent to " . $to;
-        } else {
-            $message = "Doctor approved successfully! (Email notification failed to send)";
-        }
+        $message = $stmt->affected_rows > 0
+            ? "Doctor approved successfully!"
+            : "Doctor was not found or is already approved.";
+        $stmt->close();
 
     } elseif ($action === 'reject') {
-        $reason = $_POST['reason'] ?? 'Not specified';
-
-        // Get doctor details for email
-        $doctor_stmt = $conn->prepare("SELECT email, first_name, last_name FROM doctors WHERE id = ?");
-        $doctor_stmt->bind_param("i", $doctor_id);
-        $doctor_stmt->execute();
-        $doctor_info = $doctor_stmt->get_result()->fetch_assoc();
-        $doctor_stmt->close();
-
-        // Update doctor status
-        $stmt = $conn->prepare("UPDATE doctors SET is_verified = 0, verification_status = 'rejected', rejection_reason = ?, verified_by = ?, verified_at = NOW() WHERE id = ?");
-        $stmt->bind_param("sii", $reason, $_SESSION['admin_id'], $doctor_id);
-        $stmt->execute();
-
-        // Send rejection email
-        $to = $doctor_info['email'];
-        $subject = "Account Verification Update - Human Care Hospital";
-        $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
-
-        $email_message = "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-                .reason-box { background: white; padding: 15px; border-left: 4px solid #ff6b6b; margin: 20px 0; }
-                .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
-                    <h1>Account Verification Update</h1>
-                </div>
-                <div class='content'>
-                    <p>Dear Dr. $doctor_name,</p>
-                    
-                    <p>Thank you for your interest in joining Human Care Hospital.</p>
-                    
-                    <p>After careful review, we regret to inform you that your doctor account application has not been approved at this time.</p>
-                    
-                    <div class='reason-box'>
-                        <strong>Reason:</strong><br>
-                        $reason
-                    </div>
-                    
-                    <p><strong>What you can do:</strong></p>
-                    <ul>
-                        <li>Review the rejection reason carefully</li>
-                        <li>Contact our support team for clarification</li>
-                        <li>Reapply with updated/corrected information</li>
-                    </ul>
-                    
-                    <p>If you believe this decision was made in error or if you have additional documentation to support your application, please contact our support team at support@humancare.com</p>
-                    
-                    <p>Best regards,<br>
-                    <strong>Human Care Hospital Team</strong></p>
-                </div>
-                <div class='footer'>
-                    <p>This is an automated email. Please do not reply to this message.</p>
-                    <p>© 2025 Human Care Hospital. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        ";
-
-        $headers = "MIME-Version: 1.0" . "\r\n";
-        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-        $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
-
-        mail($to, $subject, $email_message, $headers);
-        $message = "Doctor rejected! Email notification sent.";
+        $reason = trim($_POST['reason'] ?? '');
+        if ($reason === '') {
+            $message = "Please provide a rejection reason.";
+        } else {
+            $stmt = $conn->prepare(
+                "UPDATE doctors
+                 SET is_verified = 0,
+                     verification_status = 'rejected',
+                     rejection_reason = ?,
+                     verified_by = ?,
+                     verified_at = NOW()
+                 WHERE id = ?"
+            );
+            $stmt->bind_param("sii", $reason, $_SESSION['admin_id'], $doctor_id);
+            $stmt->execute();
+            $message = $stmt->affected_rows > 0
+                ? "Doctor rejected successfully!"
+                : "Doctor was not found or no changes were made.";
+            $stmt->close();
+        }
 
     } elseif ($action === 'delete') {
-        // Get doctor details before deletion
-        $doctor_stmt = $conn->prepare("SELECT first_name, last_name, email, specialty FROM doctors WHERE id = ?");
+        $doctor_stmt = $conn->prepare(
+            "SELECT first_name, last_name, specialty FROM doctors WHERE id = ?"
+        );
         $doctor_stmt->bind_param("i", $doctor_id);
         $doctor_stmt->execute();
         $doctor_info = $doctor_stmt->get_result()->fetch_assoc();
         $doctor_stmt->close();
 
-        // Soft delete - mark as deleted instead of actually deleting
-        $stmt = $conn->prepare("UPDATE doctors SET is_deleted = 1, deleted_by = ?, deleted_at = NOW(), is_verified = 0, verification_status = 'deleted' WHERE id = ?");
-        $stmt->bind_param("ii", $_SESSION['admin_id'], $doctor_id);
-        $stmt->execute();
+        if (!$doctor_info) {
+            $message = "Doctor not found.";
+        } else {
+            // Soft delete the doctor.
+            $stmt = $conn->prepare(
+                "UPDATE doctors
+                 SET is_deleted = 1,
+                     deleted_by = ?,
+                     deleted_at = NOW(),
+                     is_verified = 0,
+                     verification_status = 'deleted'
+                 WHERE id = ?"
+            );
+            $stmt->bind_param("ii", $_SESSION['admin_id'], $doctor_id);
+            $stmt->execute();
+            $stmt->close();
 
-        // Cancel all pending appointments
-        $cancel_stmt = $conn->prepare("UPDATE doctor_appointments SET status = 'cancelled', admin_notes = 'Doctor has left the hospital' WHERE doctor_id = ? AND status = 'pending'");
-        $cancel_stmt->bind_param("i", $doctor_id);
-        $cancel_stmt->execute();
+            // Cancel pending appointments for this doctor.
+            $cancel_stmt = $conn->prepare(
+                "UPDATE doctor_appointments
+                 SET status = 'cancelled',
+                     admin_notes = 'Doctor has left the hospital'
+                 WHERE doctor_id = ? AND status = 'pending'"
+            );
+            $cancel_stmt->bind_param("i", $doctor_id);
+            $cancel_stmt->execute();
+            $cancel_stmt->close();
 
-        // Send notification email to doctor
-        $to = $doctor_info['email'];
-        $subject = "Account Deactivated - Human Care Hospital";
-        $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
-
-        $email_message = "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: #333; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-                .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
-                    <h1>Account Deactivated</h1>
-                </div>
-                <div class='content'>
-                    <p>Dear Dr. $doctor_name,</p>
-                    
-                    <p>Your doctor account with Human Care Hospital has been deactivated.</p>
-                    
-                    <p>Your profile has been removed from our public listing and you will no longer be able to access the doctor dashboard.</p>
-                    
-                    <p>If you have any questions or concerns regarding this action, please contact our administration team.</p>
-                    
-                    <p>Thank you for your service at Human Care Hospital.</p>
-                    
-                    <p>Best regards,<br>
-                    <strong>Human Care Hospital Administration</strong></p>
-                </div>
-                <div class='footer'>
-                    <p>© 2025 Human Care Hospital. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        ";
-
-        $headers = "MIME-Version: 1.0" . "\r\n";
-        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-        $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
-
-        mail($to, $subject, $email_message, $headers);
-
-        $message = "Doctor account deleted successfully! Dr. " . $doctor_name . " (" . $doctor_info['specialty'] . ") has been removed from the system.";
+            $doctor_name = $doctor_info['first_name'] . ' ' . $doctor_info['last_name'];
+            $message = "Doctor account deleted successfully! Dr. "
+                . htmlspecialchars($doctor_name, ENT_QUOTES, 'UTF-8')
+                . " (" . htmlspecialchars($doctor_info['specialty'], ENT_QUOTES, 'UTF-8')
+                . ") has been removed from the system.";
+        }
     }
 
-    // Log activity
-    $admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
-    $log_stmt = $admin_conn->prepare("INSERT INTO activity_logs (admin_id, action, description) VALUES (?, ?, ?)");
-    $log_action = "doctor_$action";
-    $log_desc = "Doctor ID $doctor_id was $action" . "d";
-    $log_stmt->bind_param("iss", $_SESSION['admin_id'], $log_action, $log_desc);
-    $log_stmt->execute();
-    $admin_conn->close();
+    // Log the admin action using the configured admin database.
+    $admin_conn = new mysqli(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_ADMIN);
+    if (!$admin_conn->connect_error) {
+        $log_stmt = $admin_conn->prepare(
+            "INSERT INTO activity_logs (admin_id, action, description) VALUES (?, ?, ?)"
+        );
+        if ($log_stmt) {
+            $log_action = "doctor_" . $action;
+            $log_desc = "Doctor ID " . $doctor_id . " was " . $action . "d";
+            $log_stmt->bind_param("iss", $_SESSION['admin_id'], $log_action, $log_desc);
+            $log_stmt->execute();
+            $log_stmt->close();
+        }
+        $admin_conn->close();
+    }
 }
 
 // Get all doctors
@@ -279,6 +147,9 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Doctors - Admin Panel</title>
     <link rel="stylesheet" href="styles/dashboard.css">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/sidebar.css">
+    
     <style>
         .tabs {
             display: flex;
@@ -483,7 +354,9 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
 </head>
 
 <body>
-    <?php include 'includes/admin_sidebar.php'; ?>
+     <?php
+    require_once __DIR__ . '/includes/admin_sidebar.php';
+    ?>
 
 
 
@@ -558,7 +431,7 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                             <form method="POST" style="display: inline;">
                                 <input type="hidden" name="doctor_id" value="<?php echo $doctor['id']; ?>">
                                 <input type="hidden" name="action" value="approve">
-                                <button type="submit" class="btn btn-approve">✓ Approve & Send Email</button>
+                                <button type="submit" class="btn btn-approve">✓ Approve</button>
                             </form>
                             <button class="btn btn-reject" onclick="showRejectModal(<?php echo $doctor['id']; ?>)">✗
                                 Reject</button>
@@ -711,48 +584,16 @@ $deleted_doctors = $conn->query("SELECT * FROM doctors WHERE is_deleted = 1 ORDE
                 <label>Reason for rejection:</label>
                 <textarea name="reason" rows="4" required placeholder="Enter reason..."></textarea>
                 <div style="display: flex; gap: 10px;">
-                    <button type="submit" class="btn btn-reject">Reject & Send Email</button>
+                    <button type="submit" class="btn btn-reject">Reject</button>
                     <button type="button" class="btn" onclick="closeRejectModal()">Cancel</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
-
-        function showTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-            event.target.classList.add('active');
-            document.getElementById(tabName).classList.add('active');
-        }
-
-        function showRejectModal(doctorId) {
-            document.getElementById('reject_doctor_id').value = doctorId;
-            document.getElementById('rejectModal').classList.add('active');
-        }
-
-        function closeRejectModal() {
-            document.getElementById('rejectModal').classList.remove('active');
-        }
-
-        function confirmDelete(doctorId, doctorName) {
-            document.getElementById('delete_doctor_id').value = doctorId;
-            document.getElementById('deleteMessage').innerHTML =
-                `Are you sure you want to delete <strong>Dr. ${doctorName}</strong>?`;
-            document.getElementById('deleteModal').classList.add('active');
-        }
-
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('active');
-        }
-    </script>
+   
 </body>
+<script src="js/manage_doctors.js"></script>
 
 </html>
 <?php $conn->close(); ?>

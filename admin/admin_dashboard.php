@@ -225,7 +225,7 @@ $pending_education = $admin_conn
     </main>
 
     <script src="js/dashboard.js"></script>
-    <script src="js/sidebar.js"></script>
+    
 </body>
 </html>
 

@@ -1,11 +1,11 @@
 <?php
 
-require_once __DIR__ . '/includes/session.php';
-
 // rest of your existing login.php code...
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/auth/block_handler.php';
 require_once __DIR__ . '/auth/login_database.php';
 require_once __DIR__ . '/auth/login_handler.php';
