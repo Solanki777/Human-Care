@@ -5,8 +5,15 @@ if (!isset($_SESSION['admin_logged_in'])) {
     header("Location: admin_login.php");
     exit();
 }
+$active_page = 'doctors';
+require_once __DIR__ . '/../config/config.php';
 
-$conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
+$conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_DOCTORS
+);
 
 $doctor_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $message = "";
@@ -92,7 +99,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($stmt->execute()) {
             // Log activity
-            $admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+            $admin_conn = new mysqli(
+                DB_HOST,
+                DB_USERNAME,
+                DB_PASSWORD,
+                DB_ADMIN
+            );
             $log_stmt = $admin_conn->prepare("INSERT INTO activity_logs (admin_id, action, description) VALUES (?, ?, ?)");
             $log_action = "doctor_update";
             $log_desc = "Updated doctor ID $doctor_id: Dr. $first_name $last_name";
@@ -129,230 +141,17 @@ $stmt->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Doctor - Admin Panel</title>
-    <link rel="stylesheet" href="styles/dashboard.css">
-    <style>
-        .edit-container {
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-
-        .form-card {
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 30px;
-        }
-
-        .form-section {
-            margin-bottom: 35px;
-        }
-
-        .section-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e0e0e0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .required {
-            color: #ef4444;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 14px;
-            font-family: inherit;
-            transition: all 0.3s;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .form-group textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-
-        .form-hint {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 14px 30px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 15px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-secondary {
-            background: #f3f4f6;
-            color: #333;
-        }
-
-        .btn-secondary:hover {
-            background: #e5e7eb;
-        }
-
-        .btn-preview {
-            background: #10b981;
-            color: white;
-        }
-
-        .btn-preview:hover {
-            background: #059669;
-        }
-
-        .success-message {
-            background: #d1fae5;
-            color: #065f46;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 4px solid #10b981;
-        }
-
-        .error-message {
-            background: #fee2e2;
-            color: #991b1b;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 4px solid #ef4444;
-        }
-
-        .doctor-preview {
-            background: #f9fafb;
-            padding: 25px;
-            border-radius: 10px;
-            margin-top: 20px;
-        }
-
-        .preview-title {
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 16px;
-        }
-
-        .character-count {
-            font-size: 12px;
-            color: #999;
-            text-align: right;
-            margin-top: 5px;
-        }
-
-        .status-info {
-            background: #e0e7ff;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-
-        .status-info strong {
-            color: #667eea;
-        }
-    </style>
+    
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/sidebar.css">
+    <link rel="stylesheet" href="styles/admin_edit_doctor.css">
+    
 </head>
 <body>
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">🛡️</div>
-            ADMIN PANEL
-        </div>
-        <div class="user-profile">
-            <div class="user-avatar">👨‍💼</div>
-            <div class="user-info">
-                <h3><?php echo htmlspecialchars($_SESSION['admin_name']); ?></h3>
-            </div>
-        </div>
-        <nav>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a class="nav-link" href="admin_dashboard.php">
-                        <span class="nav-icon">🏠</span>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" href="admin_doctors.php">
-                        <span class="nav-icon">👨‍⚕️</span>
-                        <span>Manage Doctors</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="admin_patients.php">
-                        <span class="nav-icon">👥</span>
-                        <span>Manage Patients</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-        <form method="post" action="admin_logout.php">
-            <button class="logout-btn" type="submit">🚪 Logout</button>
-        </form>
-    </aside>
-
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
+    <?php
+    require_once __DIR__ . '/includes/admin_sidebar.php';
+    ?>
+    
     <main class="main-content">
         <div class="edit-container">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
@@ -529,9 +328,7 @@ $stmt->close();
                         <button type="submit" class="btn btn-primary">
                             💾 Save Changes
                         </button>
-                        <a href="doctors.php" target="_blank" class="btn btn-preview">
-                            👁️ Preview on Public Page
-                        </a>
+
                         <a href="admin_doctors.php" class="btn btn-secondary">
                             ✕ Cancel
                         </a>
@@ -542,10 +339,7 @@ $stmt->close();
     </main>
 
     <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
+       
 
         function updateCharCount() {
             const text = document.getElementById('aboutText').value;
