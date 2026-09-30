@@ -6,6 +6,10 @@ if (!isset($_SESSION['admin_logged_in'])) {
     exit();
 }
 
+$active_page = 'doctors';
+require_once __DIR__ . '/../config/config.php';
+
+
 // Get patient ID from URL
 $patient_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
@@ -15,7 +19,13 @@ if ($patient_id === 0) {
 }
 
 // Connect to patients database
-$patients_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_patients");
+$patients_conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_PATIENTS
+);
+
 
 if ($patients_conn->connect_error) {
     die("Connection failed: " . $patients_conn->connect_error);
@@ -36,7 +46,12 @@ $patient = $result->fetch_assoc();
 $stmt->close();
 
 // Connect to admin database for appointments
-$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+$admin_conn  = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_ADMIN
+);
 
 // Get all appointments for this patient (ordered by appointment time in ascending order)
 $appointments_stmt = $admin_conn->prepare("
@@ -75,7 +90,12 @@ $pending_appointments = $counts['pending'];
 $rejected_appointments = $counts['rejected'];
 
 // Get doctor pending count for sidebar
-$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
+$doctors_conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_DOCTORS
+);
 $pending_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors WHERE verification_status = 'pending'")->fetch_assoc()['count'];
 $doctors_conn->close();
 
@@ -89,389 +109,18 @@ $pending_patients_count = $patients_conn->query("SELECT COUNT(*) as count FROM p
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Profile - <?php echo htmlspecialchars($patient['first_name'] . ' ' . $patient['last_name']); ?></title>
-    <link rel="stylesheet" href="styles/dashboard.css">
-    <style>
-        .profile-container {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            overflow: hidden;
-            margin-bottom: 30px;
-        }
 
-        .profile-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 40px;
-            color: white;
-            text-align: center;
-        }
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/sidebar.css">
 
-        .profile-avatar {
-            width: 120px;
-            height: 120px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 60px;
-            margin: 0 auto 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        .profile-name {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .profile-email {
-            font-size: 16px;
-            opacity: 0.9;
-            margin-bottom: 15px;
-        }
-
-        .profile-status {
-            display: inline-block;
-            padding: 8px 20px;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .status-verified {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .status-pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .status-suspended {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .profile-body {
-            padding: 30px;
-        }
-
-        .section-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .info-item {
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-        }
-
-        .info-label {
-            font-size: 12px;
-            color: #999;
-            font-weight: 600;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .info-value {
-            font-size: 16px;
-            color: #333;
-            font-weight: 600;
-        }
-
-        .back-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
-            background: #f3f4f6;
-            color: #333;
-            text-decoration: none;
-            border-radius: 10px;
-            font-weight: 600;
-            transition: all 0.3s;
-            margin-bottom: 20px;
-        }
-
-        .back-btn:hover {
-            background: #e5e7eb;
-            transform: translateX(-5px);
-        }
-
-        .appointments-section {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            padding: 30px;
-            margin-bottom: 30px;
-        }
-
-        .appointment-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        .stat-box {
-            text-align: center;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 10px;
-        }
-
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            font-size: 13px;
-            color: #666;
-            font-weight: 500;
-        }
-
-        .stat-box.total .stat-number { color: #3b82f6; }
-        .stat-box.approved .stat-number { color: #10b981; }
-        .stat-box.pending .stat-number { color: #f59e0b; }
-        .stat-box.rejected .stat-number { color: #ef4444; }
-
-        .appointment-card {
-            background: #f9fafb;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            border-left: 4px solid #667eea;
-            transition: all 0.3s;
-        }
-
-        .appointment-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            transform: translateX(5px);
-        }
-
-        .appointment-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-        }
-
-        .doctor-name {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
-        }
-
-        .appointment-date-time {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .date-badge, .time-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .date-badge {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-
-        .time-badge {
-            background: #fce7f3;
-            color: #9f1239;
-        }
-
-        .appointment-status {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .appointment-status.approved {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .appointment-status.pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .appointment-status.rejected {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .appointment-reason {
-            margin-top: 10px;
-            padding: 10px;
-            background: white;
-            border-radius: 6px;
-            font-size: 14px;
-            color: #666;
-        }
-
-        .rejection-reason {
-            margin-top: 10px;
-            padding: 10px;
-            background: #fee2e2;
-            border-radius: 6px;
-            font-size: 13px;
-            color: #991b1b;
-        }
-
-        .no-appointments {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
-
-        .no-appointments-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .admin-badge {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-left: 10px;
-        }
-
-        .pending-badge {
-            background: #fef3c7;
-            color: #92400e;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .nav-link.admin-nav {
-            background: rgba(30, 60, 114, 0.1);
-        }
-
-        .nav-link.admin-nav:hover {
-            background: rgba(30, 60, 114, 0.2);
-        }
-
-        .appointment-created {
-            font-size: 12px;
-            color: #999;
-            margin-top: 10px;
-        }
-
-        @media (max-width: 768px) {
-            .info-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .appointment-stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .appointment-date-time {
-                flex-direction: column;
-                gap: 8px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="styles/admin_patient_profile.css">
+    
 </head>
 <body>
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <div class="logo-icon">🛡️</div>
-            ADMIN PANEL
-        </div>
-
-        <!-- Admin Profile -->
-        <div class="user-profile">
-            <div class="user-avatar">👨‍💼</div>
-            <div class="user-info">
-                <h3><?php echo htmlspecialchars($_SESSION['admin_name']); ?></h3>
-                <span class="admin-badge">ADMINISTRATOR</span>
-            </div>
-        </div>
-
-        <!-- Navigation Menu -->
-        <nav>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_dashboard.php">
-                        <span class="nav-icon">🏠</span>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_doctors.php">
-                        <span class="nav-icon">👨‍⚕️</span>
-                        <span>Manage Doctors</span>
-                        <?php if ($pending_doctors > 0): ?>
-                            <span class="pending-badge"><?php echo $pending_doctors; ?></span>
-                        <?php endif; ?>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav active" href="admin_patients.php">
-                        <span class="nav-icon">👥</span>
-                        <span>Manage Patients</span>
-                        <?php if ($pending_patients_count > 0): ?>
-                            <span class="pending-badge"><?php echo $pending_patients_count; ?></span>
-                        <?php endif; ?>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link admin-nav" href="admin_appointments.php">
-                        <span class="nav-icon">📅</span>
-                        <span>Appointments</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-
-        <!-- Logout Button -->
-        <form method="post" action="admin_logout.php">
-            <button class="logout-btn" type="submit">🚪 Logout</button>
-        </form>
-    </aside>
-
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <?php
+    require_once __DIR__ . '/includes/admin_sidebar.php';
+    ?>
+    
 
     <!-- Main Content -->
     <main class="main-content">

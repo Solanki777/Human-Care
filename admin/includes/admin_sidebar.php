@@ -108,6 +108,7 @@ $nav_items = [
         'icon' => '📊',
         'url' => 'admin_dashboard.php'
     ],
+    
     [
         'id' => 'doctors',
         'label' => 'Manage Doctors',
