@@ -1,12 +1,23 @@
 <?php
-require_once __DIR__ . '/config/config.php';
+
+session_start();
+
+require_once __DIR__ . '/../config/config.php';
+
+
 
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header("Location: admin_login.php");
     exit();
 }
+$active_page = 'patients';
 
-$conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_patients");
+$conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_PATIENTS
+);
 
 // Handle patient actions (verify, suspend, delete)
 if (isset($_POST['action'])) {
@@ -111,18 +122,42 @@ if (isset($_POST['action'])) {
 
 // Search functionality
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
-$filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
+$allowed_filters = ['all', 'verified', 'pending', 'suspended'];
+$filter = isset($_GET['filter']) && in_array($_GET['filter'], $allowed_filters, true)
+    ? $_GET['filter']
+    : 'all';
 
 // Build safe query with prepared statements
 $where_clause = "WHERE 1=1";
 $params = [];
 $types = '';
 
-if (!empty($search)) {
-    $where_clause .= " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)";
+if ($search !== '') {
+    // Match first name, last name, full name, email, or mobile number.
+    // Remove common phone-number formatting from the search term so users
+    // can search using digits even if the stored number contains separators.
     $searchParam = '%' . $search . '%';
-    $params = array_merge($params, [$searchParam, $searchParam, $searchParam, $searchParam]);
-    $types .= 'ssss';
+    $phoneSearch = preg_replace('/[\\s()+.-]/', '', $search);
+    $phoneSearchParam = '%' . $phoneSearch . '%';
+
+    $where_clause .= " AND (
+        first_name LIKE ?
+        OR last_name LIKE ?
+        OR CONCAT_WS(' ', first_name, last_name) LIKE ?
+        OR email LIKE ?
+        OR phone LIKE ?
+        OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE ?
+    )";
+
+    $params = array_merge($params, [
+        $searchParam,
+        $searchParam,
+        $searchParam,
+        $searchParam,
+        $searchParam,
+        $phoneSearchParam
+    ]);
+    $types .= 'ssssss';
 }
 
 if ($filter === 'verified') {
@@ -149,11 +184,21 @@ $pending_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE v
 $suspended_patients = $conn->query("SELECT COUNT(*) as count FROM patients WHERE is_verified = 0 AND verification_status = 'rejected'")->fetch_assoc()['count'];
 
 // Get doctor pending count for sidebar badge
-$doctors_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_doctors");
+$doctors_conn = new mysqli(
+                DB_HOST,
+                DB_USERNAME,
+                DB_PASSWORD,
+                DB_DOCTORS
+            );
 $pending_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors WHERE verification_status = 'pending'")->fetch_assoc()['count'];
 $doctors_conn->close();
 
-$admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+$admin_conn = new mysqli(
+                DB_HOST,
+                DB_USERNAME,
+                DB_PASSWORD,
+                DB_ADMIN
+            );
 $pending_education = $admin_conn->query("SELECT COUNT(*) as count FROM educational_content WHERE status = 'pending'")->fetch_assoc()['count'];
 $admin_conn->close();
 ?>
@@ -164,380 +209,14 @@ $admin_conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Patients - Admin Panel</title>
+    
     <link rel="stylesheet" href="styles/dashboard.css">
-    <style>
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/sidebar.css">
+    <link rel="stylesheet" href="styles/admin_doctors.css">
+    <link rel="stylesheet" href="styles/admin_patient.css">
 
-        .stat-card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            text-align: center;
-            transition: transform 0.3s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-
-        .stat-icon {
-            font-size: 40px;
-            margin-bottom: 10px;
-        }
-
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-
-        .stat-card.total .stat-number { color: #3b82f6; }
-        .stat-card.verified .stat-number { color: #10b981; }
-        .stat-card.pending .stat-number { color: #f59e0b; }
-        .stat-card.suspended .stat-number { color: #ef4444; }
-
-        .stat-label {
-            color: #666;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .search-filter-section {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 30px;
-        }
-
-        .search-form {
-            display: grid;
-            grid-template-columns: 2fr 1fr auto auto;
-            gap: 15px;
-            align-items: end;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .search-btn, .clear-btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-        }
-
-        .search-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .search-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .clear-btn {
-            background: #f3f4f6;
-            color: #333;
-        }
-
-        .clear-btn:hover {
-            background: #e5e7eb;
-        }
-
-        .patient-card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            transition: all 0.3s;
-        }
-
-        .patient-card:hover {
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-
-        .patient-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .patient-info {
-            flex: 1;
-        }
-
-        .patient-name {
-            font-size: 20px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 8px;
-        }
-
-        .patient-email {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .status-verified {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .status-pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        .status-suspended {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .patient-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .detail-item {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .detail-label {
-            font-size: 12px;
-            color: #999;
-            font-weight: 600;
-        }
-
-        .detail-value {
-            font-size: 14px;
-            color: #333;
-            font-weight: 500;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn-verify {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-        }
-
-        .btn-verify:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
-        .btn-suspend {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: white;
-        }
-
-        .btn-suspend:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-        }
-
-        .btn-view {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-        }
-
-        .btn-view:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-
-        .btn-delete {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-
-        .btn-delete:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-        }
-
-        .no-results {
-            text-align: center;
-            padding: 60px 20px;
-            background: white;
-            border-radius: 15px;
-        }
-
-        .no-results-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
-
-        .no-results h3 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .no-results p {
-            color: #666;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        .modal-header {
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 20px;
-        }
-
-        .modal-body {
-            margin-bottom: 25px;
-            color: #666;
-            line-height: 1.6;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-
-        .admin-badge {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-left: 10px;
-        }
-
-        .pending-badge {
-            background: #fef3c7;
-            color: #92400e;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .nav-link.admin-nav {
-            background: rgba(30, 60, 114, 0.1);
-        }
-
-        .nav-link.admin-nav:hover {
-            background: rgba(30, 60, 114, 0.2);
-        }
-
-        @media (max-width: 768px) {
-            .search-form {
-                grid-template-columns: 1fr;
-            }
-
-            .patient-details {
-                grid-template-columns: 1fr;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-        }
-    </style>
+   
 </head>
 <body>
     <?php include 'includes/admin_sidebar.php'; ?>
@@ -588,7 +267,7 @@ $admin_conn->close();
                 </div>
                 <div class="form-group">
                     <label>📊 Filter by Status</label>
-                    <select name="filter">
+                    <select name="filter" onchange="this.form.submit()">
                         <option value="all" <?php echo $filter === 'all' ? 'selected' : ''; ?>>All Patients</option>
                         <option value="verified" <?php echo $filter === 'verified' ? 'selected' : ''; ?>>Verified Only</option>
                         <option value="pending" <?php echo $filter === 'pending' ? 'selected' : ''; ?>>Pending Only</option>
@@ -711,10 +390,7 @@ $admin_conn->close();
     </div>
 
     <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
+
 
         function confirmAction(patientId, action, patientName) {
             const modal = document.getElementById('confirmModal');
