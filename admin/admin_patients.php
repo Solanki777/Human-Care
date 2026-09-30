@@ -30,73 +30,8 @@ if (isset($_POST['action'])) {
         $stmt->bind_param("ii", $_SESSION['admin_id'], $patient_id);
         $stmt->execute();
         
-        // Get patient details for email
-        $patient_stmt = $conn->prepare("SELECT email, first_name, last_name FROM patients WHERE id = ?");
-        $patient_stmt->bind_param("i", $patient_id);
-        $patient_stmt->execute();
-        $patient_info = $patient_stmt->get_result()->fetch_assoc();
-        $patient_stmt->close();
         
-        // Send approval email
-        $to = $patient_info['email'];
-        $subject = "Account Verified - Human Care Hospital";
-        $patient_name = $patient_info['first_name'] . ' ' . $patient_info['last_name'];
-        
-        $email_message = "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-                .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-                .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
-                    <h1>✅ Account Verified!</h1>
-                </div>
-                <div class='content'>
-                    <p>Dear $patient_name,</p>
-                    
-                    <p>Great news! Your patient account has been verified by our admin team.</p>
-                    
-                    <p>You now have full access to all features of Human Care Hospital platform.</p>
-                    
-                    <p style='text-align: center;'>
-                        <a href='http://localhost/vscode/login.php' class='button'>Login to Dashboard</a>
-                    </p>
-                    
-                    <p><strong>What you can do now:</strong></p>
-                    <ul>
-                        <li>Book appointments with doctors</li>
-                        <li>Access your medical records</li>
-                        <li>Manage prescriptions</li>
-                        <li>Track your health metrics</li>
-                    </ul>
-                    
-                    <p>Best regards,<br>
-                    <strong>Human Care Hospital Team</strong></p>
-                </div>
-                <div class='footer'>
-                    <p>© 2025 Human Care Hospital. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        ";
-        
-        $headers = "MIME-Version: 1.0" . "\r\n";
-        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-        $headers .= "From: Human Care Hospital <noreply@humancare.com>" . "\r\n";
-        
-        mail($to, $subject, $email_message, $headers);
-        $message = "Patient verified successfully! Email notification sent.";
-        
+    
     } elseif ($action === 'suspend') {
         $stmt = $conn->prepare("UPDATE patients SET is_verified = 0, verification_status = 'rejected' WHERE id = ?");
         $stmt->bind_param("i", $patient_id);
@@ -111,7 +46,12 @@ if (isset($_POST['action'])) {
     }
     
     // Log activity
-    $admin_conn = new mysqli("sql205.infinityfree.com", "if0_42370337", "6yFxYkbKGy", "if0_42370337_human_care_admin");
+    $admin_conn = new mysqli(
+    DB_HOST,
+    DB_USERNAME,
+    DB_PASSWORD,
+    DB_ADMIN
+);
     $log_stmt = $admin_conn->prepare("INSERT INTO activity_logs (admin_id, action, description) VALUES (?, ?, ?)");
     $log_action = "patient_$action";
     $log_desc = "Patient ID $patient_id - action: $action";

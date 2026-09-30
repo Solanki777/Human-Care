@@ -96,6 +96,7 @@ $doctors_conn = new mysqli(
     DB_PASSWORD,
     DB_DOCTORS
 );
+
 $pending_doctors = $doctors_conn->query("SELECT COUNT(*) as count FROM doctors WHERE verification_status = 'pending'")->fetch_assoc()['count'];
 $doctors_conn->close();
 
